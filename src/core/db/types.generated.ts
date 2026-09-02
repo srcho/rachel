@@ -1,0 +1,490 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+  public: {
+    Tables: {
+      domain_events: {
+        Row: {
+          actor: string;
+          entity_id: string;
+          entity_type: string;
+          id: number;
+          occurred_at: string;
+          payload: Json;
+          type: string;
+          user_id: string;
+        };
+        Insert: {
+          actor?: string;
+          entity_id: string;
+          entity_type: string;
+          id?: never;
+          occurred_at?: string;
+          payload?: Json;
+          type: string;
+          user_id?: string;
+        };
+        Update: {
+          actor?: string;
+          entity_id?: string;
+          entity_type?: string;
+          id?: never;
+          occurred_at?: string;
+          payload?: Json;
+          type?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      integrations: {
+        Row: {
+          account_email: string | null;
+          created_at: string;
+          id: string;
+          last_error: string | null;
+          last_synced_at: string | null;
+          provider: string;
+          scopes: string[];
+          status: string;
+          sync_cursor: Json;
+          updated_at: string;
+          user_id: string;
+          vault_secret_id: string | null;
+        };
+        Insert: {
+          account_email?: string | null;
+          created_at?: string;
+          id?: string;
+          last_error?: string | null;
+          last_synced_at?: string | null;
+          provider: string;
+          scopes?: string[];
+          status?: string;
+          sync_cursor?: Json;
+          updated_at?: string;
+          user_id?: string;
+          vault_secret_id?: string | null;
+        };
+        Update: {
+          account_email?: string | null;
+          created_at?: string;
+          id?: string;
+          last_error?: string | null;
+          last_synced_at?: string | null;
+          provider?: string;
+          scopes?: string[];
+          status?: string;
+          sync_cursor?: Json;
+          updated_at?: string;
+          user_id?: string;
+          vault_secret_id?: string | null;
+        };
+        Relationships: [];
+      };
+      jobs: {
+        Row: {
+          attempts: number;
+          created_at: string;
+          dedupe_key: string | null;
+          id: string;
+          last_error: string | null;
+          locked_at: string | null;
+          max_attempts: number;
+          payload: Json;
+          run_at: string;
+          status: string;
+          type: string;
+          updated_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          attempts?: number;
+          created_at?: string;
+          dedupe_key?: string | null;
+          id?: string;
+          last_error?: string | null;
+          locked_at?: string | null;
+          max_attempts?: number;
+          payload?: Json;
+          run_at?: string;
+          status?: string;
+          type: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          attempts?: number;
+          created_at?: string;
+          dedupe_key?: string | null;
+          id?: string;
+          last_error?: string | null;
+          locked_at?: string | null;
+          max_attempts?: number;
+          payload?: Json;
+          run_at?: string;
+          status?: string;
+          type?: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
+      llm_usage: {
+        Row: {
+          audio_seconds: number;
+          cached_tokens: number;
+          cost_usd: number;
+          created_at: string;
+          feature: string;
+          id: string;
+          input_tokens: number;
+          latency_ms: number | null;
+          meta: Json | null;
+          model: string;
+          output_tokens: number;
+          provider: string;
+          reasoning_tokens: number;
+          ref: Json | null;
+          unit_prices: Json | null;
+          user_id: string;
+        };
+        Insert: {
+          audio_seconds?: number;
+          cached_tokens?: number;
+          cost_usd?: number;
+          created_at?: string;
+          feature: string;
+          id?: string;
+          input_tokens?: number;
+          latency_ms?: number | null;
+          meta?: Json | null;
+          model: string;
+          output_tokens?: number;
+          provider: string;
+          reasoning_tokens?: number;
+          ref?: Json | null;
+          unit_prices?: Json | null;
+          user_id?: string;
+        };
+        Update: {
+          audio_seconds?: number;
+          cached_tokens?: number;
+          cost_usd?: number;
+          created_at?: string;
+          feature?: string;
+          id?: string;
+          input_tokens?: number;
+          latency_ms?: number | null;
+          meta?: Json | null;
+          model?: string;
+          output_tokens?: number;
+          provider?: string;
+          reasoning_tokens?: number;
+          ref?: Json | null;
+          unit_prices?: Json | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          created_at: string;
+          display_name: string | null;
+          id: string;
+          locale: string;
+          settings: Json;
+          timezone: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          display_name?: string | null;
+          id: string;
+          locale?: string;
+          settings?: Json;
+          timezone?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          display_name?: string | null;
+          id?: string;
+          locale?: string;
+          settings?: Json;
+          timezone?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      undo_tokens: {
+        Row: {
+          created_at: string;
+          expires_at: string;
+          id: string;
+          output: Json;
+          tool: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          output: Json;
+          tool: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          output?: Json;
+          tool?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: {
+      v_llm_usage_by_feature: {
+        Row: {
+          audio_seconds: number | null;
+          cached_tokens: number | null;
+          calls: number | null;
+          cost_usd: number | null;
+          feature: string | null;
+          input_tokens: number | null;
+          model: string | null;
+          month: string | null;
+          output_tokens: number | null;
+          provider: string | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
+      v_llm_usage_daily: {
+        Row: {
+          calls: number | null;
+          cost_usd: number | null;
+          day: string | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
+      v_llm_usage_monthly: {
+        Row: {
+          audio_seconds: number | null;
+          cached_tokens: number | null;
+          calls: number | null;
+          cost_usd: number | null;
+          input_tokens: number | null;
+          month: string | null;
+          output_tokens: number | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
+    };
+    Functions: {
+      claim_jobs: {
+        Args: { p_batch?: number };
+        Returns: {
+          attempts: number;
+          created_at: string;
+          dedupe_key: string | null;
+          id: string;
+          last_error: string | null;
+          locked_at: string | null;
+          max_attempts: number;
+          payload: Json;
+          run_at: string;
+          status: string;
+          type: string;
+          updated_at: string;
+          user_id: string | null;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "jobs";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      enqueue_job: {
+        Args: {
+          p_dedupe_key?: string;
+          p_payload?: Json;
+          p_run_at?: string;
+          p_type: string;
+          p_user_id?: string;
+        };
+        Returns: string;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+};
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof Database,
+  "public"
+>];
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I;
+      }
+      ? I
+      : never
+    : never;
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U;
+      }
+      ? U
+      : never
+    : never;
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never;
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const;
