@@ -7,13 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "**",
-      "!node_modules",
-      "!.next",
-      "!dist",
-      "!build"
-    ]
+    "includes": ["**", "!node_modules", "!.next", "!dist", "!build"]
   },
   "formatter": {
     "enabled": true,
@@ -52,9 +46,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "src/components/ui/**"
-      ],
+      "includes": ["src/components/ui/**"],
       "linter": {
         "rules": {
           "security": {
@@ -64,7 +56,8 @@
             "noArrayIndexKey": "off"
           },
           "a11y": {
-            "useSemanticElements": "off"
+            "useSemanticElements": "off",
+            "useKeyWithClickEvents": "off"
           }
         }
       }
