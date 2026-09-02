@@ -29,3 +29,6 @@ Claude-Session: <이 세션의 URL>
 
 ## 명령 (P0 이후 갱신)
 `pnpm dev` · `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm db:types` · `supabase start` / `supabase db reset`
+
+## Next.js 규칙
+`next dev`가 갱신하는 @AGENTS.md 를 따른다(`node_modules/next/dist/docs/` 참조).
