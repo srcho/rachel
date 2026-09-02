@@ -1,10 +1,45 @@
-export default function TodayPage() {
+import { requireUser } from "@/core/auth/session";
+import { createContext } from "@/core/context";
+import { createServerSupabase } from "@/core/db/server";
+import { PageHeader } from "@/core/ui/PageHeader";
+import { WidgetGrid } from "@/core/ui/WidgetGrid";
+import { registry } from "@/modules";
+
+export const dynamic = "force-dynamic";
+
+export default async function TodayPage() {
+  const user = await requireUser();
+  const db = await createServerSupabase();
+  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const now = new Date();
+  const range = {
+    from: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+    to: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
+  };
+  const widgets = registry.widgets("today");
+  const loaded = await Promise.all(
+    widgets.map(async (w) => {
+      try {
+        return {
+          widget: w,
+          data: await w.load(ctx, range),
+          error: null as string | null,
+        };
+      } catch (e) {
+        return {
+          widget: w,
+          data: null,
+          error: e instanceof Error ? e.message : String(e),
+        };
+      }
+    }),
+  );
   return (
-    <main className="mx-auto max-w-3xl p-4">
-      <h1 className="text-lg font-semibold">Today</h1>
-      <p className="text-sm text-muted-foreground">
-        앱 셸과 모듈 레지스트리는 P0에서 채워진다.
-      </p>
-    </main>
+    <>
+      <PageHeader title="Today" />
+      <div className="mx-auto max-w-5xl p-4">
+        <WidgetGrid items={loaded} range={range} />
+      </div>
+    </>
   );
 }

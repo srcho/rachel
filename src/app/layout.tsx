@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { PwaProvider } from "@/core/ui/PwaProvider";
+import { ThemeProvider } from "@/core/ui/ThemeProvider";
+import { Toaster } from "@/core/ui/Toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,6 +9,7 @@ export const metadata: Metadata = {
   description: "할 일·일정·회의를 기억하고 대신 움직여 주는 개인 비서",
   applicationName: "Rachel",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Rachel" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
