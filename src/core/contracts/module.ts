@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
-import type { ToolContext } from "./context";
 import type { Command } from "./command";
+import type { ToolContext } from "./context";
 import type { EventHandler } from "./event";
 import type { Indexer } from "./indexer";
 import type { JobHandler } from "./job";
