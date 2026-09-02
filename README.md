@@ -4,8 +4,8 @@
 
 - 제품 요구사항: [docs/PRD.md](./docs/PRD.md)
 - 기술 구조·데이터 모델·모듈 계약: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- 구현 플랜·진행 로그: [docs/PLAN.md](./docs/PLAN.md) (세션 지침은 [CLAUDE.md](./CLAUDE.md))
 
-스택: Next.js 16 · Supabase · Vercel AI SDK · OpenAI `gpt-5.6-luna` · shadcn/ui · Serwist(PWA)
+스택: Next.js 16 · Supabase · Vercel AI SDK · OpenAI `gpt-5.6-luna` · Meta `muse-voice-transcribe-1.0`(전사) · shadcn/ui · Serwist(PWA)
 
-상태: 2026-09-02 PRD v0.1 작성. 코드 스캐폴드는 PRD 11장 "미결 질문" 확정 후 P0부터 시작.
-# rachel
+상태: 2026-09-02 PRD v1.0 확정, 구현 플랜 작성. 다음은 PLAN.md §3 환경 준비 → P0 S0.1 스캐폴드.
