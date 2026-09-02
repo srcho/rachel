@@ -27,8 +27,15 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: <이 세션의 URL>
 ```
 
-## 명령 (P0 이후 갱신)
-`pnpm dev` · `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm db:types` · `supabase start` / `supabase db reset`
+## 명령
+- `pnpm dev`(Turbopack, SW 미등록) · `pnpm build`(= next build && serwist build) · `pnpm start`
+- `pnpm typecheck` · `pnpm lint` / `pnpm lint:fix` · `pnpm test`
+- 로컬 DB: `pnpm supabase start`(포트 553xx: API 55321·DB 55322·Studio 55323) · `pnpm db:reset` · `pnpm db:types`
+- 잡 러너 수동 호출: `curl -X POST -H "x-cron-secret: $CRON_SECRET" localhost:3000/api/jobs/run`
+- 로컬 SQL: `docker exec -i supabase_db_rachel psql -U postgres -d postgres`
+
+## 현재 상태 요약
+P0 S0.1~S0.6 완료(2026-09-02). 키 발급 전이라 Google 로그인·Muse 실호출·배포(S0.7)는 미검증. `.env.local`의 빈 키를 채우면 S0.7부터.
 
 ## Next.js 규칙
 `next dev`가 갱신하는 @AGENTS.md 를 따른다(`node_modules/next/dist/docs/` 참조).

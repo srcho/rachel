@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **진행 중 — 3장 환경 준비 → S0.1부터** |
+| 상태 | **진행 중 — P0 S0.1~S0.6 완료(로컬), S0.7 배포는 키·Vercel 연결 대기** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -107,7 +107,7 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 ### P0 Foundation (2~3일) — 목표: 로그인 → 빈 Today가 PWA로 설치되고, 더미 모듈이 nav·위젯·도구를 등록해 뜬다
 
 #### S0.1 스캐폴드
-- [ ] 목표: Next.js 16 + TS strict + Tailwind v4 + shadcn + Biome 뼈대.
+- [x] 목표: Next.js 16 + TS strict + Tailwind v4 + shadcn + Biome 뼈대.
 - 산출: `package.json`, `next.config.ts`, `tsconfig.json`(`@/*` → `src/*`, `strict`, `noUncheckedIndexedAccess`), `biome.json`, `src/app/layout.tsx`, `src/app/globals.css`, `components.json`, `.env.example`, `README.md` 갱신.
 - 구현:
   ```bash
@@ -122,9 +122,10 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
   - `.env.example`: ARCHITECTURE 16장 변수 전부, 값은 빈칸.
 - 검증: `pnpm dev` → 기본 페이지. `pnpm typecheck && pnpm lint` 통과.
 - 커밋: `chore: scaffold Next.js 16 app (Tailwind v4, shadcn, Biome)`
+> 변경(2026-09-02): create-next-app은 비어 있지 않은 폴더를 거부해 임시 폴더에 생성 후 병합. shadcn CLI 옵션이 바뀌어 `init -y -d -b radix`(프리셋 radix-nova, base neutral)로 초기화하고 색은 globals.css에서 조정. AI SDK는 **v7**(`ai@7`)이 설치됨 — `reasoning` 옵션, `Output.object`, `usage.inputTokenDetails.cacheReadTokens` 확인 완료. shadcn 생성 컴포넌트는 biome 일부 규칙 예외.
 
 #### S0.2 Supabase 로컬 + 코어 스키마
-- [ ] 목표: 로컬 Supabase가 뜨고 코어 테이블·RLS 헬퍼·타입이 생성된다.
+- [x] 목표: 로컬 Supabase가 뜨고 코어 테이블·RLS 헬퍼·타입이 생성된다.
 - 산출: `supabase/config.toml`, `supabase/migrations/0001_core.sql`, `supabase/seed.sql`, `src/core/db/types.generated.ts`.
 - 구현: `supabase init` → `supabase start`. `0001_core.sql` 내용(ARCHITECTURE 5.1·5.2):
   - `create extension if not exists vector, pg_trgm, pg_net, pg_cron;` (pg_cron은 로컬에서 실패해도 무시하도록 `do $$ begin … exception when others then null; end $$`).
@@ -136,16 +137,18 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
   - 인덱스: `jobs(status, run_at)`, `jobs(dedupe_key) where status='pending'` unique, `domain_events(user_id, occurred_at desc)`, `llm_usage(user_id, created_at desc)`, `llm_usage using gin(ref)`.
 - 검증: `supabase db reset` 성공 → `pnpm db:types` 생성 → `supabase db advisors`(또는 MCP get_advisors) 경고 0.
 - 커밋: `feat(core): Supabase local setup and core schema (profiles, jobs, events, llm_usage)`
+> 변경(2026-09-02): 다른 프로젝트(hinomad_web)가 543xx 포트를 쓰고 있어 로컬 포트를 **553xx**로 변경(API 55321·DB 55322·Studio 55323). 마이그레이션 파일명은 `20260902000001_core.sql`. `enqueue_job`/`claim_jobs`를 RPC로 추가(부분 unique 인덱스는 PostgREST upsert가 못 쓰므로). advisors는 미실행(다음 세션에서 `supabase db advisors` 또는 MCP).
 
 #### S0.3 인증 (Google만, 단일 계정 잠금)
-- [ ] 목표: Google로 로그인/로그아웃, 허용 이메일 외 거부, `(app)` 그룹 보호.
+- [x] 목표: Google로 로그인/로그아웃, 허용 이메일 외 거부, `(app)` 그룹 보호.
 - 산출: `src/core/db/server.ts`(cookies 기반 `createServerClient`), `browser.ts`, `admin.ts`(secret key + `dbFor(userId)` 래퍼), `src/core/auth/session.ts`(`getClaims()` 래퍼 `requireUser()`), `src/proxy.ts`, `src/app/(auth)/login/page.tsx`, `src/app/auth/callback/route.ts`, `src/app/(app)/layout.tsx`(임시), 로그아웃 액션.
 - 구현: `@supabase/ssr` 공식 Next.js 패턴(쿠키 get/set). 로그인 버튼 → `signInWithOAuth({provider:'google', options:{redirectTo:`${origin}/auth/callback`}})`. 콜백에서 `exchangeCodeForSession` 후 이메일이 `ALLOWED_GOOGLE_EMAIL`과 다르면 `signOut` + `/login?error=not-allowed`. `proxy.ts`는 `(app)` 경로에 세션 없으면 `/login`으로.
 - 검증: 로컬에서 실제 Google 로그인(Supabase 로컬 Auth에 Google 자격 넣거나, 로컬은 이메일 매직링크로 대체하고 Google은 프로덕션 프로젝트로 확인). 다른 계정 거부 확인.
 - 커밋: `feat(core): Google-only auth with single-account allowlist`
+> 변경(2026-09-02): 코드만 작성·타입 검증. **실제 Google 로그인은 미검증**(Google OAuth 클라이언트 필요). `/login` 200, `/today` → `/login?next=` 리다이렉트 확인. `ALLOWED_GOOGLE_EMAIL`이 비어 있으면 로컬 편의로 모두 허용.
 
 #### S0.4 모듈 계약 · 레지스트리 · 이벤트 · 잡
-- [ ] 목표: ARCHITECTURE 3장 계약이 코드로 존재하고, 더미 모듈이 등록되어 nav·위젯·도구·잡이 돈다.
+- [x] 목표: ARCHITECTURE 3장 계약이 코드로 존재하고, 더미 모듈이 등록되어 nav·위젯·도구·잡이 돈다.
 - 산출: `src/core/contracts/{module,tool,event,job,widget,context,indexer,command}.ts`, `src/core/registry/{registry,tools,nav}.ts`, `src/core/events/bus.ts`, `src/core/jobs/{queue,runner}.ts`, `src/app/api/jobs/run/route.ts`, `src/modules/index.ts`, `src/modules/_hello/`(더미: manifest·widget·tool `hello.ping`·job `hello.echo`), 테스트 `src/core/registry/__tests__/registry.test.ts`, `src/core/jobs/__tests__/runner.test.ts`.
 - 구현:
   - 계약 인터페이스는 ARCHITECTURE 3.2를 그대로 옮긴다(`ToolContext`, `AgentTool`, `DomainEvent`, `EventHandler`, `JobHandler`, `DashboardWidget`, `ContextProvider`, `Indexer`, `Command`, `SettingsSection`, `ServiceContext`).
@@ -155,9 +158,10 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
   - `/api/jobs/run`: `x-cron-secret` 상수 시간 비교 → `runner.run()` → `{claimed, done, failed}`.
 - 검증: vitest — 레지스트리가 도구 이름을 `<module>.<name>`으로 합치는지, 잡 러너가 실패 시 백오프 재스케줄하는지(로컬 Supabase 사용). `curl -H 'x-cron-secret: …' localhost:3000/api/jobs/run`로 `hello.echo` 잡 처리 확인.
 - 커밋: `feat(core): module contracts, registry, event bus, job queue with cron runner`
+> 변경(2026-09-02): 레지스트리 인스턴스는 `src/modules/index.ts`에서 생성하고 코어(runner·bus)는 주입받는다. 잡 러너는 `JobStore` 인터페이스(Supabase 어댑터 + 테스트용 인메모리). `dbFor(userId)` 강제 래퍼 대신 **규약**(service-role 경로의 리포지토리는 `.eq('user_id', ctx.userId)` 필수). 스모크: enqueue_job → /api/jobs/run → done, 이벤트 핸들러 실행 확인.
 
 #### S0.5 LLM 코어 · 단가표 · 원장
-- [ ] 목표: 모든 AI 호출이 한 곳을 지나며 비용이 원장에 남는다.
+- [x] 목표: 모든 AI 호출이 한 곳을 지나며 비용이 원장에 남는다.
 - 산출: `src/core/llm/{models,pricing,client,usage,budget}.ts`, `src/core/llm/prompts/persona.ts`, `src/core/transcription/{provider,muse,openai,wav}.ts`, 테스트 `pricing.test.ts`, `wav.test.ts`, `muse.test.ts`(fetch 모킹).
 - 구현:
   - `models.ts`: ARCHITECTURE 6.1의 역할 맵. reasoning effort는 `providerOptions.openai.reasoningEffort`(AI SDK 옵션명은 `node_modules/@ai-sdk/openai/docs`에서 확인).
@@ -178,13 +182,15 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
   - `wav.ts`: `encodeWav(pcm: Int16Array, sampleRate)`, `parseWavHeader(buf)`(서버에서 길이·포맷 검증: mono, 16-bit, ≤ 600초, ≤ 32MB).
 - 검증: 단가 테스트(luna 2K 입력+3K 캐시+400 출력 = $0.00094 ± 1e-6), WAV 왕복 테스트, Muse 모킹 테스트. 실키로 `scripts/smoke-muse.ts`(10초 WAV) 1회 실행해 응답 스키마 확인 → `docs/spikes/muse-smoke.md`에 기록.
 - 커밋: `feat(core): LLM client with pricing ledger, Muse transcription provider`
+> 변경(2026-09-02): 모킹 테스트까지 완료. **실키 스모크(`scripts/smoke-muse.ts`)는 키 발급 후** 실행. `client.ts`는 AI SDK v7 규격(`instructions`, `reasoning`, `Output.object`).
 
 #### S0.6 앱 셸 · 테마 · PWA
-- [ ] 목표: 모바일 하단 탭 + FAB 자리, 데스크톱 레일, 다크 모드, 설치 가능한 PWA, 오프라인 셸.
+- [x] 목표: 모바일 하단 탭 + FAB 자리, 데스크톱 레일, 다크 모드, 설치 가능한 PWA, 오프라인 셸.
 - 산출: `src/core/ui/{AppShell,MobileTabs,DesktopRail,ThemeProvider,Toaster,PageHeader}.tsx`, `src/app/(app)/layout.tsx`, `src/app/(app)/today/page.tsx`(레지스트리 위젯 렌더, 더미 위젯 표시), `src/app/manifest.ts`, `src/app/sw.ts`, `src/app/~offline/page.tsx`, `public/icons/*`(192·512·maskable), `next.config.ts`에 `@serwist/next` 연결.
 - 구현: nav는 `registry.nav()`. 세이프에어리어(`env(safe-area-inset-bottom)`), `viewport-fit=cover`, `theme-color` 라이트/다크. Serwist `defaultCache` + 런타임 규칙(ARCHITECTURE 10장). 개발 중 SW는 `NODE_ENV==='production'`에서만.
 - 검증: `pnpm build && pnpm start` → Lighthouse PWA 설치 가능, 오프라인에서 `/~offline` 표시. iPhone Safari에서 홈 화면 추가 후 standalone 확인.
 - 커밋: `feat(core): app shell, theme, PWA (Serwist)`
+> 변경(2026-09-02): `@serwist/next`의 webpack 플러그인 모드는 Turbopack 미지원 → **configurator 모드**(`serwist.config.js` + `@serwist/cli`, `build = next build && serwist build`, `SerwistProvider`는 프로덕션에서만). 아이콘은 `scripts/gen-icons.mjs`가 만든 임시 PNG(교체 필요). `pnpm build` 성공, sw.js 생성 확인. Lighthouse·iPhone 설치는 배포 후 확인.
 
 #### S0.7 배포 · 크론 연결
 - [ ] 목표: Vercel 프로덕션 URL에서 로그인·Today가 뜨고 pg_cron이 잡 러너를 호출한다.
@@ -436,3 +442,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 날짜 | 세션 | 완료 | 다음 | 메모 |
 |---|---|---|---|---|
 | 2026-09-02 | rachel-d5 | PRD v1.0 확정, ARCHITECTURE v1.0, PLAN v1.0 작성 | §3 환경 준비 → S0.1 | Muse 스펙 확인(10분·32MB, 한국어 포함, $0.18/h). 병렬 세션 PRD는 `docs/reference/`로 |
+| 2026-09-02 | rachel-d5 | S0.1~S0.6 완료(키 없이 가능한 범위). 테스트 21개, `pnpm build` 성공, 잡 러너 스모크 통과 | **§3 키 발급(Supabase·Google·OpenAI·Meta·Vercel)** → S0.7 배포 → 실제 Google 로그인 검증 → P1 S1.1 | 로컬 Supabase 553xx 포트. `.env.local`에 로컬 Supabase 값은 채워짐, 나머지 키는 빈칸. 미검증: Google 로그인, Muse 실키, Lighthouse |

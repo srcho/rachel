@@ -22,7 +22,14 @@ let cached: ServerEnv | undefined;
 
 export function env(): ServerEnv {
   if (!cached) {
-    const parsed = serverSchema.safeParse(process.env);
+    // 빈 문자열(예: `OPENAI_API_KEY=`)은 미설정으로 본다
+    const raw = Object.fromEntries(
+      Object.entries(process.env).map(([k, v]) => [
+        k,
+        v === "" ? undefined : v,
+      ]),
+    );
+    const parsed = serverSchema.safeParse(raw);
     if (!parsed.success) {
       throw new Error(
         `환경변수 형식 오류: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,

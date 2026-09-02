@@ -24,18 +24,24 @@ export function createEmitter(deps: EmitterDeps) {
   return async function emit(input: DomainEventInput): Promise<void> {
     const actor = input.actor ?? deps.actor;
     const payload = (input.payload ?? {}) as Record<string, unknown>;
-    const { data, error } = await deps.db
-      .from("domain_events")
-      .insert({
-        user_id: deps.userId,
-        type: input.type,
-        entity_type: input.entity.type,
-        entity_id: input.entity.id,
-        payload: payload as never,
-        actor,
-      })
-      .select("id, occurred_at")
-      .single();
+    if (!deps.userId) {
+      // 시스템 잡(user_id 없음)은 로그만 남기지 않고 핸들러만 돌린다
+      console.warn("[events] user 없는 이벤트는 저장하지 않아요:", input.type);
+    }
+    const { data, error } = !deps.userId
+      ? { data: null, error: null }
+      : await deps.db
+          .from("domain_events")
+          .insert({
+            user_id: deps.userId,
+            type: input.type,
+            entity_type: input.entity.type,
+            entity_id: input.entity.id,
+            payload: payload as never,
+            actor,
+          })
+          .select("id, occurred_at")
+          .single();
     if (error) {
       console.error("[events] insert failed", input.type, error.message);
     }
