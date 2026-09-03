@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P4 완료(2026-09-03) — 실기기 검증 대기, 다음 P5 Insights·Notify** |
+| 상태 | **P5 완료(2026-09-03) — 실기기 검증 대기, 다음 P6 Hardening** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -388,24 +388,25 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 ### P5 Insights · Notify (3~4일) — 목표: S5 통과, 대시보드 LLM 0회
 
 #### S5.1 지표 뷰·위젯·차트
-- [ ] 산출: `supabase/migrations/0009_insights_views.sql`(`v_tasks_weekly`, `v_task_cycle_time`, `v_column_dwell`, `v_meetings_weekly`, `v_calendar_load_weekly`, `v_capture_conversion`, `v_streaks`), `src/modules/insights/metrics.ts`, 각 모듈 `widgets.tsx` 완성(shadcn charts), `src/app/(app)/insights/page.tsx`(기간 전환 주·월·분기, 위젯 그리드, 레이아웃 저장).
+- [x] 산출: `supabase/migrations/0009_insights_views.sql`(`v_tasks_weekly`, `v_task_cycle_time`, `v_column_dwell`, `v_meetings_weekly`, `v_calendar_load_weekly`, `v_capture_conversion`, `v_streaks`), `src/modules/insights/metrics.ts`, 각 모듈 `widgets.tsx` 완성(shadcn charts), `src/app/(app)/insights/page.tsx`(기간 전환 주·월·분기, 위젯 그리드, 레이아웃 저장).
 - 커밋: `feat(insights): metric views and dashboard widgets`
 
 #### S5.2 AI 비용 대시보드
-- [ ] 산출: `src/modules/insights/ui/{CostOverview,CostByFeature,CostByModel,CostDaily,CostPerMeeting}.tsx`, 설정의 UsagePanel을 여기로 이동(설정에는 요약만).
+- [x] 산출: `src/modules/insights/ui/{CostOverview,CostByFeature,CostByModel,CostDaily,CostPerMeeting}.tsx`, 설정의 UsagePanel을 여기로 이동(설정에는 요약만).
 - 구현: 월 누적·전월 대비, 기능별(채팅·전사 라이브·전사 파이널·요약·기억·브리핑·리뷰·임베딩), 모델별, 일별 추이, 회의당 평균, 예산 설정 시 진행 바. 모두 SQL 뷰.
 - 검증: 원장 합계와 일치. LLM 호출 0.
 - 커밋: `feat(insights): AI cost dashboard`
 
 #### S5.3 주간 리뷰
-- [ ] 산출: 잡 `insights.weekly`, `src/core/llm/prompts/weekly-review.ts`, 규칙 탐지 `patterns.ts`, 리뷰 아카이브 UI, cron `rachel-weekly-review`.
+- [x] 산출: 잡 `insights.weekly`, `src/core/llm/prompts/weekly-review.ts`, 규칙 탐지 `patterns.ts`, 리뷰 아카이브 UI, cron `rachel-weekly-review`.
 - 커밋: `feat(insights): weekly review job with rule-based patterns`
 
 #### S5.4 웹 푸시
-- [ ] 산출: `supabase/migrations/0010_notify.sql`(push_subscriptions), `src/modules/notify/`(module, service, jobs `notify.send`, 설정 섹션), `src/app/api/push/subscribe/route.ts`, `sw.ts`에 push 핸들러, VAPID 키.
+- [x] 산출: `supabase/migrations/0010_notify.sql`(push_subscriptions), `src/modules/notify/`(module, service, jobs `notify.send`, 설정 섹션), `src/app/api/push/subscribe/route.ts`, `sw.ts`에 push 핸들러, VAPID 키.
 - 구현: 알림 종류(회의 정리 완료·브리핑·마감 임박·주간 리뷰) on/off. 이벤트 핸들러로 `enqueue('notify.send')`.
 - 검증: iPhone 설치형 PWA에서 회의 종료 후 푸시 수신.
 - 커밋: `feat(notify): web push notifications`
+> 변경(2026-09-03): 지표 뷰 7개(0012), 패턴 규칙 9종, 인사이트 위젯 6개(surface insights), 기간 4주/3개월/6개월. 주간 리뷰는 4주 지표+패턴 → luna 1회, 일요일 20:00 크론. 푸시: VAPID 키 생성(.env.local·Vercel), 구독은 설정 > 알림 "이 기기에서 켜기"(iOS 는 홈 화면 설치 후). 마감 임박(due_soon) 알림은 발송 규칙 미구현(P6 후보).
 
 ---
 
@@ -474,3 +475,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | **버그 수정**: calendar 모듈 등록 누락·insights 모듈 배열 누락으로 프로덕션 잡 "핸들러 없음". 모듈 내부 `@/modules` 순환 import 제거(ctx.registry·getRegistry), 레지스트리 조립 회귀 테스트·biome 금지 규칙 추가. 재실행 결과 일정 30건 동기화·브리핑 생성 확인 | P3 S3.0 | 교훈: 파이썬 문자열 치환은 실패해도 조용하다 → 치환 후 assert, 조립 결과는 테스트로 검증 |
 | 2026-09-03 | rachel-d5 | P3 S3.0(Muse)~S3.8 코드 완료·배포: 0008·0009, 녹음기(워클릿·세그먼터·IndexedDB), 라이브 패스, 라이브 화면, 파이널 패스(청킹·스티칭·diarize), 요약 v1/v2, 상세·리뷰 시트·재생, 도구 6개, 테스트 59개 | **사용자 실기기 검증**(iPhone PWA 녹음 → 전사 → 종료 → 요약 → 화자 분리) → P4 S4.1 | 미확인: iOS 동시 녹음, 분당 한도, VibeVoice |
 | 2026-09-03 | rachel-d5 | 버그 수정: 대화 메시지 미저장(id text)·캘린더 "미연결" 오답(q 제거·connected 반환)·[지금] ISO 포함. P4 S4.1~S4.3 완료·배포: 기억 화면, 인덱서 4개·하이브리드 검색·⌘K, 캡처(입력·음성·공유·분류 인박스). 0010·0011, 테스트 63개, 프로덕션 인덱스 백필 | **P5 S5.1** 지표 뷰·위젯 (실기기 검증과 병행) | — |
+| 2026-09-03 | rachel-d5 | P5 완료·배포: 지표 뷰(0012)·패턴·인사이트 대시보드·AI 비용·주간 리뷰(크론)·웹 푸시(0013, VAPID). 크론 4개 | **P6 S6.1** 오프라인 아웃박스 → S6.2 백업·내보내기 → S6.3 테스트·CI → S6.4 성능 | 사용자 확인: 설정 > 알림 켜기(아이폰은 설치 후), 인사이트 화면 |
