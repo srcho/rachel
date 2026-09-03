@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ToolContext } from "@/core/contracts";
+import { createRegistry } from "@/core/registry/registry";
 import { localSupabaseAvailable, testUser } from "@/test/supabase";
 import { tasksTools } from "../tools";
 
@@ -16,6 +17,7 @@ describe.skipIf(!available)("tasks tools", () => {
       actor: "agent",
       now: new Date(),
       timezone: "Asia/Seoul",
+      registry: createRegistry(() => []),
       emit: async () => {},
       enqueue: async () => "",
     };

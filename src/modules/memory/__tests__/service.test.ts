@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ServiceContext } from "@/core/contracts";
+import { createRegistry } from "@/core/registry/registry";
 import { localSupabaseAvailable, testUser } from "@/test/supabase";
 import { memoryService } from "../service";
 
@@ -27,6 +28,7 @@ describe.skipIf(!available)("memoryService", () => {
       actor: "agent",
       now: new Date(),
       timezone: "Asia/Seoul",
+      registry: createRegistry(() => []),
       emit: async (e) => {
         events.push(e.type);
       },

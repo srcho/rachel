@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { type AnyAgentTool, defineTool } from "@/core/contracts";
-import { registry } from "@/modules";
 import { getOrCreateDailyBrief } from "./brief";
 
 export const insightsTools: Record<string, AnyAgentTool> = {
@@ -10,7 +9,7 @@ export const insightsTools: Record<string, AnyAgentTool> = {
     inputSchema: z.object({ force: z.boolean().default(false) }),
     risk: "read",
     execute: async ({ force }, ctx) => ({
-      brief: (await getOrCreateDailyBrief(ctx, registry, { force })).content_md,
+      brief: (await getOrCreateDailyBrief(ctx, { force })).content_md,
     }),
   }),
 };

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ServiceContext } from "@/core/contracts";
+import { createRegistry } from "@/core/registry/registry";
 import { localSupabaseAvailable, testUser } from "@/test/supabase";
 import { eventService } from "../events";
 import { calendarRepository } from "../repository";
@@ -17,6 +18,7 @@ describe.skipIf(!available)("eventService (mirror only, no Google)", () => {
       actor: "user",
       now: new Date("2026-09-03T01:00:00Z"),
       timezone: "Asia/Seoul",
+      registry: createRegistry(() => []),
       emit: async () => {},
       enqueue: async () => "",
     };

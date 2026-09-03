@@ -1,4 +1,5 @@
 import type { RachelModule } from "@/core/contracts";
+import { setRegistry } from "@/core/registry/current";
 import { createRegistry } from "@/core/registry/registry";
 import { agentModule } from "./agent/module";
 import { calendarModule } from "./calendar/module";
@@ -12,6 +13,8 @@ export const modules: RachelModule[] = [
   calendarModule,
   agentModule,
   memoryModule,
+  insightsModule,
 ];
 
 export const registry = createRegistry(() => modules);
+setRegistry(registry);

@@ -2,14 +2,19 @@
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
-import { registry } from "@/modules";
+import { getRegistry } from "@/core/registry/current";
 import { agentService } from "./service";
 import { runUndo } from "./tool-adapter";
 
 async function ctxFor() {
   const user = await requireUser();
   const db = await createServerSupabase();
-  return createContext({ db, userId: user.id, actor: "user", registry });
+  return createContext({
+    db,
+    userId: user.id,
+    actor: "user",
+    registry: await getRegistry(),
+  });
 }
 
 export async function listThreadsAction() {
@@ -33,5 +38,5 @@ export async function deleteThreadAction(threadId: string) {
 
 export async function undoAction(undoId: string) {
   const ctx = await ctxFor();
-  return runUndo(registry.tools(), ctx, undoId);
+  return runUndo(ctx.registry.tools(), ctx, undoId);
 }

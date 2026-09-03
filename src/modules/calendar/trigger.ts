@@ -1,6 +1,6 @@
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
-import { registry } from "@/modules";
+import { getRegistry } from "@/core/registry/current";
 import { calendarRepository } from "./repository";
 
 const STALE_MS = 5 * 60_000;
@@ -19,7 +19,12 @@ export async function maybeTriggerSync(userId: string): Promise<void> {
       ? new Date(integration.last_synced_at).getTime()
       : 0;
     if (now - last < STALE_MS) return;
-    const ctx = createContext({ db, userId, actor: "system", registry });
+    const ctx = createContext({
+      db,
+      userId,
+      actor: "system",
+      registry: await getRegistry(),
+    });
     await ctx.enqueue({
       type: "calendar.sync",
       payload: {},

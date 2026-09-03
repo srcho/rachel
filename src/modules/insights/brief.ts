@@ -3,7 +3,6 @@ import type { Json } from "@/core/db/types.generated";
 import { llmGenerate } from "@/core/llm/client";
 import { MODEL_IDS } from "@/core/llm/models";
 import { dailyBriefPrompt } from "@/core/llm/prompts/daily-brief";
-import type { Registry } from "@/core/registry/registry";
 import { getProfileSettings } from "@/core/settings/profile";
 import { dayBounds, localYmd } from "@/core/utils/date";
 import { buildDynamicContext } from "@/modules/agent/context";
@@ -15,7 +14,6 @@ import { type InsightRow, insightsRepository } from "./repository";
  */
 export async function getOrCreateDailyBrief(
   ctx: ServiceContext,
-  registry: Registry,
   opts: { force?: boolean } = {},
 ): Promise<InsightRow> {
   const repo = insightsRepository(ctx.db, ctx.userId);
@@ -28,7 +26,7 @@ export async function getOrCreateDailyBrief(
   const honorific = settings.honorific ?? "빈센트님";
   const context = await buildDynamicContext(
     { ...ctx, ui: undefined },
-    registry,
+    ctx.registry,
     "오늘 브리핑",
   );
   const { text } = await llmGenerate({

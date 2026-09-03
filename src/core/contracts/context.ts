@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/core/db/types.generated";
+import type { Registry } from "@/core/registry/registry";
 import type { DomainEventInput } from "./event";
 import type { JobInput } from "./job";
 
@@ -13,6 +14,8 @@ export interface ServiceContext {
   actor: Actor;
   now: Date;
   timezone: string;
+  /** 조립된 레지스트리(다른 모듈의 도구·컨텍스트를 호출할 때) */
+  registry: Registry;
   emit(event: DomainEventInput): Promise<void>;
   enqueue(job: JobInput): Promise<string>;
 }

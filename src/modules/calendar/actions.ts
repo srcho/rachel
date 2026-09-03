@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
-import { registry } from "@/modules";
+import { getRegistry } from "@/core/registry/current";
 import { eventService } from "./events";
 import type { CreateEventInput, UpdateEventInput } from "./schema";
 import { calendarService } from "./service";
@@ -12,7 +12,12 @@ async function svc() {
   const user = await requireUser();
   const db = await createServerSupabase();
   return calendarService(
-    createContext({ db, userId: user.id, actor: "user", registry }),
+    createContext({
+      db,
+      userId: user.id,
+      actor: "user",
+      registry: await getRegistry(),
+    }),
   );
 }
 
@@ -40,7 +45,12 @@ async function events() {
   const user = await requireUser();
   const db = await createServerSupabase();
   return eventService(
-    createContext({ db, userId: user.id, actor: "user", registry }),
+    createContext({
+      db,
+      userId: user.id,
+      actor: "user",
+      registry: await getRegistry(),
+    }),
   );
 }
 export async function createEventAction(input: CreateEventInput) {
@@ -55,7 +65,12 @@ export async function deleteEventAction(id: string) {
 export async function syncNowAction() {
   const user = await requireUser();
   const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    actor: "user",
+    registry: await getRegistry(),
+  });
   await ctx.enqueue({
     type: "calendar.sync",
     payload: {},

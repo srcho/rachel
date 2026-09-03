@@ -12,6 +12,7 @@ const ctx = {
   timezone: "Asia/Seoul",
   now: new Date("2026-09-03T01:00:00Z"),
   ui: { route: "/tasks/abc" },
+  registry: createRegistry(() => []),
 } as ToolContext;
 
 describe("agent context", () => {

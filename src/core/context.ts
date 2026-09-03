@@ -26,6 +26,7 @@ export function createContext(input: CreateContextInput): ToolContext {
     actor: input.actor,
     now: new Date(),
     timezone: input.timezone ?? "Asia/Seoul",
+    registry: input.registry,
     ui: input.ui,
     emit: async () => {},
     enqueue: async () => "",

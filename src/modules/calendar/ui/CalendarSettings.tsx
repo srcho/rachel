@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
-import { registry } from "@/modules";
+import { getRegistry } from "@/core/registry/current";
 import { disconnectGoogleAction, refreshCalendarsAction } from "../actions";
 import { calendarService } from "../service";
 import { CalendarToggle } from "./CalendarToggle";
@@ -13,7 +13,12 @@ export async function CalendarSettings() {
   const user = await requireUser();
   const db = await createServerSupabase();
   const { integration, calendars } = await calendarService(
-    createContext({ db, userId: user.id, actor: "user", registry }),
+    createContext({
+      db,
+      userId: user.id,
+      actor: "user",
+      registry: await getRegistry(),
+    }),
   ).status();
 
   if (!integration) {

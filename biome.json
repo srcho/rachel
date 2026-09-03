@@ -61,6 +61,23 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/modules/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@/modules": "모듈 안에서는 @/modules 를 import 하지 마세요(순환). ctx.registry 또는 @/core/registry/current 의 getRegistry() 를 쓰세요."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

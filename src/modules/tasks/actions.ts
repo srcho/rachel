@@ -2,7 +2,7 @@
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
-import { registry } from "@/modules";
+import { getRegistry } from "@/core/registry/current";
 import type { CreateCardInput, MoveCardInput, UpdateCardInput } from "./schema";
 import { tasksService } from "./service";
 
@@ -10,7 +10,12 @@ async function svc() {
   const user = await requireUser();
   const db = await createServerSupabase();
   return tasksService(
-    createContext({ db, userId: user.id, actor: "user", registry }),
+    createContext({
+      db,
+      userId: user.id,
+      actor: "user",
+      registry: await getRegistry(),
+    }),
   );
 }
 

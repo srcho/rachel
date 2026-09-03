@@ -14,6 +14,18 @@ export const calendarModule: RachelModule = {
     nav: { href: "/calendar", order: 30, mobileTab: true },
     schemaVersion: 6,
   },
+  tools: calendarTools,
+  widgets: [todayTimelineWidget],
+  contextProviders: [calendarContextProvider],
+  jobs: { sync: syncJob },
+  commands: [
+    {
+      id: "calendar.open",
+      label: "캘린더 열기",
+      keywords: ["일정", "calendar"],
+      run: ({ navigate }) => navigate("/calendar"),
+    },
+  ],
   settings: {
     id: "calendar",
     title: "Google 캘린더",
