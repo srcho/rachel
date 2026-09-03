@@ -74,6 +74,7 @@
     "@vercel/config": "^0.7.0",
     "@vitejs/plugin-react": "^6.1.1",
     "esbuild": "^0.28.2",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "supabase": "^2.116.0",
     "tailwindcss": "^4",

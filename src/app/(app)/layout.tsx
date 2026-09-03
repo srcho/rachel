@@ -1,4 +1,5 @@
 import { requireUser } from "@/core/auth/session";
+import { OutboxReplayer } from "@/core/offline/OutboxReplayer";
 import { AppShell } from "@/core/ui/AppShell";
 import { PaletteHost } from "@/core/ui/PaletteHost";
 import { registry } from "@/modules";
@@ -28,6 +29,7 @@ export default async function AppLayout({
     >
       {children}
       <PaletteHost commands={registry.commands()} />
+      <OutboxReplayer />
     </AppShell>
   );
 }

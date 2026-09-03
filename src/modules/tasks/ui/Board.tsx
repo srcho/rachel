@@ -16,6 +16,7 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { registerOutboxHandler, runOrQueue } from "@/core/offline/outbox";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
 import {
   archiveCardAction,
@@ -31,6 +32,21 @@ import { CardSheet } from "./CardSheet";
 import { Column } from "./Column";
 
 type ByColumn = Record<string, CardRow[]>;
+
+registerOutboxHandler("tasks.create", (input) =>
+  createCardAction(input as Parameters<typeof createCardAction>[0]),
+);
+registerOutboxHandler("tasks.update", (id, patch) =>
+  updateCardAction(
+    id as string,
+    patch as Parameters<typeof updateCardAction>[1],
+  ),
+);
+registerOutboxHandler("tasks.move", (id, input) =>
+  moveCardAction(id as string, input as Parameters<typeof moveCardAction>[1]),
+);
+registerOutboxHandler("tasks.archive", (id) => archiveCardAction(id as string));
+registerOutboxHandler("tasks.delete", (id) => deleteCardAction(id as string));
 
 function group(columns: ColumnRow[], cards: CardRow[]): ByColumn {
   const by: ByColumn = Object.fromEntries(columns.map((c) => [c.id, []]));
@@ -89,13 +105,23 @@ export function Board({
   const columnOf = (id: string): string | undefined =>
     byColumn[id] ? id : find(id)?.column_id;
 
+  /** 서버 액션 실행. 네트워크 오류면 아웃박스에 넣고 낙관적 상태를 유지한다. */
   async function run<T>(
     label: string,
     fn: () => Promise<T>,
     rollback?: () => void,
+    outbox?: { action: string; args: unknown[] },
   ): Promise<T | undefined> {
     pending.current++;
     try {
+      if (outbox) {
+        const r = await runOrQueue(outbox.action, outbox.args, fn);
+        if (r.queued) {
+          toast.message(`${label}: 오프라인이라 연결되면 반영해요`);
+          return undefined;
+        }
+        return r.result;
+      }
       return await fn();
     } catch (e) {
       rollback?.();
@@ -161,6 +187,17 @@ export function Board({
             beforeId: before?.id ?? null,
           }),
         () => setByColumn(snapshot),
+        {
+          action: "tasks.move",
+          args: [
+            id,
+            {
+              columnId: to,
+              afterId: after?.id ?? null,
+              beforeId: before?.id ?? null,
+            },
+          ],
+        },
       );
       return { ...prev, [to]: list };
     });
@@ -195,14 +232,16 @@ export function Board({
       ...prev,
       [columnId]: [...(prev[columnId] ?? []), temp],
     }));
+    const payload = { boardId: initial.board.id, columnId, ...input };
     const created = await run(
       "추가",
-      () => createCardAction({ boardId: initial.board.id, columnId, ...input }),
+      () => createCardAction(payload),
       () =>
         setByColumn((prev) => ({
           ...prev,
           [columnId]: (prev[columnId] ?? []).filter((c) => c.id !== temp.id),
         })),
+      { action: "tasks.create", args: [payload] },
     );
     if (created)
       setByColumn((prev) => ({
@@ -271,7 +310,10 @@ export function Board({
             }),
             ...(patch.labels !== undefined && { labels: patch.labels }),
           });
-          await run("저장", () => updateCardAction(id, patch));
+          await run("저장", () => updateCardAction(id, patch), undefined, {
+            action: "tasks.update",
+            args: [id, patch],
+          });
         }}
         onMove={async (id, columnId) => {
           const card = find(id);
@@ -289,7 +331,10 @@ export function Board({
           setOpen((o) =>
             o && o.id === id ? { ...o, column_id: columnId } : o,
           );
-          await run("이동", () => moveCardAction(id, { columnId }));
+          await run("이동", () => moveCardAction(id, { columnId }), undefined, {
+            action: "tasks.move",
+            args: [id, { columnId }],
+          });
         }}
         onArchive={async (id) => {
           setByColumn((prev) =>
@@ -300,7 +345,10 @@ export function Board({
               ]),
             ),
           );
-          await run("보관", () => archiveCardAction(id));
+          await run("보관", () => archiveCardAction(id), undefined, {
+            action: "tasks.archive",
+            args: [id],
+          });
         }}
         onDelete={async (id) => {
           setByColumn((prev) =>
@@ -311,7 +359,10 @@ export function Board({
               ]),
             ),
           );
-          await run("삭제", () => deleteCardAction(id));
+          await run("삭제", () => deleteCardAction(id), undefined, {
+            action: "tasks.delete",
+            args: [id],
+          });
         }}
       />
     </>
