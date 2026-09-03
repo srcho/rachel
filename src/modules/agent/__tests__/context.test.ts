@@ -4,6 +4,7 @@ import { createRegistry } from "@/core/registry/registry";
 import {
   buildDynamicContext,
   estimateTokens,
+  nowLine,
   truncateToTokens,
 } from "../context";
 
@@ -16,6 +17,11 @@ const ctx = {
 } as ToolContext;
 
 describe("agent context", () => {
+  it("renders the now line with ISO and offset", () => {
+    expect(nowLine(new Date("2026-09-03T08:40:00Z"), "Asia/Seoul")).toBe(
+      "[지금] 2026년 9월 3일 목요일 오후 5:40 (Asia/Seoul, UTC+09:00) · ISO 2026-09-03T17:40:00+09:00",
+    );
+  });
   it("estimates korean heavier than english", () => {
     expect(estimateTokens("안녕하세요")).toBe(5);
     expect(estimateTokens("hello world!")).toBe(3);

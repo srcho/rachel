@@ -19,12 +19,7 @@ export async function buildDynamicContext(
   registry: Registry,
   userQuery: string,
 ): Promise<string> {
-  const now = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: ctx.timezone,
-    dateStyle: "full",
-    timeStyle: "short",
-  }).format(ctx.now);
-  const blocks: string[] = [`[지금] ${now} (${ctx.timezone})`];
+  const blocks: string[] = [nowLine(ctx.now, ctx.timezone)];
   if (ctx.ui) {
     const entity = ctx.ui.entity
       ? ` · 보고 있는 것: ${ctx.ui.entity.type} ${ctx.ui.entity.id}`
@@ -52,6 +47,32 @@ export async function buildDynamicContext(
     used += t;
   }
   return blocks.join("\n\n");
+}
+
+/** "[지금] 2026년 9월 3일 목요일 오후 5:40 (Asia/Seoul, UTC+09:00) · ISO 2026-09-03T17:40:00+09:00" — 상대 날짜·ISO 계산의 기준점 */
+export function nowLine(now: Date, timeZone: string): string {
+  const human = new Intl.DateTimeFormat("ko-KR", {
+    timeZone,
+    dateStyle: "full",
+    timeStyle: "short",
+  }).format(now);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "longOffset",
+  }).formatToParts(now);
+  const get = (t: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === t)?.value ?? "";
+  const offsetRaw = get("timeZoneName").replace("GMT", "") || "+00:00";
+  const offset = offsetRaw === "" ? "+00:00" : offsetRaw;
+  const iso = `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}${offset}`;
+  return `[지금] ${human} (${timeZone}, UTC${offset}) · ISO ${iso}`;
 }
 
 export function truncateToTokens(text: string, budget: number): string {
