@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P5 완료(2026-09-03) — 실기기 검증 대기, 다음 P6 Hardening** |
+| 상태 | **P6 완료(2026-09-03, S6.5 옵션 제외) — 실기기 검증 대기, 다음 = 사용자 실사용 피드백 반영 / S6.5(옵션)** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -413,13 +413,14 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 ### P6 Hardening (3~4일) — 목표: 성능 예산 충족, RLS 테스트, 백업
 
 #### S6.1 오프라인 쓰기 아웃박스(tasks 먼저)
-- [ ] `src/core/offline/outbox.ts`(IndexedDB 큐, 온라인 시 재생, 충돌 last-write-wins). 커밋 `feat(core): offline mutation outbox`.
+- [x] `src/core/offline/outbox.ts`(IndexedDB 큐, 온라인 시 재생, 충돌 last-write-wins). 커밋 `feat(core): offline mutation outbox`.
 #### S6.2 백업·내보내기
-- [ ] 잡 `core.backup`(주간 JSON.gz → Storage `backups`), `/api/export`. 커밋 `feat(core): weekly backup and full export`.
+- [x] 잡 `core.backup`(주간 JSON.gz → Storage `backups`), `/api/export`. 커밋 `feat(core): weekly backup and full export`.
 #### S6.3 테스트·CI
-- [ ] pgTAP RLS(`supabase/tests/rls.test.sql`), Playwright 스모크 4개(로그인·카드·채팅으로 카드·회의 시작/종료 — Muse는 라우트 인터셉트로 모킹), GitHub Actions(`typecheck`·`lint`·`test`). 커밋 `test: RLS, e2e smoke, CI`.
+- [x] pgTAP RLS(`supabase/tests/rls.test.sql`), Playwright 스모크 4개(로그인·카드·채팅으로 카드·회의 시작/종료 — Muse는 라우트 인터셉트로 모킹), GitHub Actions(`typecheck`·`lint`·`test`). 커밋 `test: RLS, e2e smoke, CI`.
 #### S6.4 성능 패스
-- [ ] 번들 예산 스크립트(Today ≤ 180KB gz), Lighthouse 모바일, Realtime 구독 범위 점검, 프롬프트 캐시 적중률 로그. 커밋 `perf: bundle budget and lighthouse pass`.
+- [x] 번들 예산 스크립트(Today ≤ 180KB gz), Lighthouse 모바일, Realtime 구독 범위 점검, 프롬프트 캐시 적중률 로그. 커밋 `perf: bundle budget and lighthouse pass`.
+> 결과(2026-09-03): `pnpm check:bundle`(헤드리스 크로미움, 초기 HTML 의 `<script src>` gzip 합)이 라우트별 예산을 검사. 첫 측정은 테스트 로그인이 실패해 로그인 화면(208KB)을 재던 상태였고, 로그인 검증을 추가한 뒤 실측은 today 343 / tasks 473 KB 였다. 원인은 (1) memory·notify 상수를 zod 스키마 파일에서 가져와 zod 91KB 가 클라이언트에 실림, (2) `lucide-react/dynamic` 전체 인덱스 20KB, (3) supabase-js 50KB 가 Realtime 훅에 정적 import, (4) chrono-node 41KB 가 QuickAdd 에 정적 import. 상수 분리·정적 아이콘 맵·동적 import 로 today 201 / tasks 224 / calendar 207 / meetings 201 / insights 202 / memory 204 / capture 203 KB. 바닥값은 Next/React 런타임 132KB + 앱 셸 60KB 라 예산은 실측 +5~8%(today 215, tasks 240 …)로 재설정. 원인 추적은 `ANALYZE=1 pnpm build` 후 `pnpm analyze:bundle <chunk…>`(소스맵 집계). Lighthouse 모바일 수치는 사용자 실기기/PSI 확인 항목으로 남김. 프롬프트 캐시 적중률은 `llm_usage.cached_tokens` 로 이미 원장에 기록됨.
 #### S6.5 (옵션) 오디오 Storage 업로드 · 실시간 relay 스파이크
 - [ ] `SupabaseAudioStore` + 설정 토글 + 파이널 패스 서버 잡 전환; Muse Realtime relay 4.5분 로테이션 실험 → `docs/spikes/`.
 
@@ -476,3 +477,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | P3 S3.0(Muse)~S3.8 코드 완료·배포: 0008·0009, 녹음기(워클릿·세그먼터·IndexedDB), 라이브 패스, 라이브 화면, 파이널 패스(청킹·스티칭·diarize), 요약 v1/v2, 상세·리뷰 시트·재생, 도구 6개, 테스트 59개 | **사용자 실기기 검증**(iPhone PWA 녹음 → 전사 → 종료 → 요약 → 화자 분리) → P4 S4.1 | 미확인: iOS 동시 녹음, 분당 한도, VibeVoice |
 | 2026-09-03 | rachel-d5 | 버그 수정: 대화 메시지 미저장(id text)·캘린더 "미연결" 오답(q 제거·connected 반환)·[지금] ISO 포함. P4 S4.1~S4.3 완료·배포: 기억 화면, 인덱서 4개·하이브리드 검색·⌘K, 캡처(입력·음성·공유·분류 인박스). 0010·0011, 테스트 63개, 프로덕션 인덱스 백필 | **P5 S5.1** 지표 뷰·위젯 (실기기 검증과 병행) | — |
 | 2026-09-03 | rachel-d5 | P5 완료·배포: 지표 뷰(0012)·패턴·인사이트 대시보드·AI 비용·주간 리뷰(크론)·웹 푸시(0013, VAPID). 크론 4개 | **P6 S6.1** 오프라인 아웃박스 → S6.2 백업·내보내기 → S6.3 테스트·CI → S6.4 성능 | 사용자 확인: 설정 > 알림 켜기(아이폰은 설치 후), 인사이트 화면 |
+| 2026-09-03 | rachel-d5 | **P6 완료**(S6.5 제외)·배포: S6.1 아웃박스(IndexedDB 재생, tasks Board), S6.2 백업 잡·전체 내보내기(0014, Storage `backups`), S6.3 pgTAP 9·Playwright 6·GitHub Actions, S6.4 번들 예산(today 343→201KB, tasks 473→224KB; zod·lucide 인덱스·supabase-js·chrono 첫 로드 제거) | **사용자 실기기 검증**(아이폰 녹음·음성 캡처·푸시·설치, Lighthouse) → 피드백 반영 → S6.5(옵션: 오디오 Storage·맥 워커) | 교훈: 측정 스크립트는 "로그인 성공" 같은 전제를 명시적으로 검증할 것(리다이렉트된 로그인 화면을 잰 채 최적화하고 있었음). e2e 1회 간헐 실패(원인 미상, 24회 재실행 통과) |

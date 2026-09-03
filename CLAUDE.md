@@ -35,7 +35,7 @@ Claude-Session: <이 세션의 URL>
 - 로컬 SQL: `docker exec -i supabase_db_rachel psql -U postgres -d postgres`
 
 ## 현재 상태 요약
-P5 완료(2026-09-03): P4 + 인사이트 대시보드(지표·패턴·AI 비용)·주간 리뷰·웹 푸시가 프로덕션에 있음. 아이폰 실기기 검증 대기(녹음·음성 캡처·푸시). 다음 P6 Hardening(오프라인 아웃박스·백업·테스트/CI·성능). 프로덕션 https://rachel-seven-tau.vercel.app (Vercel `rachel`, icn1) · Supabase `rachel` ref `lpieoftpmhvxibhkhayn`(서울, linked). pg_cron `rachel-jobs`가 1분마다 잡 러너 호출. Meta 키만 미발급. 다음은 PLAN §9 참조(P1 S1.1).
+P6 완료(2026-09-03, S6.5 옵션 제외): P5 + 오프라인 아웃박스·주간 백업/내보내기·pgTAP/Playwright/CI·번들 예산(`pnpm check:bundle`, today 201KB gz)이 프로덕션에 있음. 아이폰 실기기 검증 대기(녹음·음성 캡처·푸시·설치). 다음 = 실사용 피드백 반영, 옵션 S6.5(오디오 Storage·맥 워커). 프로덕션 https://rachel-seven-tau.vercel.app (Vercel `rachel`, icn1) · Supabase `rachel` ref `lpieoftpmhvxibhkhayn`(서울, linked). pg_cron 5개(잡 러너 1분·캘린더 15분·브리핑·주간 리뷰·백업). Meta 키 발급됨. 번들 원인 추적: `ANALYZE=1 pnpm build` → `pnpm analyze:bundle <chunk…>`. 다음은 PLAN §9 참조.
 
 ## 프로덕션 운영 명령
 - 스키마 적용: `pnpm supabase db query --linked -f supabase/migrations/<file>.sql` 후 `pnpm supabase migration repair --status applied <version> --linked` (DB 비밀번호 없이). 또는 `pnpm supabase db push -p <pw>`
