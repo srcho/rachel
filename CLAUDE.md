@@ -35,7 +35,13 @@ Claude-Session: <이 세션의 URL>
 - 로컬 SQL: `docker exec -i supabase_db_rachel psql -U postgres -d postgres`
 
 ## 현재 상태 요약
-P0 S0.1~S0.6 완료(2026-09-02). 키 발급 전이라 Google 로그인·Muse 실호출·배포(S0.7)는 미검증. `.env.local`의 빈 키를 채우면 S0.7부터.
+P0 완료(2026-09-03). 프로덕션 https://rachel-seven-tau.vercel.app (Vercel `rachel`, icn1) · Supabase `rachel` ref `lpieoftpmhvxibhkhayn`(서울, linked). pg_cron `rachel-jobs`가 1분마다 잡 러너 호출. Meta 키만 미발급. 다음은 PLAN §9 참조(P1 S1.1).
+
+## 프로덕션 운영 명령
+- 스키마 적용: `pnpm supabase db query --linked -f supabase/migrations/<file>.sql` 후 `pnpm supabase migration repair --status applied <version> --linked` (DB 비밀번호 없이). 또는 `pnpm supabase db push -p <pw>`
+- Auth 설정: `supabase/config.toml` 수정 → `set -a; . ./.env.local; set +a; pnpm supabase config push`
+- 배포: `vercel --prod --yes` · env: `vercel env add NAME production,preview --force`
+- 프로덕션 SQL: `pnpm supabase db query --linked "<sql>"`
 
 ## Next.js 규칙
 `next dev`가 갱신하는 @AGENTS.md 를 따른다(`node_modules/next/dist/docs/` 참조).

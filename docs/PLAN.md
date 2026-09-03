@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **진행 중 — P0 S0.1~S0.6 완료(로컬), S0.7 배포는 키·Vercel 연결 대기** |
+| 상태 | **P0 완료(2026-09-03, 프로덕션 배포·크론 동작) → P1 S1.1부터** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -193,10 +193,11 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 > 변경(2026-09-02): `@serwist/next`의 webpack 플러그인 모드는 Turbopack 미지원 → **configurator 모드**(`serwist.config.js` + `@serwist/cli`, `build = next build && serwist build`, `SerwistProvider`는 프로덕션에서만). 아이콘은 `scripts/gen-icons.mjs`가 만든 임시 PNG(교체 필요). `pnpm build` 성공, sw.js 생성 확인. Lighthouse·iPhone 설치는 배포 후 확인.
 
 #### S0.7 배포 · 크론 연결
-- [ ] 목표: Vercel 프로덕션 URL에서 로그인·Today가 뜨고 pg_cron이 잡 러너를 호출한다.
+- [x] 목표: Vercel 프로덕션 URL에서 로그인·Today가 뜨고 pg_cron이 잡 러너를 호출한다.
 - 산출: `vercel.ts`(`@vercel/config`; framework nextjs, 헤더 CSP), `supabase/cron.sql`(프로덕션에 수동 적용, ARCHITECTURE 11장 스케줄 5개 중 `rachel-jobs`만 먼저), 프로덕션 마이그레이션 적용(`supabase link` → `supabase db push`).
 - 검증: 프로덕션에서 로그인, `jobs`에 `hello.echo` 넣고 1분 내 done. Vercel 로그에 `/api/jobs/run` 호출 확인.
 - 커밋: `chore: Vercel config and production cron wiring`
+> 변경(2026-09-03): 프로덕션 URL **https://rachel-seven-tau.vercel.app**(Vercel 프로젝트 `rachel`, 리전 icn1). Supabase `rachel`(ref `lpieoftpmhvxibhkhayn`, 서울). DB 비밀번호 없이 `supabase db query --linked -f`로 마이그레이션 적용 후 `migration repair`(이후 스키마 변경도 같은 방식 또는 `db push -p`). Auth 설정은 `config.toml` + `supabase config push`. Vault 시크릿 2개 + `cron.sql`로 rachel-jobs 등록 → pg_cron→Vercel→잡 done 확인. Google 로그인 실제 플로우는 사용자 확인 필요(Google 클라이언트 리디렉션 URI에 `https://lpieoftpmhvxibhkhayn.supabase.co/auth/v1/callback` 등록).
 
 **P0 Exit**: 위 7개 Step 완료 + 더미 모듈 제거 전 스크린샷을 `docs/spikes/p0-exit.md`에. `_hello` 모듈은 P1 시작 때 삭제.
 
@@ -443,3 +444,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 |---|---|---|---|---|
 | 2026-09-02 | rachel-d5 | PRD v1.0 확정, ARCHITECTURE v1.0, PLAN v1.0 작성 | §3 환경 준비 → S0.1 | Muse 스펙 확인(10분·32MB, 한국어 포함, $0.18/h). 병렬 세션 PRD는 `docs/reference/`로 |
 | 2026-09-02 | rachel-d5 | S0.1~S0.6 완료(키 없이 가능한 범위). 테스트 21개, `pnpm build` 성공, 잡 러너 스모크 통과 | **§3 키 발급(Supabase·Google·OpenAI·Meta·Vercel)** → S0.7 배포 → 실제 Google 로그인 검증 → P1 S1.1 | 로컬 Supabase 553xx 포트. `.env.local`에 로컬 Supabase 값은 채워짐, 나머지 키는 빈칸. 미검증: Google 로그인, Muse 실키, Lighthouse |
+| 2026-09-03 | rachel-d5 | S0.7 완료: 프로덕션 DB 마이그레이션, Vercel 배포(rachel-seven-tau.vercel.app), env 10개, Auth 설정 push, pg_cron→잡 러너 동작 확인 | **P1 S1.1** tasks 스키마·서비스 | Meta 키만 미발급(Muse 실호출·S3.0 스파이크 대기). 사용자 확인 필요: Google 로그인 1회, Lighthouse/iPhone 설치 |
