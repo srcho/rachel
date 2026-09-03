@@ -56,7 +56,7 @@ export function planChunks(
     const lastLen = total - (starts[starts.length - 1] ?? 0);
     const prevLen = total - (starts[starts.length - 2] ?? 0);
     if (
-      lastLen < opt.minLastSec * opt.sampleRate &&
+      lastLen <= opt.minLastSec * opt.sampleRate &&
       prevLen <= opt.maxSec * opt.sampleRate
     )
       starts.pop();

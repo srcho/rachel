@@ -121,10 +121,11 @@ describe("stitch", () => {
     expect(r.mapping[1]?.A).toBe("S1");
     expect(r.mapping[1]?.B).toBe("S2");
     expect(r.mapping[1]?.C).toBe("S3");
+    // 겹침 중앙(555s) 이후 turn 은 뒤 청크 것을 쓴다
     expect(r.turns.map((t) => t.text)).toEqual([
       "a1",
       "b1",
-      "a2-overlap",
+      "a2-overlap-dup",
       "b2",
       "c1",
     ]);
