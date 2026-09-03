@@ -218,9 +218,13 @@ export interface JobHandler<P> {
 export interface DashboardWidget {
   id: string; title: string;
   surface: 'today' | 'insights' | 'both';
-  size: 'sm' | 'md' | 'lg'; order: number;
+  size: 'sm' | 'md' | 'lg'; order: number;                       // 너비: 1/4 · 1/2 · 전체(데스크톱 4열)
+  rows?: 1 | 2 | 3 | 4;                                            // 높이(행 단위 9rem). 기본 sm1·md2·lg2
+  placement?: 'top' | 'grid';                                      // top = 그리드 위 전체 폭·프레임 없음(캡처 바)
+  href?: string;                                                   // 헤더 "열기" 링크
   load(ctx: ServiceContext, range: DateRange): Promise<unknown>;   // 서버
-  Component: ComponentType<{ data: unknown; range: DateRange }>;
+  Component: ComponentType<{ data: unknown; range: DateRange }>;   // 본문만 그린다 — 프레임(Panel)은 WidgetGrid 가
+  HeaderAction?: ComponentType<{ data: unknown; range: DateRange }>; // 헤더 우측 컨트롤(브리핑 새로고침 등)
 }
 export interface ContextProvider {
   id: string;
@@ -689,6 +693,32 @@ AI 비용 위젯          v_llm_usage_monthly·by_feature·daily → 월 누적,
 대시보드 레이아웃(위젯 순서·크기)은 `profiles.settings.dashboard`에 저장한다.
 
 ---
+
+## 9b. UI 프레임 (2026-09-03 리디자인)
+
+원칙: 미니멀·컴팩트를 유지하되 **프레임을 하나로 잠근다**. 화면마다 카드 모양·폭·높이가 달라지지 않게 코어가 프레임을 소유하고 모듈은 본문만 그린다.
+
+| 조각 | 위치 | 규칙 |
+|---|---|---|
+| `Panel` | `core/ui/Panel.tsx` | 유일한 카드 프레임. 헤더 2.5rem(제목 13px·개수·우측 액션) + 본문 패딩 0.75rem, `rounded-lg border bg-card`. `fill` 이면 부모 높이를 채우고 본문이 안에서 스크롤. 위젯·설정 섹션·목록 모두 이걸 쓴다. |
+| `Page` | `core/ui/Page.tsx` | 본문 폭 3종. `content`(대시보드, 1440px 까지 브라우저 폭을 따름) · `narrow`(목록·상세·설정, 48rem) · `full`(보드·캘린더, 데스크톱에서 `100dvh - 3rem` 높이 고정). |
+| `PageHeader` | `core/ui/PageHeader.tsx` | 3rem 고정. 제목 + `meta`(날짜·개수) + 우측 액션. |
+| `WidgetGrid` | `core/ui/WidgetGrid.tsx` | 모바일 1열 · md 2열 · xl 4열, 행 단위 9rem. `size` 가 열 span, `rows` 가 행 span. `placement: 'top'` 위젯은 그리드 위에 프레임 없이. `fill`(Today) 이면 그리드가 뷰포트 높이를 채우도록 행을 `minmax(9rem,1fr)` 로 늘린다. 각 셀은 `Panel(title=widget.title, action=HeaderAction+href)` 로 감싼다. |
+| 상태 칩 | shadcn `Badge` | 회의 상태·기억 종류·캡처 분류·패턴 모두 Badge(secondary/outline/destructive). 색은 의미(지연 red·오늘 amber·좋음 emerald)에만 쓴다. |
+
+화면별 의도:
+- **Today**(`content`, fill): 캡처 바 → 브리핑·오늘 일정·오늘 할 일·회의 2×2. 하루의 시작점이라 스크롤 없이 한 화면.
+- **보드**(`full`): 컬럼이 화면 폭을 나눠 갖고(`min-w-64 max-w-sm flex-1`) 높이를 채운다. 카드 목록만 내부 스크롤, 빠른 추가는 컬럼 하단 고정. 모바일은 가로 스냅 스크롤.
+- **캘린더**(`full`): 월 = 6행이 뷰포트를 채움(셀당 4개 + `+n`), 주 = 7열 균등·열 내부 스크롤, 일정 = xl 에서 2단(CSS columns).
+- **인사이트**(`content`): 패턴 1행 → 처리량 3행 | 회의·일정 2행씩 → 캡처 2행 → 비용 3행(2단). 차트는 패널 높이를 채운다.
+- **회의·기억·인박스·설정**(`narrow`): Panel 목록 + Badge. 설정은 섹션마다 Panel.
+
+레이첼 Dock:
+- 데스크톱: 우하단 **플로팅 창**(400×600, 확장 640×전체 높이). `Shift+Space` 또는 `⌘J` 토글, `Esc` 닫기. 입력 중(input·textarea·contenteditable)에는 Shift+Space 를 가로채지 않는다. 화면 레이아웃과 독립이라 어느 라우트에서든 바로 열린다. 열기 버튼은 레일 하단(툴팁에 단축키).
+- 모바일: 하단 탭 중앙 FAB(탭 = 열기, 길게 = 음성 캡처) + 바텀 드로어 88dvh.
+- 본문(`DockBody`)은 `next/dynamic` 으로 첫 열 때 로드(첫 로드 JS 에서 AI SDK 제외).
+
+검증 도구: `OUT=<dir> node scripts/screenshots.mjs`(로컬 Supabase 빌드에서 시드 사용자 생성 → 데스크톱 1440·모바일 390 캡처).
 
 ## 10. PWA와 오프라인
 
