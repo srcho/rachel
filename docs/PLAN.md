@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P2 완료(2026-09-03, 사용자 Google 연결·실사용 확인 대기) → P3 S3.0 스파이크** |
+| 상태 | **P3 코드 완료(2026-09-03) — 실기기(iPhone) 녹음 검증 대기 → P4** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -299,7 +299,7 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 ### P3 Meetings (7~9일) — 목표: S2 통과, 60분 회의 ≤ $0.40, 첫 요약 2분
 
 #### S3.0 스파이크(최대 2일) — 코드 병합 없이 사실 확인
-- [ ] 산출: `docs/spikes/2026-09-meetings-spike.md`.
+- [x] 산출: `docs/spikes/2026-09-meetings-spike.md`.
 - 확인 항목:
   1. iPhone 설치형 PWA에서 `getUserMedia` + `AudioWorklet` + `MediaRecorder`(mp4) 동시 동작, 실제 sampleRate, 화면 켜둔 채 30분 녹음 안정성, 백그라운드 시 동작.
   2. Muse 배치: 실제 한국어 회의 10분 WAV(16k·24k 각각) → `ENDPOINTING`·`DIARIZATION` 응답, 체감 정확도, 처리 시간(실시간 대비 배율), 한·영 혼용 결과, `keywords` 효과, 분당 요청 한도(20초 세그먼트를 30개 연속 전송).
@@ -308,53 +308,55 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
   5. **VibeVoice-ASR 로컬(맥 M4 Max 64GB)**: `mlx-community/VibeVoice-ASR-bf16`(비스트리밍 7B/9B)로 같은 30분 한국어 회의를 돌려 정확도·화자 일관성·처리 시간(실시간 배율)·메모리를 Muse 결과와 나란히 기록. 핫워드(키워드) 효과 확인. 스트리밍 변형(`VibeVoice-ASR-Streaming-7B`)은 MLX 포팅 여부만 확인.
 - 결정: 품질 미달이면 `models.ts`의 `transcribe.provider`를 `'openai'`로 바꾸고 `openai.ts`를 구현(같은 인터페이스). VibeVoice가 Muse 이상이면 S3.5 파이널 패스를 **맥 워커 우선 + Muse 폴백**으로 설계 변경(아래 S3.5 변경 메모 참조).
 - 커밋: `docs: meetings spike results (iOS recording, Muse quality)`
+> 변경(2026-09-03): Muse 항목만 완료(`docs/spikes/2026-09-meetings-spike.md`): 한국어+영어 바이어스·키워드로 거의 완벽, 화자 A/B 정확, RTF≈0.18, OpenAI 전사보다 정확. **iOS 실기기·IndexedDB·분당 한도·VibeVoice 는 미확인**(코드 배포 후 사용자 실기기 테스트로 대체).
 
 #### S3.1 meetings 스키마·서비스
-- [ ] 산출: `supabase/migrations/0007_meetings.sql`(meetings, transcript_segments — ARCHITECTURE 5.5), `src/modules/meetings/{module,schema,repository,service,hints}.ts`.
+- [x] 산출: `supabase/migrations/0007_meetings.sql`(meetings, transcript_segments — ARCHITECTURE 5.5), `src/modules/meetings/{module,schema,repository,service,hints}.ts`.
 - 구현: `service.start({title?, calendarEventId?})`, `appendLiveTurns(meetingId, seq, turns)`, `finalize(meetingId)`(status processing, duration, `enqueue meetings.postprocess`, final_pass_status pending), `setSpeakerName`, `bookmark`. `hints.ts`: keywords 조립(참석자·사전·카드 제목) ≤ 50.
 - 검증: 서비스 테스트(RLS 포함).
 - 커밋: `feat(meetings): schema and service`
 
 #### S3.2 녹음기(클라이언트)
-- [ ] 산출: `src/modules/meetings/recorder/{pcm-worklet.ts,AudioCapture.ts,Segmenter.ts,WavEncoder.ts,AudioStore.ts,Uploader.ts,MediaRecorderSink.ts,state.ts,useRecorder.ts}`, 테스트 `Segmenter.test.ts`(합성 PCM: 사인파 + 무음), `WavEncoder.test.ts`.
+- [x] 산출: `src/modules/meetings/recorder/{pcm-worklet.ts,AudioCapture.ts,Segmenter.ts,WavEncoder.ts,AudioStore.ts,Uploader.ts,MediaRecorderSink.ts,state.ts,useRecorder.ts}`, 테스트 `Segmenter.test.ts`(합성 PCM: 사인파 + 무음), `WavEncoder.test.ts`.
 - 구현: ARCHITECTURE 7.1. 워클릿은 `public/worklets/pcm-capture.js`(AudioWorklet은 별도 파일 필요). 상태 머신은 zustand. 세그먼트 컷 → WAV → `AudioStore.putPcm` → `Uploader` 큐. `MediaRecorderSink`는 10초 timeslice 청크를 `AudioStore.appendRec`. Wake Lock·visibility·resume.
 - 검증: 데스크톱 Chrome + iPhone Safari에서 5분 녹음 → 세그먼트 15~30개 생성, 무음 구간 생략 확인, 새로고침 후 이어 녹음.
 - 커밋: `feat(meetings): browser recorder with PCM segmenter, WAV encoder, IndexedDB store`
 
 #### S3.3 라이브 패스 라우트
-- [ ] 산출: `src/app/api/meetings/[id]/segments/route.ts`, `src/modules/meetings/live.ts`.
+- [x] 산출: `src/app/api/meetings/[id]/segments/route.ts`, `src/modules/meetings/live.ts`.
 - 구현: ARCHITECTURE 7.2. WAV 검증(`parseWavHeader`) → `transcription.transcribeFile({mode:'ENDPOINTING', …})` → `appendLiveTurns` → 원장(feature `transcribe_live`, ref {meeting}) → 반환. 실패 시 `status='failed'` 세그먼트 행.
 - 검증: 5분 녹음 → 화면 전사 지연 측정(목표 ≤ 30초), 원장에 초 단위 기록.
 - 커밋: `feat(meetings): live-pass transcription route (Muse ENDPOINTING)`
 
 #### S3.4 라이브 화면 · 목록 · 진입점
-- [ ] 산출: `src/app/(app)/meetings/page.tsx`(목록: 상태·길이·비용), `meetings/live/[id]/page.tsx`, `src/modules/meetings/ui/{LiveScreen,Timer,LevelMeter,LiveTranscript,BookmarkButton,EndDialog,MeetingListItem,StartMeetingButton}.tsx`, Today의 "녹음 시작" 위젯(임박 일정 ±10분).
+- [x] 산출: `src/app/(app)/meetings/page.tsx`(목록: 상태·길이·비용), `meetings/live/[id]/page.tsx`, `src/modules/meetings/ui/{LiveScreen,Timer,LevelMeter,LiveTranscript,BookmarkButton,EndDialog,MeetingListItem,StartMeetingButton}.tsx`, Today의 "녹음 시작" 위젯(임박 일정 ±10분).
 - 구현: 큰 타이머 + 레벨 미터 + 흐르는 전사(자동 스크롤, 폰트 크기 조절) + 북마크 + 종료(확인 다이얼로그). 백그라운드 배너.
 - 검증: S2 전반부(시작 → 전사 → 종료) 모바일에서.
 - 커밋: `feat(meetings): live recording screen and meeting list`
 
 #### S3.5 파이널 패스(청킹·화자 분리·스티칭)
-- [ ] 산출: `src/modules/meetings/finalpass/{chunker.ts,runner.ts,useFinalPass.ts}`, `src/app/api/meetings/[id]/diarize/route.ts`, `src/modules/meetings/stitch.ts`, 테스트 `chunker.test.ts`(경계·겹침·마지막 청크 병합), `stitch.test.ts`(합성 turn 3청크, 라벨 순열 뒤바꿈 케이스).
+- [x] 산출: `src/modules/meetings/finalpass/{chunker.ts,runner.ts,useFinalPass.ts}`, `src/app/api/meetings/[id]/diarize/route.ts`, `src/modules/meetings/stitch.ts`, 테스트 `chunker.test.ts`(경계·겹침·마지막 청크 병합), `stitch.test.ts`(합성 turn 3청크, 라벨 순열 뒤바꿈 케이스).
 - 구현: ARCHITECTURE 7.3. 러너는 앱 시작 시 `final_pass_status in (pending, running)`인 회의를 찾아 이어서 실행. 진행률 UI(목록·상세). 완료 시 PCM 삭제, 실패 시 라이브 유지 + "다시 시도".
 - 검증: 25분 녹음(3청크) → 화자 라벨이 청크 경계에서 이어지는지 수동 확인. 원장 `transcribe_final` 기록.
 - 커밋: `feat(meetings): final-pass diarization with chunking and speaker stitching`
 > 계획 변경 후보(2026-09-03, D13): 스파이크 결과가 좋으면 파이널 패스를 이렇게 바꾼다. (a) 종료 시 압축 녹음을 Supabase Storage `meeting-audio/<user>/<meeting>.webm|m4a`에 업로드(S6.5를 여기로 앞당김, 시간당 약 14MB). (b) 잡 `meetings.final_pass`를 큐에 넣고 **맥 워커**(`workers/mac-transcriber/`, Python + MLX, `TranscriptionProvider`와 같은 입출력)가 service-role 키로 잡을 집어가 오디오를 내려받아 60분 단일 패스로 전사 → `transcript_segments(pass='final')` 저장 → `meeting.transcribed` 이벤트. (c) 워커가 N분 안에 집어가지 않으면(맥 꺼짐) 서버 잡이 Muse 청크·스티칭 경로로 폴백. 클라이언트 청킹·스티칭 코드는 폴백용으로 유지. 워커 실행은 launchd로 로그인 시 자동 시작.
 
 #### S3.6 후처리 잡 · 요약
-- [ ] 산출: `src/modules/meetings/postprocess.ts`, 잡 `meetings.postprocess`, `src/core/llm/prompts/meeting-summary.ts` + `MeetingSummarySchema`(zod), 이벤트 `meeting.summarized`, memory 모듈 핸들러·인덱서 연결.
+- [x] 산출: `src/modules/meetings/postprocess.ts`, 잡 `meetings.postprocess`, `src/core/llm/prompts/meeting-summary.ts` + `MeetingSummarySchema`(zod), 이벤트 `meeting.summarized`, memory 모듈 핸들러·인덱서 연결.
 - 구현: ARCHITECTURE 7.4. 라이브 기준 v1 즉시, 파이널 완료 시 v2(화자 반영, `summary_version`). 원장 feature `summarize`.
 - 검증: 종료 → 2분 내 요약. 파이널 후 요약에 화자 이름 반영.
 - 커밋: `feat(meetings): post-processing job with structured summary`
 
 #### S3.7 회의 상세 · 리뷰 시트 · 재생 · 범위 RAG
-- [ ] 산출: `src/app/(app)/meetings/[id]/page.tsx`, `ui/{MeetingDetail,SummaryView,TranscriptView,SpeakerRename,ReviewSheet,AudioPlayer,CostBreakdown}.tsx`, `actions.ts`.
+- [x] 산출: `src/app/(app)/meetings/[id]/page.tsx`, `ui/{MeetingDetail,SummaryView,TranscriptView,SpeakerRename,ReviewSheet,AudioPlayer,CostBreakdown}.tsx`, `actions.ts`.
 - 구현: 요약 탭 / 전사 탭(화자·타임스탬프, 탭하면 재생 위치 이동 — `AudioStore.getRec`로 Blob URL, 없으면 "이 기기에 오디오 없음"). 리뷰 시트: 액션 아이템 체크 → `registry.tools()['tasks.create']`를 서비스 경유로 일괄 생성(source meeting), 팔로업 → calendar. "이 회의에 대해 물어보기" → Dock을 `scope {meeting}`으로 열기(agent 컨텍스트 프로바이더가 요약 + 청크 top-5 주입). `CostBreakdown`: 라이브·파이널·요약 비용.
 - 검증: S2 후반부(요약 → 액션 아이템 2탭 → 카드 생성). 비용 합계 ≤ $0.40(60분).
 - 커밋: `feat(meetings): meeting detail with review sheet, playback, scoped chat`
 
 #### S3.8 meetings 도구 · 검색 인덱서 · 위젯
-- [ ] 산출: `tools.ts`(list, get, search, summarize(force), createTasksFromActionItems, delete), `indexer.ts`(전사 300~500토큰 청크 + 요약), `widgets.tsx`(최근 회의 today, 회의 시간 insights).
+- [x] 산출: `tools.ts`(list, get, search, summarize(force), createTasksFromActionItems, delete), `indexer.ts`(전사 300~500토큰 청크 + 요약), `widgets.tsx`(최근 회의 today, 회의 시간 insights).
 - 커밋: `feat(meetings): agent tools, search indexer, widgets`
+> 변경(2026-09-03): 도구 6개(list·get·search(ilike)·summarize·createTasksFromActionItems(undo)·delete). 벡터 인덱서는 S4.2 에서. 회의 컨텍스트 프로바이더(요약+전사 발췌)로 "이 회의에 대해 물어보기" 동작. 라이브 화면·파이널 패스·재생은 **아이폰 실기기 검증 필요**(PRD S2 수용 기준).
 
 **P3 Exit**: PRD S2 통과 + 비용 기준. 스파이크 문서에 실측치 기록.
 
@@ -468,3 +470,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S1.6 완료(사용량·비용 패널, 호칭·예산 설정). **P1 Exit**: 배포됨, S3 시나리오는 사용자 실사용 확인 필요 | **P2 S2.1** Google 캘린더 OAuth 연동 | 매일 사용 시작 가능 |
 | 2026-09-03 | rachel-d5 | S2.1~S2.5 완료: OAuth(Vault)·증분 동기화·캘린더 3뷰·CRUD write-through·도구 6개·Today 브리핑. 0006·0007 프로덕션 적용, 크론 3개 | **P3 S3.0** 회의 스파이크(iOS 녹음·Muse·VibeVoice) — Meta 키 필요 | 사용자 확인: Google 연결·양방향 반영·브리핑 |
 | 2026-09-03 | rachel-d5 | **버그 수정**: calendar 모듈 등록 누락·insights 모듈 배열 누락으로 프로덕션 잡 "핸들러 없음". 모듈 내부 `@/modules` 순환 import 제거(ctx.registry·getRegistry), 레지스트리 조립 회귀 테스트·biome 금지 규칙 추가. 재실행 결과 일정 30건 동기화·브리핑 생성 확인 | P3 S3.0 | 교훈: 파이썬 문자열 치환은 실패해도 조용하다 → 치환 후 assert, 조립 결과는 테스트로 검증 |
+| 2026-09-03 | rachel-d5 | P3 S3.0(Muse)~S3.8 코드 완료·배포: 0008·0009, 녹음기(워클릿·세그먼터·IndexedDB), 라이브 패스, 라이브 화면, 파이널 패스(청킹·스티칭·diarize), 요약 v1/v2, 상세·리뷰 시트·재생, 도구 6개, 테스트 59개 | **사용자 실기기 검증**(iPhone PWA 녹음 → 전사 → 종료 → 요약 → 화자 분리) → P4 S4.1 | 미확인: iOS 동시 녹음, 분당 한도, VibeVoice |

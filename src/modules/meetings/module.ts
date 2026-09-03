@@ -1,6 +1,7 @@
 import type { RachelModule } from "@/core/contracts";
 import { meetingContextProvider } from "./context";
 import { postprocessJob } from "./jobs";
+import { meetingsTools } from "./tools";
 import { meetingsWidget } from "./widgets";
 
 /** meetings 모듈: 녹음·2패스 전사·요약. 도구·인덱서·파이널 패스는 S3.5~S3.8 */
@@ -12,6 +13,7 @@ export const meetingsModule: RachelModule = {
     nav: { href: "/meetings", order: 35, mobileTab: true },
     schemaVersion: 9,
   },
+  tools: meetingsTools,
   widgets: [meetingsWidget],
   contextProviders: [meetingContextProvider],
   jobs: { postprocess: postprocessJob },

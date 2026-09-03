@@ -28,6 +28,13 @@ const TOOL_LABEL: Record<string, string> = {
   memory_list: "기억 목록",
   memory_update: "기억 수정",
   memory_forget: "기억 삭제",
+  meetings_list: "회의 목록",
+  meetings_get: "회의 요약 조회",
+  meetings_search: "회의 검색",
+  meetings_summarize: "회의 재요약",
+  meetings_createTasksFromActionItems: "액션 아이템 → 카드",
+  meetings_delete: "회의 삭제",
+  insights_generateBrief: "브리핑 생성",
 };
 
 export interface ToolPartLike {
