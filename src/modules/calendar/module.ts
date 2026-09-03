@@ -1,4 +1,5 @@
 import type { RachelModule } from "@/core/contracts";
+import { syncJob } from "./jobs";
 import { CalendarSettings } from "./ui/CalendarSettings";
 
 /** calendar 모듈. 동기화 잡·도구·뷰는 S2.2~S2.4 에서 채운다. */

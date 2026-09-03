@@ -18,3 +18,15 @@ select cron.schedule(
     timeout_milliseconds := 60000)
   $$
 );
+
+-- 15분마다: 연결된 사용자마다 calendar.sync 잡 등록(dedupe)
+select cron.unschedule(jobname) from cron.job where jobname = 'rachel-calendar-sync';
+select cron.schedule(
+  'rachel-calendar-sync',
+  '*/15 * * * *',
+  $$
+  select public.enqueue_job('calendar.sync', '{}'::jsonb, 'calendar.sync:' || i.user_id::text, now(), i.user_id)
+  from public.integrations i
+  where i.provider = 'google_calendar' and i.status = 'connected'
+  $$
+);

@@ -4,6 +4,7 @@ import { registry } from "@/modules";
 import { DesktopDockButton } from "@/modules/agent/dock/DesktopDockButton";
 import { RachelFab } from "@/modules/agent/dock/RachelFab";
 import { RachelPanel } from "@/modules/agent/dock/RachelPanel";
+import { maybeTriggerSync } from "@/modules/calendar/trigger";
 
 export default async function AppLayout({
   children,
