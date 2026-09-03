@@ -1,4 +1,5 @@
 import type { RachelModule } from "@/core/contracts";
+import { meetingContextProvider } from "./context";
 import { postprocessJob } from "./jobs";
 import { meetingsWidget } from "./widgets";
 
@@ -12,6 +13,7 @@ export const meetingsModule: RachelModule = {
     schemaVersion: 9,
   },
   widgets: [meetingsWidget],
+  contextProviders: [meetingContextProvider],
   jobs: { postprocess: postprocessJob },
   commands: [
     {
