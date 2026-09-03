@@ -64,17 +64,31 @@ export function eventService(ctx: ServiceContext) {
     };
   }
 
-  async function writableCalendar(calendarId?: string): Promise<CalendarRow> {
+  /**
+   * 쓸 캘린더. id 가 없거나 모르는 값(에이전트가 지어낸 UUID 등)이면 기본 캘린더로 간다.
+   * 오류 문구는 "미연결"과 "쓸 캘린더 없음"을 구분한다 — 예전엔 둘 다 "연결해 주세요" 라서 레이첼이 미연결로 오답했다.
+   */
+  async function writableCalendar(
+    calendarId?: string | null,
+  ): Promise<CalendarRow> {
     const calendars = await repo.listCalendars();
-    const cal = calendarId
+    if (calendars.length === 0)
+      throw new Error(
+        "Google 캘린더가 연결되지 않았어요. 설정에서 연결해 주세요.",
+      );
+    const byId = calendarId
       ? calendars.find((c) => c.id === calendarId)
-      : (calendars.find((c) => c.is_primary && c.writable) ??
-        calendars.find((c) => c.writable));
+      : undefined;
+    if (byId && !byId.writable)
+      throw new Error(`"${byId.name}" 은 읽기 전용이에요`);
+    const cal =
+      byId ??
+      calendars.find((c) => c.is_primary && c.writable) ??
+      calendars.find((c) => c.writable);
     if (!cal)
       throw new Error(
-        "쓸 수 있는 캘린더가 없어요. 설정에서 Google 캘린더를 연결해 주세요.",
+        "연결은 됐지만 쓰기 가능한 캘린더가 없어요(전부 읽기 전용). 설정 > Google 캘린더에서 확인해 주세요.",
       );
-    if (!cal.writable) throw new Error(`"${cal.name}" 은 읽기 전용이에요`);
     return cal;
   }
 
@@ -99,7 +113,12 @@ export function eventService(ctx: ServiceContext) {
 
   async function createEvent(raw: CreateEventInput): Promise<EventRow> {
     const input = createEventSchema.parse(raw);
-    if (new Date(input.endAt) <= new Date(input.startAt))
+    const endAt =
+      input.endAt ??
+      new Date(
+        new Date(input.startAt).getTime() + (input.allDay ? 24 : 1) * 3_600_000,
+      ).toISOString();
+    if (new Date(endAt) <= new Date(input.startAt))
       throw new Error("종료가 시작보다 빨라요");
     const cal = await writableCalendar(input.calendarId);
     let row = await repo.insertEvent({
@@ -109,7 +128,7 @@ export function eventService(ctx: ServiceContext) {
       description: input.description ?? null,
       location: input.location ?? null,
       start_at: input.startAt,
-      end_at: input.endAt,
+      end_at: endAt,
       all_day: input.allDay,
       timezone: ctx.timezone,
       sync_status: "pending_push",
@@ -139,7 +158,7 @@ export function eventService(ctx: ServiceContext) {
       }),
       ...(patch.location !== undefined && { location: patch.location }),
       ...(patch.startAt !== undefined && { start_at: patch.startAt }),
-      ...(patch.endAt !== undefined && { end_at: patch.endAt }),
+      ...(patch.endAt != null && { end_at: patch.endAt }),
       ...(patch.allDay !== undefined && { all_day: patch.allDay }),
       sync_status: "pending_push",
     });

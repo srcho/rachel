@@ -19,9 +19,14 @@ export const calendarContextProvider: ContextProvider = {
       to: tomorrow.end,
       limit: 20,
     });
-    if (events.length === 0) return "[일정] 캘린더 연결됨. 오늘·내일 일정 없음";
+    const names = calendars
+      .filter((c) => c.writable)
+      .map((c) => `${c.name}${c.is_primary ? "(기본)" : ""}`)
+      .join(", ");
+    if (events.length === 0)
+      return `[일정] Google 캘린더 연결됨(쓰기 가능: ${names}). 오늘·내일 일정 없음`;
     const label = (iso: string) => (iso >= tomorrow.start ? "내일" : "오늘");
-    return `[일정]\n${events
+    return `[일정] 연결됨(쓰기 가능: ${names})\n${events
       .slice(0, 10)
       .map(
         (e) =>

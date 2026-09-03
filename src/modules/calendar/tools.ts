@@ -57,7 +57,12 @@ export const calendarTools: Record<string, AnyAgentTool> = {
       const events = calendars.length ? await svc.listEvents(input) : [];
       return {
         connected: calendars.length > 0,
-        calendars: calendars.map((c) => c.name),
+        calendars: calendars.map((c) => ({
+          id: c.id,
+          name: c.name,
+          writable: c.writable,
+          primary: c.is_primary,
+        })),
         events: events.map(summarize),
       };
     },
@@ -78,7 +83,7 @@ export const calendarTools: Record<string, AnyAgentTool> = {
   }),
   createEvent: defineTool({
     description:
-      "일정을 만든다(Google 캘린더에 바로 반영). 시각은 ISO 8601 타임존 포함. 종일이면 allDay=true, endAt 은 다음날 자정.",
+      "일정을 만든다(Google 캘린더에 바로 반영). 시각은 ISO 8601 타임존 포함(예 2026-09-16T10:30:00+09:00). calendarId 는 모르면 null(기본 캘린더) — 절대 지어내지 말 것. endAt 을 생략하면 1시간 — 사용자에게 길이를 묻지 말고 만든 뒤 알려 줄 것. 종일이면 allDay=true.",
     inputSchema: createEventSchema,
     risk: "write",
     execute: async (input, ctx) =>

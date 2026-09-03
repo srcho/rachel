@@ -5,12 +5,15 @@ const iso = z.string().datetime({ offset: true });
 export const createEventSchema = z.object({
   calendarId: z
     .string()
-    .uuid()
-    .optional()
-    .describe("없으면 기본(primary) 캘린더"),
+    .nullish()
+    .describe(
+      "listEvents 의 calendars[].id. 모르면 null — 기본(primary) 캘린더에 만든다. 지어내지 말 것",
+    ),
   title: z.string().trim().min(1).max(300),
   startAt: iso,
-  endAt: iso,
+  endAt: iso
+    .nullish()
+    .describe("없으면 시작 +1시간(종일이면 다음날). 사용자에게 묻지 말 것"),
   allDay: z.boolean().default(false),
   location: z.string().max(500).optional(),
   description: z.string().max(5000).optional(),
