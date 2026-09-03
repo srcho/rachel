@@ -16,7 +16,9 @@
     "db:types": "supabase gen types typescript --local > src/core/db/types.generated.ts",
     "db:reset": "supabase db reset",
     "sw:build": "serwist build",
-    "test:rls": "supabase test db"
+    "test:rls": "supabase test db",
+    "check:bundle": "node scripts/measure-first-load.mjs",
+    "analyze:bundle": "node scripts/analyze-bundle.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.56",
@@ -77,6 +79,7 @@
     "esbuild": "^0.28.2",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
+    "source-map": "0.7.4",
     "supabase": "^2.116.0",
     "tailwindcss": "^4",
     "typescript": "^5",

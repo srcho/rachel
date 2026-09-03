@@ -1,14 +1,7 @@
 import { z } from "zod";
+import { MEMORY_KINDS, type MemoryKind } from "./constants";
 
-export const MEMORY_KINDS = [
-  "fact",
-  "preference",
-  "person",
-  "decision",
-  "goal",
-  "routine",
-] as const;
-export type MemoryKind = (typeof MEMORY_KINDS)[number];
+export { MEMORY_KINDS, type MemoryKind };
 
 export const memorySourceSchema = z.object({
   type: z.enum(["thread", "meeting", "capture", "manual"]),

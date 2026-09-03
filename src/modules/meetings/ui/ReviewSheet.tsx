@@ -15,7 +15,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useIsDesktop } from "@/core/ui/useMediaQuery";
-import { parseDueFromTitle } from "@/modules/tasks/parse-due";
 import { createCardsFromMeetingAction } from "../review-actions";
 import type { MeetingSummary } from "../schema";
 
@@ -45,6 +44,7 @@ export function ReviewSheet({
     if (chosen.length === 0) return onClose();
     setBusy(true);
     try {
+      const { parseDueFromTitle } = await import("@/modules/tasks/parse-due");
       const n = await createCardsFromMeetingAction(
         meetingId,
         chosen.map((a) => {

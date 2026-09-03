@@ -12,7 +12,7 @@ import {
   KIND_LABEL,
   NOTIFICATION_KINDS,
   type NotificationKind,
-} from "../schema";
+} from "../constants";
 
 function b64ToUint8(b64: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (b64.length % 4)) % 4);

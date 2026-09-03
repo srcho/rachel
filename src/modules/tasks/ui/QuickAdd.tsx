@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatDue } from "../format";
-import { parseDueFromTitle } from "../parse-due";
+import type { parseDueFromTitle } from "../parse-due";
 
 export function QuickAdd({
   onAdd,
@@ -20,10 +20,17 @@ export function QuickAdd({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // chrono-node(≈40KB gz)는 입력창이 열릴 때 불러온다
+  const [parse, setParse] = useState<typeof parseDueFromTitle | null>(null);
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
-  const parsed = text.trim() ? parseDueFromTitle(text) : null;
+    if (!open) return;
+    inputRef.current?.focus();
+    if (!parse)
+      void import("../parse-due").then((m) =>
+        setParse(() => m.parseDueFromTitle),
+      );
+  }, [open, parse]);
+  const parsed = text.trim() && parse ? parse(text) : null;
   const preview = parsed
     ? formatDue({ due_at: parsed.dueAt, due_has_time: parsed.hasTime })
     : null;

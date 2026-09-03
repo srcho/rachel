@@ -28,6 +28,8 @@ test("today → tasks: create a card and see it on the board", async ({
       .last();
     await expect(card).toBeVisible();
     await expect(card.getByText("내일")).toBeVisible();
+    // 낙관적 UI 뒤의 서버 액션이 끝나기 전에 새로고침하면 저장이 끊기므로 네트워크가 잠잠해질 때까지 기다린다
+    await page.waitForLoadState("networkidle");
     // 새로고침 후에도 남아 있다(서버 저장)
     await page.reload();
     await expect(

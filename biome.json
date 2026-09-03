@@ -27,7 +27,9 @@
         "noRestrictedImports": {
           "level": "error",
           "options": {
-            "paths": {}
+            "paths": {
+              "lucide-react/dynamic": "전체 아이콘 인덱스(≈20KB gz)가 첫 로드에 실립니다. @/core/ui/icon 의 정적 매핑에 아이콘을 추가하세요."
+            }
           }
         }
       }

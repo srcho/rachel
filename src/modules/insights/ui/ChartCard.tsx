@@ -1,4 +1,14 @@
-import { WeeklyBars, type WeeklyPoint } from "@/core/ui/charts/WeeklyBars";
+"use client";
+import dynamic from "next/dynamic";
+import type { WeeklyPoint } from "@/core/ui/charts/WeeklyBars";
+
+const WeeklyBars = dynamic(
+  () => import("@/core/ui/charts/WeeklyBars").then((m) => m.WeeklyBars),
+  {
+    ssr: false,
+    loading: () => <div className="h-40 animate-pulse rounded bg-muted/40" />,
+  },
+);
 
 export function ChartCard({
   title,

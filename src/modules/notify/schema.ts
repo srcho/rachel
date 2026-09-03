@@ -1,18 +1,11 @@
 import { z } from "zod";
+import {
+  KIND_LABEL,
+  NOTIFICATION_KINDS,
+  type NotificationKind,
+} from "./constants";
 
-export const NOTIFICATION_KINDS = [
-  "meeting_ready",
-  "daily_brief",
-  "weekly_review",
-  "due_soon",
-] as const;
-export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
-export const KIND_LABEL: Record<NotificationKind, string> = {
-  meeting_ready: "회의 정리 완료",
-  daily_brief: "아침 브리핑",
-  weekly_review: "주간 리뷰",
-  due_soon: "마감 임박",
-};
+export { KIND_LABEL, NOTIFICATION_KINDS, type NotificationKind };
 
 export const pushPayloadSchema = z.object({
   kind: z.enum(NOTIFICATION_KINDS),

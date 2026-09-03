@@ -11,8 +11,9 @@ import {
   rememberAction,
   updateMemoryAction,
 } from "../actions";
+import { MEMORY_KINDS, type MemoryKind } from "../constants";
 import type { MemoryRow } from "../repository";
-import { MEMORY_KINDS, type MemoryKind, type MemorySource } from "../schema";
+import type { MemorySource } from "../schema";
 
 export const KIND_LABEL: Record<MemoryKind, string> = {
   fact: "사실",
