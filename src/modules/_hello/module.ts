@@ -4,7 +4,13 @@ import { HelloWidget } from "./widget";
 
 /** P0 검증용 더미 모듈. P1에서 tasks 모듈이 들어오면 삭제한다. */
 export const helloModule: RachelModule = {
-  manifest: { id: "hello", name: "Hello", icon: "sparkles", schemaVersion: 0 },
+  manifest: {
+    id: "hello",
+    name: "Today",
+    icon: "sun",
+    nav: { href: "/today", order: 10, mobileTab: true },
+    schemaVersion: 0,
+  },
   tools: {
     ping: {
       description: "연결 확인. 입력한 메시지를 그대로 돌려준다.",

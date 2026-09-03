@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P1 진행 중 — S1.1 완료, 다음 S1.2 칸반 UI** |
+| 상태 | **P1 진행 중 — S1.2 완료, 다음 S1.3 tasks 도구·위젯** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -214,10 +214,11 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 > 변경(2026-09-03): 자연어 마감 파싱은 서비스가 아니라 UI(QuickAdd)·도구 계층에서 처리(서비스는 ISO만). 통합 테스트 헬퍼 `src/test/supabase.ts`(로컬 사용자 생성·RLS 세션)는 로컬 Supabase가 없으면 skip. 타임존 하루 경계는 `core/utils/date.ts`. 프로덕션에도 적용됨(0002).
 
 #### S1.2 칸반 UI
-- [ ] 산출: `src/app/(app)/tasks/page.tsx`(기본 보드로 redirect), `tasks/[boardId]/page.tsx`(RSC: 보드+컬럼+카드 로드), `src/modules/tasks/ui/{Board,Column,Card,CardSheet,QuickAdd,LabelPicker,DuePicker}.tsx`, `src/modules/tasks/queries.ts`(TanStack Query 키·훅·낙관적 업데이트), `src/core/realtime/useTableChanges.ts`, `src/core/query/{provider,persister}.tsx`.
+- [x] 산출: `src/app/(app)/tasks/page.tsx`(기본 보드로 redirect), `tasks/[boardId]/page.tsx`(RSC: 보드+컬럼+카드 로드), `src/modules/tasks/ui/{Board,Column,Card,CardSheet,QuickAdd,LabelPicker,DuePicker}.tsx`, `src/modules/tasks/queries.ts`(TanStack Query 키·훅·낙관적 업데이트), `src/core/realtime/useTableChanges.ts`, `src/core/query/{provider,persister}.tsx`.
 - 구현: `@dnd-kit/sortable` 컬럼 내·간 이동, 터치 센서(롱프레스 150ms), 키보드 센서. 낙관적 이동 → `actions.moveCard` → 실패 시 롤백 + sonner 토스트. Realtime: `postgres_changes` on `cards` filter `user_id=eq.<id>` → 쿼리 무효화. 모바일 컬럼 가로 스크롤 + `scroll-snap`. 카드: 제목 2줄, 우선순위 점, 마감 상대 표기, 라벨 칩. `CardSheet`: 모바일 Drawer / 데스크톱 Sheet, 설명 markdown(간단 렌더러는 `react-markdown` 지연 로드 또는 P6).
 - 검증: 카드 100장 시드로 스크롤 성능, 이동 100ms 반영(Performance 탭), 두 브라우저에서 Realtime 반영.
 - 커밋: `feat(tasks): kanban board UI with drag-and-drop, optimistic updates, realtime`
+> 변경(2026-09-03): TanStack Query 대신 **RSC 초기 데이터 + 클라이언트 낙관적 상태 + Server Action + Realtime→router.refresh()**(진행 중 조작이 있으면 서버 반영 보류). 오프라인 읽기는 Serwist 페이지 캐시로 충족. chrono-node에 한국어 로케일이 없어 `parse-due.ts`에 자체 규칙 파서(오늘·내일·모레·N일 후·다음주 X요일·M/D·M월 D일·오후 N시 등) + 영어 폴백. 0003 마이그레이션으로 cards·board_columns Realtime 발행. 브라우저 실측(스크롤·Realtime)은 배포 후 사용자 확인.
 
 #### S1.3 tasks 액션·도구·위젯
 - [ ] 산출: `src/modules/tasks/{actions,tools,widgets,events,indexer,module}.ts`, `src/modules/index.ts`에 등록(`_hello` 제거).
@@ -452,3 +453,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S0.7 완료: 프로덕션 DB 마이그레이션, Vercel 배포(rachel-seven-tau.vercel.app), env 10개, Auth 설정 push, pg_cron→잡 러너 동작 확인 | **P1 S1.1** tasks 스키마·서비스 | Meta 키만 미발급(Muse 실호출·S3.0 스파이크 대기). 사용자 확인 필요: Google 로그인 1회, Lighthouse/iPhone 설치 |
 | 2026-09-03 | rachel-d5 | D13 결정: VibeVoice-ASR 로컬 파이널 패스(맥 워커 + Muse 폴백) 후보를 S3.0 스파이크·S3.5 변경 후보로 기록 | P1 S1.1 | 맥 M4 Max 64GB |
 | 2026-09-03 | rachel-d5 | S1.1 완료: 0002_tasks(로컬·프로덕션), schema/repository/service, 통합 테스트 7개(총 30개) | **S1.2** 칸반 UI | — |
+| 2026-09-03 | rachel-d5 | S1.2 완료: 칸반 UI(dnd-kit·낙관적 업데이트·Realtime), 카드 시트, 빠른 추가(한국어 마감 파서), /tasks 라우트, 배포 | **S1.3** tasks 도구·액션·위젯 | 테스트 36개. Google 로그인 사용자 확인 완료 |
