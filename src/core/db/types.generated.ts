@@ -111,6 +111,142 @@ export type Database = {
         };
         Relationships: [];
       };
+      calendar_events: {
+        Row: {
+          all_day: boolean;
+          attendees: Json;
+          calendar_id: string;
+          created_at: string;
+          deleted_at: string | null;
+          description: string | null;
+          end_at: string;
+          etag: string | null;
+          external_id: string;
+          html_link: string | null;
+          id: string;
+          location: string | null;
+          recurring_event_id: string | null;
+          remote_updated_at: string | null;
+          start_at: string;
+          status: string;
+          sync_status: string;
+          timezone: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          all_day?: boolean;
+          attendees?: Json;
+          calendar_id: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          description?: string | null;
+          end_at: string;
+          etag?: string | null;
+          external_id: string;
+          html_link?: string | null;
+          id?: string;
+          location?: string | null;
+          recurring_event_id?: string | null;
+          remote_updated_at?: string | null;
+          start_at: string;
+          status?: string;
+          sync_status?: string;
+          timezone?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          all_day?: boolean;
+          attendees?: Json;
+          calendar_id?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          description?: string | null;
+          end_at?: string;
+          etag?: string | null;
+          external_id?: string;
+          html_link?: string | null;
+          id?: string;
+          location?: string | null;
+          recurring_event_id?: string | null;
+          remote_updated_at?: string | null;
+          start_at?: string;
+          status?: string;
+          sync_status?: string;
+          timezone?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_calendar_id_fkey";
+            columns: ["calendar_id"];
+            isOneToOne: false;
+            referencedRelation: "calendars";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      calendars: {
+        Row: {
+          color: string | null;
+          created_at: string;
+          external_id: string;
+          id: string;
+          integration_id: string;
+          is_primary: boolean;
+          last_synced_at: string | null;
+          name: string;
+          selected: boolean;
+          sync_token: string | null;
+          updated_at: string;
+          user_id: string;
+          writable: boolean;
+        };
+        Insert: {
+          color?: string | null;
+          created_at?: string;
+          external_id: string;
+          id?: string;
+          integration_id: string;
+          is_primary?: boolean;
+          last_synced_at?: string | null;
+          name: string;
+          selected?: boolean;
+          sync_token?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          writable?: boolean;
+        };
+        Update: {
+          color?: string | null;
+          created_at?: string;
+          external_id?: string;
+          id?: string;
+          integration_id?: string;
+          is_primary?: boolean;
+          last_synced_at?: string | null;
+          name?: string;
+          selected?: boolean;
+          sync_token?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          writable?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendars_integration_id_fkey";
+            columns: ["integration_id"];
+            isOneToOne: false;
+            referencedRelation: "integrations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       cards: {
         Row: {
           archived_at: string | null;
@@ -664,6 +800,18 @@ export type Database = {
           p_type: string;
           p_user_id?: string;
         };
+        Returns: string;
+      };
+      integration_secret_delete: {
+        Args: { p_integration_id: string };
+        Returns: undefined;
+      };
+      integration_secret_get: {
+        Args: { p_integration_id: string };
+        Returns: string;
+      };
+      integration_secret_set: {
+        Args: { p_integration_id: string; p_secret: string };
         Returns: string;
       };
       match_memories: {

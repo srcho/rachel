@@ -1,0 +1,207 @@
+/** Google Calendar REST 클라이언트(fetch 기반, googleapis 없이). */
+import { requireEnv } from "@/core/env";
+
+export const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly",
+  "openid",
+  "email",
+];
+const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const API = "https://www.googleapis.com/calendar/v3";
+
+export class GoogleApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public reason?: string,
+  ) {
+    super(message);
+  }
+}
+
+export function buildAuthUrl(state: string): string {
+  const p = new URLSearchParams({
+    client_id: requireEnv("GOOGLE_CLIENT_ID"),
+    redirect_uri: requireEnv("GOOGLE_REDIRECT_URI"),
+    response_type: "code",
+    scope: GOOGLE_SCOPES.join(" "),
+    access_type: "offline",
+    prompt: "consent",
+    include_granted_scopes: "true",
+    state,
+  });
+  return `${AUTH_URL}?${p}`;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  expires_in: number;
+  refresh_token?: string;
+  id_token?: string;
+  scope?: string;
+}
+
+async function tokenRequest(
+  params: Record<string, string>,
+): Promise<TokenResponse> {
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: requireEnv("GOOGLE_CLIENT_ID"),
+      client_secret: requireEnv("GOOGLE_CLIENT_SECRET"),
+      ...params,
+    }),
+  });
+  const json = (await res.json()) as TokenResponse & {
+    error?: string;
+    error_description?: string;
+  };
+  if (!res.ok)
+    throw new GoogleApiError(
+      res.status,
+      json.error_description ?? json.error ?? "token error",
+      json.error,
+    );
+  return json;
+}
+
+export const exchangeCode = (code: string) =>
+  tokenRequest({
+    code,
+    grant_type: "authorization_code",
+    redirect_uri: requireEnv("GOOGLE_REDIRECT_URI"),
+  });
+export const refreshAccessToken = (refreshToken: string) =>
+  tokenRequest({ refresh_token: refreshToken, grant_type: "refresh_token" });
+
+/** id_token(JWT) payload 에서 이메일만 읽는다(서명 검증은 토큰 엔드포인트 응답이므로 생략). */
+export function emailFromIdToken(idToken?: string): string | null {
+  if (!idToken) return null;
+  const part = idToken.split(".")[1];
+  if (!part) return null;
+  try {
+    const json = JSON.parse(
+      Buffer.from(
+        part.replace(/-/g, "+").replace(/_/g, "/"),
+        "base64",
+      ).toString("utf8"),
+    ) as { email?: string };
+    return json.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function api<T>(
+  accessToken: string,
+  path: string,
+  init: RequestInit & { query?: Record<string, string | undefined> } = {},
+): Promise<T> {
+  const url = new URL(`${API}${path}`);
+  for (const [k, v] of Object.entries(init.query ?? {}))
+    if (v !== undefined) url.searchParams.set(k, v);
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  });
+  if (res.status === 204) return undefined as T;
+  const json = (await res.json().catch(() => ({}))) as T & {
+    error?: { message?: string; errors?: Array<{ reason?: string }> };
+  };
+  if (!res.ok)
+    throw new GoogleApiError(
+      res.status,
+      json.error?.message ?? `Google API ${res.status}`,
+      json.error?.errors?.[0]?.reason,
+    );
+  return json;
+}
+
+export interface GCalendar {
+  id: string;
+  summary: string;
+  backgroundColor?: string;
+  primary?: boolean;
+  accessRole?: "owner" | "writer" | "reader" | "freeBusyReader";
+  selected?: boolean;
+}
+export interface GEventTime {
+  date?: string;
+  dateTime?: string;
+  timeZone?: string;
+}
+export interface GEvent {
+  id: string;
+  etag?: string;
+  status?: "confirmed" | "tentative" | "cancelled";
+  summary?: string;
+  description?: string;
+  location?: string;
+  start?: GEventTime;
+  end?: GEventTime;
+  recurringEventId?: string;
+  attendees?: Array<{
+    email?: string;
+    displayName?: string;
+    responseStatus?: string;
+    self?: boolean;
+  }>;
+  htmlLink?: string;
+  updated?: string;
+}
+export interface GEventList {
+  items?: GEvent[];
+  nextPageToken?: string;
+  nextSyncToken?: string;
+}
+
+export const google = {
+  listCalendars: (token: string) =>
+    api<{ items?: GCalendar[] }>(token, "/users/me/calendarList", {
+      query: { minAccessRole: "reader" },
+    }),
+  listEvents: (
+    token: string,
+    calendarId: string,
+    query: Record<string, string | undefined>,
+  ) =>
+    api<GEventList>(
+      token,
+      `/calendars/${encodeURIComponent(calendarId)}/events`,
+      { query },
+    ),
+  insertEvent: (token: string, calendarId: string, body: Partial<GEvent>) =>
+    api<GEvent>(token, `/calendars/${encodeURIComponent(calendarId)}/events`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  patchEvent: (
+    token: string,
+    calendarId: string,
+    eventId: string,
+    body: Partial<GEvent>,
+    etag?: string,
+  ) =>
+    api<GEvent>(
+      token,
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+        headers: etag ? { "If-Match": etag } : {},
+      },
+    ),
+  deleteEvent: (token: string, calendarId: string, eventId: string) =>
+    api<void>(
+      token,
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+      { method: "DELETE" },
+    ),
+};
