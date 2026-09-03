@@ -1,5 +1,6 @@
 import type { Db } from "@/core/contracts";
 import { env } from "@/core/env";
+import { getProfileSettings } from "@/core/settings/profile";
 
 export interface BudgetStatus {
   budgetUsd: number | null;

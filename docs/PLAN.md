@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P1 진행 중 — S1.5 완료, 다음 S1.6 사용량 화면** |
+| 상태 | **P1 완료(2026-09-03) → P2 S2.1 Google 캘린더 연동부터** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -247,10 +247,11 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 > 변경(2026-09-03): `search_path=''` 함수에서 pgvector 연산자는 `operator(extensions.<=>)` 로 써야 한다(로컬·프로덕션 모두 적용). 추출 트리거는 chat 라우트가 아니라 memory 모듈의 `chat.turn_completed` 이벤트 핸들러가 `memory.extract` 잡을 10분 뒤로 dedupe 등록(모듈 간 결합 없음). 회의 추출은 P3 에서 요약 텍스트 전달. 서비스 테스트는 결정적 가짜 임베딩으로 병합·회상·고정·삭제 검증. 실제 추출 품질은 실사용에서 확인(기억 화면은 S4.1).
 
 #### S1.6 사용량 화면(설정)
-- [ ] 산출: `src/app/(app)/settings/page.tsx`(레지스트리 `settings()` 섹션 + 프로필·테마·호칭), `src/modules/insights/ui/UsagePanel.tsx`(임시로 settings에), `src/core/ui/CostChip.tsx`(공용).
+- [x] 산출: `src/app/(app)/settings/page.tsx`(레지스트리 `settings()` 섹션 + 프로필·테마·호칭), `src/modules/insights/ui/UsagePanel.tsx`(임시로 settings에), `src/core/ui/CostChip.tsx`(공용).
 - 구현: `v_llm_usage_monthly`·`by_feature` 조회 → 표(이번 달 합계, 기능별, 모델별) + 일별 미니 차트. 예산 설정 입력(선택).
 - 검증: 채팅 몇 번 후 합계가 원장과 일치.
 - 커밋: `feat(core): usage and cost panel in settings`
+> 변경(2026-09-03): 사용량 패널은 `core/ui/UsagePanel.tsx`(뷰 3개, 차트 라이브러리 없이 막대), 예산은 `profiles.settings.monthlyBudgetUsd`(env 폴백), 호칭 설정 폼 추가(`core/settings/`). S5.2 에서 Insights 로 확장.
 
 **P1 Exit**: PRD S3 통과. 프로덕션 배포. 여기서부터 매일 사용.
 
@@ -460,3 +461,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S1.3 완료: tasks 도구 10개(undo 포함)·컨텍스트 프로바이더·Today 위젯·커맨드, 통합 테스트 | **S1.4** agent 모듈(채팅 Dock·도구 루프) | 테스트 38개 |
 | 2026-09-03 | rachel-d5 | S1.4 완료: 0004_agent, /api/chat(ToolLoopAgent·승인·undo·비용 메타), Dock(FAB·드로어·패널·⌘J·스레드·컨텍스트 칩), 실제 LLM 테스트 통과, 배포 | **S1.5** memory 기본 | 테스트 43개 |
 | 2026-09-03 | rachel-d5 | S1.5 완료: 0005_memory(pgvector·trgm·RPC 2개), memory 서비스(병합·회상·추출)·도구 5개·컨텍스트·추출 잡(스레드 유휴 10분) | **S1.6** 설정 사용량 화면 | 테스트 44개 |
+| 2026-09-03 | rachel-d5 | S1.6 완료(사용량·비용 패널, 호칭·예산 설정). **P1 Exit**: 배포됨, S3 시나리오는 사용자 실사용 확인 필요 | **P2 S2.1** Google 캘린더 OAuth 연동 | 매일 사용 시작 가능 |
