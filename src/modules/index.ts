@@ -4,6 +4,7 @@ import { createRegistry } from "@/core/registry/registry";
 import { agentModule } from "./agent/module";
 import { calendarModule } from "./calendar/module";
 import { insightsModule } from "./insights/module";
+import { meetingsModule } from "./meetings/module";
 import { memoryModule } from "./memory/module";
 import { tasksModule } from "./tasks/module";
 
@@ -13,6 +14,7 @@ export const modules: RachelModule[] = [
   calendarModule,
   agentModule,
   memoryModule,
+  meetingsModule,
   insightsModule,
 ];
 

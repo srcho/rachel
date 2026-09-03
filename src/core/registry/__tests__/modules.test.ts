@@ -10,6 +10,7 @@ describe("assembled registry", () => {
         "calendar.sync",
         "insights.brief",
         "memory.extract",
+        "meetings.postprocess",
       ]),
     );
   });
@@ -29,6 +30,7 @@ describe("assembled registry", () => {
       "insights.brief",
       "calendar.today",
       "tasks.due",
+      "meetings.recent",
     ]);
   });
 });
