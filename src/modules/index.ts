@@ -2,6 +2,7 @@ import type { RachelModule } from "@/core/contracts";
 import { createRegistry } from "@/core/registry/registry";
 import { agentModule } from "./agent/module";
 import { calendarModule } from "./calendar/module";
+import { insightsModule } from "./insights/module";
 import { memoryModule } from "./memory/module";
 import { tasksModule } from "./tasks/module";
 

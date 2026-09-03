@@ -30,3 +30,14 @@ select cron.schedule(
   where i.provider = 'google_calendar' and i.status = 'connected'
   $$
 );
+
+-- 06:00 KST(= 21:00 UTC 전날) 브리핑 생성: 프로필이 있는 사용자마다
+select cron.unschedule(jobname) from cron.job where jobname = 'rachel-daily-brief';
+select cron.schedule(
+  'rachel-daily-brief',
+  '0 21 * * *',
+  $$
+  select public.enqueue_job('insights.brief', '{}'::jsonb, 'insights.brief:' || p.id::text || ':' || to_char(now() at time zone 'Asia/Seoul', 'YYYY-MM-DD'), now(), p.id)
+  from public.profiles p
+  $$
+);

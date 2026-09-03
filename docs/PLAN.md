@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P1 완료(2026-09-03) → P2 S2.1 Google 캘린더 연동부터** |
+| 상태 | **P2 완료(2026-09-03, 사용자 Google 연결·실사용 확인 대기) → P3 S3.0 스파이크** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -260,33 +260,37 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 ### P2 Calendar + Today (4~5일) — 목표: S1 통과, Google ↔ 앱 양방향
 
 #### S2.1 Google 연동(OAuth 분리) · 캘린더 선택
-- [ ] 산출: `supabase/migrations/0005_calendar.sql`(calendars, calendar_events), `src/app/api/integrations/google/{start,callback}/route.ts`, `src/modules/calendar/{module,schema,repository,service,google,sync}.ts`, 설정 섹션 `CalendarSettings.tsx`(연결·캘린더 선택·마지막 동기화·재연결).
+- [x] 산출: `supabase/migrations/0005_calendar.sql`(calendars, calendar_events), `src/app/api/integrations/google/{start,callback}/route.ts`, `src/modules/calendar/{module,schema,repository,service,google,sync}.ts`, 설정 섹션 `CalendarSettings.tsx`(연결·캘린더 선택·마지막 동기화·재연결).
 - 구현: `google-auth-library` 또는 직접 OAuth2(토큰 교환은 `fetch`로 충분). refresh token → `vault.create_secret`(RPC는 service role로, `integrations.vault_secret_id`). 액세스 토큰은 메모리 캐시(만료 5분 전 갱신). `google.ts`: `listCalendars`, `listEvents({calendarId, syncToken|timeMin,timeMax, singleEvents:true})`, `insert/patch/delete` (etag `If-Match`).
 - 검증: 연결 → 캘린더 목록 → 선택 저장. 토큰 회수 후 재연결 안내.
 - 커밋: `feat(calendar): Google OAuth integration with Vault-stored refresh token`
+> 변경(2026-09-03): googleapis 없이 fetch 클라이언트. Vault 접근은 `public.integration_secret_set/get/delete`(security definer, `core.assert_owner`로 소유자·service_role 검사). **실제 OAuth 연결은 사용자 확인 필요**(설정 > 연결).
 
 #### S2.2 증분 동기화
-- [ ] 산출: `sync.ts`(ARCHITECTURE 8.2), 잡 `calendar.sync`, `supabase/cron.sql`에 15분 스케줄 추가, 앱 열 때 트리거(`(app)/layout.tsx`에서 마지막 동기화 5분 경과 시 `enqueue` dedupe).
+- [x] 산출: `sync.ts`(ARCHITECTURE 8.2), 잡 `calendar.sync`, `supabase/cron.sql`에 15분 스케줄 추가, 앱 열 때 트리거(`(app)/layout.tsx`에서 마지막 동기화 5분 경과 시 `enqueue` dedupe).
 - 검증: Google에서 일정 생성·수정·삭제 → 15분 내(수동 킥 시 즉시) 미러 반영. 410 시 전체 재동기화 테스트(sync_token 손상 시뮬레이션).
 - 커밋: `feat(calendar): incremental sync job with syncToken and full-resync fallback`
+> 변경(2026-09-03): pg_cron `rachel-calendar-sync`(15분, 연결된 사용자별 enqueue_job) 프로덕션 등록. 앱 열 때 트리거는 `(app)/layout` → `calendar/trigger.ts`(인스턴스당 1분 1회 확인). 실기기 검증(Google→앱 반영 시간) 대기.
 
 #### S2.3 캘린더 UI · CRUD(write-through)
-- [ ] 산출: `src/app/(app)/calendar/page.tsx`, `src/modules/calendar/ui/{Agenda,WeekView,MonthView,EventSheet,NowLine}.tsx`, `actions.ts`.
+- [x] 산출: `src/app/(app)/calendar/page.tsx`, `src/modules/calendar/ui/{Agenda,WeekView,MonthView,EventSheet,NowLine}.tsx`, `actions.ts`.
 - 구현: 아젠다(모바일 기본, sticky 날짜 헤더, 현재 시각 라인), 주간(데스크톱), 월간. 생성·수정·삭제는 로컬 즉시 반영 → Google 반영 → 실패 시 `pending_push` 배지 + 재시도 잡.
 - 검증: 앱에서 생성 → 5초 내 Google 표시. 오프라인 생성 → 온라인 복귀 후 반영.
 - 커밋: `feat(calendar): agenda/week/month views and write-through CRUD`
+> 변경(2026-09-03): 주간 뷰는 시간 격자 대신 7열 시간순 목록(데스크톱·모바일 공용, 경량). 뷰·날짜는 searchParams. 일정 편집은 시트 폼(포커스 저장 아님, 저장 버튼).
 
 #### S2.4 calendar 도구
-- [ ] 산출: `tools.ts`(listEvents, getEvent, createEvent, updateEvent, deleteEvent(destructive), findFreeSlots), 컨텍스트 프로바이더(오늘·내일 ≤ 10, 예산 800토큰).
+- [x] 산출: `tools.ts`(listEvents, getEvent, createEvent, updateEvent, deleteEvent(destructive), findFreeSlots), 컨텍스트 프로바이더(오늘·내일 ≤ 10, 예산 800토큰).
 - 구현: `findFreeSlots(range, durationMin, workHours 09–19 기본)` — SQL로 빈 구간 계산(LLM 아님).
 - 검증: "내일 오후 비는 시간에 리뷰 잡아줘" → 2스텝 성공.
 - 커밋: `feat(calendar): agent tools including findFreeSlots`
 
 #### S2.5 insights 뼈대 · Today 화면 · 일일 브리핑
-- [ ] 산출: `supabase/migrations/0006_insights.sql`(insights 테이블), `src/modules/insights/{module,repository,service,jobs,widgets}.tsx`, `src/app/(app)/today/page.tsx` 완성, `src/core/llm/prompts/daily-brief.ts`, cron `rachel-daily-brief`.
+- [x] 산출: `supabase/migrations/0006_insights.sql`(insights 테이블), `src/modules/insights/{module,repository,service,jobs,widgets}.tsx`, `src/app/(app)/today/page.tsx` 완성, `src/core/llm/prompts/daily-brief.ts`, cron `rachel-daily-brief`.
 - 구현: Today = `registry.widgets('today')` 그리드(브리핑 카드, 오늘 타임라인(calendar), 마감·지연(tasks), 최근 회의(P3에서 등장), 캡처 입력(P4)). 브리핑: 첫 접속(05:00 이후) 또는 06:00 KST 잡 → luna 1회 → `insights(daily_brief)` 캐시. 카드에 CostChip.
 - 검증: Today 첫 페인트 ≤ 1.5s(캐시), 브리핑 비용 ≤ $0.003.
 - 커밋: `feat(insights): Today screen with cached daily brief`
+> 변경(2026-09-03): 브리핑은 레이첼의 컨텍스트 프로바이더(일정·할 일·기억)를 재사용해 luna 1회(≤400 출력 토큰). 캐시 없으면 Today 카드가 첫 접속 때 1회 생성 요청, 06:00 KST 크론 `rachel-daily-brief` 도 등록. 캡처 입력은 P4.
 
 **P2 Exit**: PRD S1 통과.
 
@@ -462,3 +466,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S1.4 완료: 0004_agent, /api/chat(ToolLoopAgent·승인·undo·비용 메타), Dock(FAB·드로어·패널·⌘J·스레드·컨텍스트 칩), 실제 LLM 테스트 통과, 배포 | **S1.5** memory 기본 | 테스트 43개 |
 | 2026-09-03 | rachel-d5 | S1.5 완료: 0005_memory(pgvector·trgm·RPC 2개), memory 서비스(병합·회상·추출)·도구 5개·컨텍스트·추출 잡(스레드 유휴 10분) | **S1.6** 설정 사용량 화면 | 테스트 44개 |
 | 2026-09-03 | rachel-d5 | S1.6 완료(사용량·비용 패널, 호칭·예산 설정). **P1 Exit**: 배포됨, S3 시나리오는 사용자 실사용 확인 필요 | **P2 S2.1** Google 캘린더 OAuth 연동 | 매일 사용 시작 가능 |
+| 2026-09-03 | rachel-d5 | S2.1~S2.5 완료: OAuth(Vault)·증분 동기화·캘린더 3뷰·CRUD write-through·도구 6개·Today 브리핑. 0006·0007 프로덕션 적용, 크론 3개 | **P3 S3.0** 회의 스파이크(iOS 녹음·Muse·VibeVoice) — Meta 키 필요 | 사용자 확인: Google 연결·양방향 반영·브리핑 |

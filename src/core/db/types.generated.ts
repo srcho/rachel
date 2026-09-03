@@ -435,6 +435,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      insights: {
+        Row: {
+          content_md: string;
+          created_at: string;
+          data: Json;
+          id: string;
+          kind: string;
+          model: string | null;
+          period_end: string;
+          period_start: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          content_md: string;
+          created_at?: string;
+          data?: Json;
+          id?: string;
+          kind: string;
+          model?: string | null;
+          period_end: string;
+          period_start: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          content_md?: string;
+          created_at?: string;
+          data?: Json;
+          id?: string;
+          kind?: string;
+          model?: string | null;
+          period_end?: string;
+          period_start?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       integrations: {
         Row: {
           account_email: string | null;
