@@ -8,6 +8,7 @@ import { insightsModule } from "./insights/module";
 import { meetingsModule } from "./meetings/module";
 import { memoryModule } from "./memory/module";
 import { notifyModule } from "./notify/module";
+import { systemModule } from "./system/module";
 import { tasksModule } from "./tasks/module";
 
 /** 기능 추가 = 여기에 한 줄. 순서는 nav order 와 무관. */
@@ -20,6 +21,7 @@ export const modules: RachelModule[] = [
   insightsModule,
   captureModule,
   notifyModule,
+  systemModule,
 ];
 
 export const registry = createRegistry(() => modules);

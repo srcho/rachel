@@ -52,3 +52,14 @@ select cron.schedule(
   from public.profiles p
   $$
 );
+
+-- 토요일 03:00 KST(= 금 18:00 UTC) 주간 백업
+select cron.unschedule(jobname) from cron.job where jobname = 'rachel-backup';
+select cron.schedule(
+  'rachel-backup',
+  '0 18 * * 5',
+  $$
+  select public.enqueue_job('system.backup', '{}'::jsonb, 'system.backup:' || p.id::text || ':' || to_char(now() at time zone 'Asia/Seoul', 'IYYY-IW'), now(), p.id)
+  from public.profiles p
+  $$
+);
