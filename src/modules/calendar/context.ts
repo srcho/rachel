@@ -10,12 +10,16 @@ export const calendarContextProvider: ContextProvider = {
   build: async (ctx) => {
     const today = dayBounds(ctx.now, ctx.timezone);
     const tomorrow = dayBounds(ctx.now, ctx.timezone, 1);
-    const events = await eventService(ctx).listEvents({
+    const svc = eventService(ctx);
+    const calendars = await svc.listCalendars(true);
+    if (calendars.length === 0)
+      return "[일정] Google 캘린더 미연결(설정에서 연결 가능)";
+    const events = await svc.listEvents({
       from: today.start,
       to: tomorrow.end,
       limit: 20,
     });
-    if (events.length === 0) return null;
+    if (events.length === 0) return "[일정] 캘린더 연결됨. 오늘·내일 일정 없음";
     const label = (iso: string) => (iso >= tomorrow.start ? "내일" : "오늘");
     return `[일정]\n${events
       .slice(0, 10)

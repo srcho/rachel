@@ -49,28 +49,46 @@ export interface ToolPartLike {
 
 function summary(name: string, part: ToolPartLike): string {
   const input = (part.input ?? {}) as Record<string, unknown>;
-  const output = part.output as
-    | Record<string, unknown>
-    | Array<unknown>
-    | undefined;
-  if (name === "tasks_create" && typeof input.title === "string")
-    return `“${input.title}”`;
-  if (
-    (name === "tasks.update" ||
-      name === "tasks.move" ||
-      name === "tasks.complete" ||
-      name === "tasks.archive" ||
-      name === "tasks.delete") &&
-    output &&
-    !Array.isArray(output) &&
-    typeof output.title === "string"
-  )
-    return `“${output.title}”`;
-  if (name === "tasks_list" && Array.isArray(output))
-    return `${output.length}건`;
-  if (name === "tasks_bulkUpdate")
-    return `${Array.isArray(input.ids) ? input.ids.length : "?"}건`;
-  return "";
+  const output = part.output as Record<string, unknown> | unknown[] | undefined;
+  const titled =
+    output && !Array.isArray(output) && typeof output.title === "string"
+      ? `“${output.title}”`
+      : "";
+  switch (name) {
+    case "tasks_create":
+      return typeof input.title === "string" ? `“${input.title}”` : "";
+    case "tasks_update":
+    case "tasks_move":
+    case "tasks_complete":
+    case "tasks_archive":
+    case "tasks_delete":
+    case "calendar_createEvent":
+    case "calendar_updateEvent":
+    case "calendar_deleteEvent":
+    case "meetings_delete":
+      return titled;
+    case "tasks_list":
+    case "memory_list":
+    case "meetings_list":
+    case "meetings_search":
+    case "memory_recall":
+      return Array.isArray(output) ? `${output.length}건` : "";
+    case "calendar_listEvents": {
+      const events =
+        output && !Array.isArray(output) ? output.events : undefined;
+      return Array.isArray(events) ? `${events.length}건` : "";
+    }
+    case "calendar_findFreeSlots":
+      return Array.isArray(output) ? `${output.length}개 구간` : "";
+    case "tasks_bulkUpdate":
+      return Array.isArray(input.ids) ? `${input.ids.length}건` : "";
+    case "meetings_createTasksFromActionItems": {
+      const n = output && !Array.isArray(output) ? output.created : undefined;
+      return typeof n === "number" ? `${n}장` : "";
+    }
+    default:
+      return "";
+  }
 }
 
 export function ToolCard({

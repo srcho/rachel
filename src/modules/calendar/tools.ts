@@ -26,11 +26,19 @@ function summarize(e: EventRow) {
 export const calendarTools: Record<string, AnyAgentTool> = {
   listEvents: defineTool({
     description:
-      "기간(from~to, ISO 8601)의 일정 목록. '오늘'·'내일'·'이번 주'는 [지금] 컨텍스트의 시각을 기준으로 from/to 를 계산해 넘긴다.",
-    inputSchema: listEventsSchema,
+      "기간(from~to, ISO 8601 타임존 포함)의 일정 목록. '오늘'·'내일'·'이번 주'는 [지금] 컨텍스트의 시각으로 from/to 를 계산해 넘긴다. 결과의 connected 가 true 면 캘린더는 연결된 상태이고, events 가 비어 있으면 그 기간에 일정이 없는 것이다.",
+    inputSchema: listEventsSchema.omit({ q: true }),
     risk: "read",
-    execute: async (input, ctx) =>
-      (await eventService(ctx).listEvents(input)).map(summarize),
+    execute: async (input, ctx) => {
+      const svc = eventService(ctx);
+      const calendars = await svc.listCalendars(true);
+      const events = calendars.length ? await svc.listEvents(input) : [];
+      return {
+        connected: calendars.length > 0,
+        calendars: calendars.map((c) => c.name),
+        events: events.map(summarize),
+      };
+    },
   }),
   getEvent: defineTool({
     description: "일정 하나의 상세(설명·참석자 포함).",

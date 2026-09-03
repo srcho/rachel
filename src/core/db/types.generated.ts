@@ -340,7 +340,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
-          id?: string;
+          id: string;
           parts?: Json;
           role: string;
           thread_id: string;

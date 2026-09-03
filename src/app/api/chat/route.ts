@@ -95,26 +95,38 @@ export async function POST(req: Request) {
       return undefined;
     },
     onFinish: async ({ messages: all }) => {
-      await svc.saveMessages(threadId, all as never);
       const assistant = [...all].reverse().find((m) => m.role === "assistant");
-      await recordUsage(db, user.id, {
-        provider: "openai",
-        model,
-        feature: "chat",
-        inputTokens: usage.input,
-        cachedTokens: usage.cached,
-        outputTokens: usage.output,
-        reasoningTokens: usage.reasoning,
-        costUsd,
-        ref: { type: "thread", id: threadId },
-        latencyMs: Date.now() - started,
-        meta: { messageId: assistant?.id ?? null },
-      });
-      await ctx.emit({
-        type: "chat.turn_completed",
-        entity: { type: "thread", id: threadId },
-        payload: { costUsd },
-      });
+      try {
+        await svc.saveMessages(threadId, all as never);
+      } catch (e) {
+        console.error("[chat] 메시지 저장 실패", e);
+      }
+      try {
+        await recordUsage(db, user.id, {
+          provider: "openai",
+          model,
+          feature: "chat",
+          inputTokens: usage.input,
+          cachedTokens: usage.cached,
+          outputTokens: usage.output,
+          reasoningTokens: usage.reasoning,
+          costUsd,
+          ref: { type: "thread", id: threadId },
+          latencyMs: Date.now() - started,
+          meta: { messageId: assistant?.id ?? null },
+        });
+      } catch (e) {
+        console.error("[chat] 원장 기록 실패", e);
+      }
+      try {
+        await ctx.emit({
+          type: "chat.turn_completed",
+          entity: { type: "thread", id: threadId },
+          payload: { costUsd },
+        });
+      } catch (e) {
+        console.error("[chat] 이벤트 실패", e);
+      }
     },
   });
 }

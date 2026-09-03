@@ -72,7 +72,7 @@ export function agentRepository(db: Db, userId: string) {
     },
     async insertMessages(
       rows: Array<{
-        id?: string;
+        id: string;
         thread_id: string;
         role: string;
         parts: Json;
