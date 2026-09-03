@@ -819,6 +819,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      push_subscriptions: {
+        Row: {
+          created_at: string;
+          endpoint: string;
+          failures: number;
+          id: string;
+          keys: Json;
+          last_used_at: string | null;
+          user_agent: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          endpoint: string;
+          failures?: number;
+          id?: string;
+          keys: Json;
+          last_used_at?: string | null;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          endpoint?: string;
+          failures?: number;
+          id?: string;
+          keys?: Json;
+          last_used_at?: string | null;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       search_chunks: {
         Row: {
           chunk_index: number;

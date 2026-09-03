@@ -9,7 +9,7 @@ export const briefJob: JobHandler<{ force?: boolean }> = {
   timeoutSec: 90,
   maxAttempts: 2,
   run: async (payload, ctx) => {
-    await getOrCreateDailyBrief(ctx, { force: payload.force });
+    await getOrCreateDailyBrief(ctx, { force: payload.force, scheduled: true });
   },
 };
 

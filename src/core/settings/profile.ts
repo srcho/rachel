@@ -7,6 +7,7 @@ export const profileSettingsSchema = z.object({
   honorific: z.string().trim().min(1).max(20).optional(),
   monthlyBudgetUsd: z.number().positive().max(10_000).nullable().optional(),
   dictionary: z.array(z.string()).max(200).optional(),
+  notifications: z.record(z.string(), z.boolean()).optional(),
 });
 export type ProfileSettings = z.infer<typeof profileSettingsSchema>;
 

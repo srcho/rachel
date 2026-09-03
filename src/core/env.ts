@@ -14,6 +14,9 @@ const serverSchema = z.object({
   ALLOWED_GOOGLE_EMAIL: z.string().email().optional(),
   CRON_SECRET: z.string().min(16).optional(),
   LLM_MONTHLY_BUDGET_USD: z.coerce.number().positive().optional(),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

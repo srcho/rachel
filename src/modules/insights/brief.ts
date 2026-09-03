@@ -14,7 +14,7 @@ import { type InsightRow, insightsRepository } from "./repository";
  */
 export async function getOrCreateDailyBrief(
   ctx: ServiceContext,
-  opts: { force?: boolean } = {},
+  opts: { force?: boolean; scheduled?: boolean } = {},
 ): Promise<InsightRow> {
   const repo = insightsRepository(ctx.db, ctx.userId);
   const today = localYmd(ctx.now, ctx.timezone);
@@ -40,7 +40,7 @@ export async function getOrCreateDailyBrief(
     maxOutputTokens: 400,
   });
   const { end } = dayBounds(ctx.now, ctx.timezone);
-  return repo.upsert({
+  const row = await repo.upsert({
     kind: "daily_brief",
     period_start: today,
     period_end: localYmd(new Date(Date.parse(end) - 1), ctx.timezone),
@@ -48,4 +48,13 @@ export async function getOrCreateDailyBrief(
     data: { contextChars: context.length } as Json,
     model: MODEL_IDS.chat,
   });
+  await ctx.emit({
+    type: "insight.daily_brief",
+    entity: { type: "insight", id: row.id },
+    payload: {
+      scheduled: Boolean(opts.scheduled),
+      tldr: text.trim().split("\n")[0],
+    },
+  });
+  return row;
 }
