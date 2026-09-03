@@ -21,8 +21,10 @@ export function CardBody({
   return (
     <div
       className={cn(
-        "rounded-md border bg-card px-2.5 py-2 text-sm shadow-xs",
-        dragging && "rotate-1 shadow-lg",
+        "rounded-md border bg-card px-2.5 py-2 text-sm shadow-xs transition-[border-color,box-shadow]",
+        dragging
+          ? "cursor-grabbing shadow-lg ring-1 ring-ring/40"
+          : "hover:border-foreground/25 hover:shadow-sm",
         card.completed_at && "opacity-60",
       )}
     >
@@ -100,13 +102,16 @@ export function SortableCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn("touch-manipulation", isDragging && "opacity-30")}
+      className={cn(
+        "touch-manipulation",
+        isDragging && "opacity-30 [&_*]:!shadow-none",
+      )}
       {...attributes}
       {...listeners}
     >
       <button
         type="button"
-        className="w-full text-left"
+        className="w-full cursor-grab text-left active:cursor-grabbing"
         onClick={() => onOpen(card)}
         aria-label={`${card.title} 열기`}
       >

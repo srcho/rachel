@@ -33,8 +33,8 @@ export function Column({
     <section
       aria-label={column.name}
       className={cn(
-        "flex h-full min-h-0 w-[78vw] shrink-0 snap-start flex-col rounded-lg border bg-muted/40 md:w-auto md:min-w-64 md:max-w-sm md:flex-1 md:shrink",
-        isOver && "ring-2 ring-ring/40",
+        "flex h-full min-h-0 w-[78vw] shrink-0 snap-start flex-col rounded-lg border bg-muted/40 transition-colors md:w-auto md:min-w-64 md:max-w-sm md:flex-1 md:shrink",
+        isOver && "border-foreground/30 bg-muted/70",
       )}
     >
       <header className="flex h-10 shrink-0 items-center gap-1.5 px-3">

@@ -74,6 +74,8 @@ export function Board({
     group(initial.columns, initial.cards),
   );
   const [active, setActive] = useState<CardRow | null>(null);
+  /** 드래그 고스트를 원래 카드와 같은 폭으로 그린다 */
+  const [activeWidth, setActiveWidth] = useState<number | undefined>();
   const [open, setOpen] = useState<CardRow | null>(null);
   const pending = useRef(0);
 
@@ -137,6 +139,7 @@ export function Board({
 
   function onDragStart(e: DragStartEvent) {
     setActive(find(String(e.active.id)) ?? null);
+    setActiveWidth(e.active.rect.current.initial?.width);
   }
 
   function onDragOver(e: DragOverEvent) {
@@ -287,8 +290,8 @@ export function Board({
         </div>
         <DragOverlay dropAnimation={null}>
           {active ? (
-            <div className="w-[74vw] md:w-72">
-              {<CardBody card={active} dragging />}
+            <div style={{ width: activeWidth }}>
+              <CardBody card={active} dragging />
             </div>
           ) : null}
         </DragOverlay>
