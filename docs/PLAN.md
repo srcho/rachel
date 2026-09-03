@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P1 진행 중 — S1.4 완료, 다음 S1.5 memory 기본** |
+| 상태 | **P1 진행 중 — S1.5 완료, 다음 S1.6 사용량 화면** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -240,10 +240,11 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 > 변경(2026-09-03): AI SDK v7 규격 — `ToolLoopAgent` + `toolApproval`(destructive → 'user-approval') + `createAgentUIStreamResponse`(onStepFinish 로 사용량 합산, messageMetadata 로 비용 칩, onFinish 로 저장·원장). **OpenAI 도구 이름은 `^[a-zA-Z0-9_-]+$`** 라 레지스트리 `tasks.create` 를 어댑터가 `tasks_create` 로 노출(undo 토큰엔 레지스트리 이름). 실제 luna 통합 테스트(`agent.integration.test.ts`, 키 있을 때만) 통과. 스레드 압축(요약)·메시지 40개 초과 처리는 미구현 → S1.5/P4. 첫 토큰 시간·모바일 실측은 사용자 확인. 테스트 실행 시 키가 필요하면 `set -a; . ./.env.local; set +a; pnpm test`.
 
 #### S1.5 memory 기본(추출·회상, UI는 P4)
-- [ ] 산출: `supabase/migrations/0004_memory.sql`(memories, search_chunks, HNSW·trgm 인덱스, RPC `match_memories`, `search_chunks_hybrid`), `src/modules/memory/{module,schema,repository,service,extract,retrieve,tools,jobs,events}.ts`, `src/core/llm/prompts/memory-extract.ts`.
+- [x] 산출: `supabase/migrations/0004_memory.sql`(memories, search_chunks, HNSW·trgm 인덱스, RPC `match_memories`, `search_chunks_hybrid`), `src/modules/memory/{module,schema,repository,service,extract,retrieve,tools,jobs,events}.ts`, `src/core/llm/prompts/memory-extract.ts`.
 - 구현: ARCHITECTURE 6.3. `memory.extract` 잡(스레드·회의 소스), 유사도 ≥ 0.92 병합, `recall` 컨텍스트 프로바이더(top-8 + pinned, 예산 1,200토큰, 사용 시 `use_count++`), 도구 `remember`, `recall`, `update`, `forget`(destructive).
 - 검증: 대화에 "나는 아침형이야" → 10분 후(테스트에선 즉시 실행) `memories`에 preference 생성 → 새 대화에서 회상.
 - 커밋: `feat(memory): memories schema, extraction job, recall context provider`
+> 변경(2026-09-03): `search_path=''` 함수에서 pgvector 연산자는 `operator(extensions.<=>)` 로 써야 한다(로컬·프로덕션 모두 적용). 추출 트리거는 chat 라우트가 아니라 memory 모듈의 `chat.turn_completed` 이벤트 핸들러가 `memory.extract` 잡을 10분 뒤로 dedupe 등록(모듈 간 결합 없음). 회의 추출은 P3 에서 요약 텍스트 전달. 서비스 테스트는 결정적 가짜 임베딩으로 병합·회상·고정·삭제 검증. 실제 추출 품질은 실사용에서 확인(기억 화면은 S4.1).
 
 #### S1.6 사용량 화면(설정)
 - [ ] 산출: `src/app/(app)/settings/page.tsx`(레지스트리 `settings()` 섹션 + 프로필·테마·호칭), `src/modules/insights/ui/UsagePanel.tsx`(임시로 settings에), `src/core/ui/CostChip.tsx`(공용).
@@ -458,3 +459,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S1.2 완료: 칸반 UI(dnd-kit·낙관적 업데이트·Realtime), 카드 시트, 빠른 추가(한국어 마감 파서), /tasks 라우트, 배포 | **S1.3** tasks 도구·액션·위젯 | 테스트 36개. Google 로그인 사용자 확인 완료 |
 | 2026-09-03 | rachel-d5 | S1.3 완료: tasks 도구 10개(undo 포함)·컨텍스트 프로바이더·Today 위젯·커맨드, 통합 테스트 | **S1.4** agent 모듈(채팅 Dock·도구 루프) | 테스트 38개 |
 | 2026-09-03 | rachel-d5 | S1.4 완료: 0004_agent, /api/chat(ToolLoopAgent·승인·undo·비용 메타), Dock(FAB·드로어·패널·⌘J·스레드·컨텍스트 칩), 실제 LLM 테스트 통과, 배포 | **S1.5** memory 기본 | 테스트 43개 |
+| 2026-09-03 | rachel-d5 | S1.5 완료: 0005_memory(pgvector·trgm·RPC 2개), memory 서비스(병합·회상·추출)·도구 5개·컨텍스트·추출 잡(스레드 유휴 10분) | **S1.6** 설정 사용량 화면 | 테스트 44개 |

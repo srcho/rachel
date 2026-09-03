@@ -449,6 +449,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      memories: {
+        Row: {
+          content: string;
+          created_at: string;
+          embedding: string | null;
+          id: string;
+          importance: number;
+          kind: string;
+          last_used_at: string | null;
+          pinned: boolean;
+          source: Json;
+          status: string;
+          updated_at: string;
+          use_count: number;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          created_at?: string;
+          embedding?: string | null;
+          id?: string;
+          importance?: number;
+          kind: string;
+          last_used_at?: string | null;
+          pinned?: boolean;
+          source?: Json;
+          status?: string;
+          updated_at?: string;
+          use_count?: number;
+          user_id?: string;
+        };
+        Update: {
+          content?: string;
+          created_at?: string;
+          embedding?: string | null;
+          id?: string;
+          importance?: number;
+          kind?: string;
+          last_used_at?: string | null;
+          pinned?: boolean;
+          source?: Json;
+          status?: string;
+          updated_at?: string;
+          use_count?: number;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           created_at: string;
@@ -476,6 +524,42 @@ export type Database = {
           settings?: Json;
           timezone?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      search_chunks: {
+        Row: {
+          chunk_index: number;
+          content: string;
+          embedding: string | null;
+          id: string;
+          metadata: Json;
+          source_id: string;
+          source_type: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          chunk_index?: number;
+          content: string;
+          embedding?: string | null;
+          id?: string;
+          metadata?: Json;
+          source_id: string;
+          source_type: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          chunk_index?: number;
+          content?: string;
+          embedding?: string | null;
+          id?: string;
+          metadata?: Json;
+          source_id?: string;
+          source_type?: string;
+          updated_at?: string;
+          user_id?: string;
         };
         Relationships: [];
       };
@@ -581,6 +665,42 @@ export type Database = {
           p_user_id?: string;
         };
         Returns: string;
+      };
+      match_memories: {
+        Args: {
+          p_embedding: string;
+          p_include_archived?: boolean;
+          p_k?: number;
+          p_min_similarity?: number;
+          p_user_id: string;
+        };
+        Returns: {
+          content: string;
+          id: string;
+          importance: number;
+          kind: string;
+          pinned: boolean;
+          similarity: number;
+          source: Json;
+        }[];
+      };
+      search_chunks_hybrid: {
+        Args: {
+          p_embedding: string;
+          p_k?: number;
+          p_query: string;
+          p_types?: string[];
+          p_user_id: string;
+        };
+        Returns: {
+          chunk_index: number;
+          content: string;
+          id: string;
+          metadata: Json;
+          score: number;
+          source_id: string;
+          source_type: string;
+        }[];
       };
     };
     Enums: {
