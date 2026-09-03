@@ -17,6 +17,17 @@ const TOOL_LABEL: Record<string, string> = {
   tasks_bulkUpdate: "카드 일괄 변경",
   tasks_archive: "카드 보관",
   tasks_delete: "카드 삭제",
+  calendar_listEvents: "일정 조회",
+  calendar_getEvent: "일정 상세",
+  calendar_createEvent: "일정 생성",
+  calendar_updateEvent: "일정 수정",
+  calendar_deleteEvent: "일정 삭제",
+  calendar_findFreeSlots: "빈 시간 찾기",
+  memory_remember: "기억 저장",
+  memory_recall: "기억 회상",
+  memory_list: "기억 목록",
+  memory_update: "기억 수정",
+  memory_forget: "기억 삭제",
 };
 
 export interface ToolPartLike {

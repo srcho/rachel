@@ -1,8 +1,11 @@
 import type { RachelModule } from "@/core/contracts";
+import { calendarContextProvider } from "./context";
 import { syncJob } from "./jobs";
+import { calendarTools } from "./tools";
 import { CalendarSettings } from "./ui/CalendarSettings";
+import { todayTimelineWidget } from "./widgets";
 
-/** calendar 모듈. 동기화 잡·도구·뷰는 S2.2~S2.4 에서 채운다. */
+/** calendar 모듈: Google 미러·동기화·CRUD·도구·Today 위젯 */
 export const calendarModule: RachelModule = {
   manifest: {
     id: "calendar",
