@@ -35,7 +35,7 @@ Claude-Session: <이 세션의 URL>
 - 로컬 SQL: `docker exec -i supabase_db_rachel psql -U postgres -d postgres`
 
 ## 현재 상태 요약
-P3 코드 완료(2026-09-03): 칸반·레이첼 채팅·기억·비용·Google 캘린더·Today 브리핑·회의(녹음→Muse 2패스 전사→요약→액션 아이템 카드)가 프로덕션에 있음. 아이폰 실기기 녹음 검증 대기. 다음 P4(기억 화면·검색·캡처). 프로덕션 https://rachel-seven-tau.vercel.app (Vercel `rachel`, icn1) · Supabase `rachel` ref `lpieoftpmhvxibhkhayn`(서울, linked). pg_cron `rachel-jobs`가 1분마다 잡 러너 호출. Meta 키만 미발급. 다음은 PLAN §9 참조(P1 S1.1).
+P4 완료(2026-09-03): 칸반·레이첼 채팅·기억 화면·전역 검색(⌘K)·캡처 인박스·비용·Google 캘린더·Today 브리핑·회의(녹음→Muse 2패스→요약)가 프로덕션에 있음. 아이폰 실기기 검증 대기(녹음·음성 캡처). 다음 P5(지표·비용 대시보드·주간 리뷰·푸시). 프로덕션 https://rachel-seven-tau.vercel.app (Vercel `rachel`, icn1) · Supabase `rachel` ref `lpieoftpmhvxibhkhayn`(서울, linked). pg_cron `rachel-jobs`가 1분마다 잡 러너 호출. Meta 키만 미발급. 다음은 PLAN §9 참조(P1 S1.1).
 
 ## 프로덕션 운영 명령
 - 스키마 적용: `pnpm supabase db query --linked -f supabase/migrations/<file>.sql` 후 `pnpm supabase migration repair --status applied <version> --linked` (DB 비밀번호 없이). 또는 `pnpm supabase db push -p <pw>`

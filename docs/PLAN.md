@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P3 코드 완료(2026-09-03) — 실기기(iPhone) 녹음 검증 대기 → P4** |
+| 상태 | **P4 완료(2026-09-03) — 실기기 검증 대기, 다음 P5 Insights·Notify** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -365,21 +365,23 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 ### P4 Memory · Search · Capture (3~4일) — 목표: S4·S6 통과
 
 #### S4.1 기억 화면
-- [ ] 산출: `src/app/(app)/memory/page.tsx`, `src/modules/memory/ui/{MemoryList,MemoryItem,MemoryEditor,SourceLink}.tsx`, `actions.ts`.
+- [x] 산출: `src/app/(app)/memory/page.tsx`, `src/modules/memory/ui/{MemoryList,MemoryItem,MemoryEditor,SourceLink}.tsx`, `actions.ts`.
 - 구현: 유형 탭, 검색, 편집(재임베딩), 삭제, 고정, "왜 기억하나요?"(source 링크 → 회의·스레드로 이동).
 - 커밋: `feat(memory): memory management screen`
 
 #### S4.2 전역 검색 · ⌘K
-- [ ] 산출: `src/core/ui/CommandPalette.tsx`(레지스트리 commands + 검색), tasks·calendar·meetings·memory 인덱서 완성, `search.all` 도구, `src/modules/memory/search.ts`.
+- [x] 산출: `src/core/ui/CommandPalette.tsx`(레지스트리 commands + 검색), tasks·calendar·meetings·memory 인덱서 완성, `search.all` 도구, `src/modules/memory/search.ts`.
 - 구현: 하이브리드 RPC(벡터 0.7 + trgm 0.3 + 최근성). 결과 유형별 그룹, Enter로 이동.
 - 검증: "예산" 검색 → 회의 전사 청크·카드·기억이 섞여 나옴. S4 통과.
 - 커밋: `feat(search): global hybrid search and command palette`
+> 변경(2026-09-03): Command 계약을 데이터(href|action)로 바꿔 클라이언트 팔레트에 직렬화. 인덱싱은 memory 모듈이 소유(이벤트 `*` 구독 → `memory.index` 잡, 소스별 dedupe·15초 지연, 인덱서 청크 → 임베딩 upsert·잔여 삭제). 대량 재인덱싱(calendar.synced)은 미구현 — 프로덕션 기존 데이터는 SQL 로 1회 백필. 회의 검색 도구는 ilike, 전역 검색 도구 `memory.searchAll` 이 하이브리드.
 
 #### S4.3 capture 모듈
-- [ ] 산출: `supabase/migrations/0008_capture.sql`, `src/modules/capture/{module,schema,repository,service,triage,tools,jobs,ui/}`, `src/app/(app)/capture/page.tsx`, `src/app/api/transcribe/quick/route.ts`, manifest `share_target`, Today 상단 입력, FAB 길게 누르기(음성 → quick 전사).
+- [x] 산출: `supabase/migrations/0008_capture.sql`, `src/modules/capture/{module,schema,repository,service,triage,tools,jobs,ui/}`, `src/app/(app)/capture/page.tsx`, `src/app/api/transcribe/quick/route.ts`, manifest `share_target`, Today 상단 입력, FAB 길게 누르기(음성 → quick 전사).
 - 구현: `capture.triage` 잡(luna 구조화 출력: task/event/memory/note 제안) → 인박스 카드 → 1탭 확정(확정 전 데이터 변경 없음). Share Target은 GET `/capture?title&text&url`.
 - 검증: 공유 시트로 URL 던지기(Android/데스크톱), 음성 캡처 → 제안 → 확정. S6 통과.
 - 커밋: `feat(capture): quick capture inbox with triage and share target`
+> 변경(2026-09-03): 음성 캡처는 FAB 길게 누르기(400ms) → 워클릿 PCM ≤60초 → `/api/transcribe/quick`(Muse PUSH_TO_TALK). 분류 확정은 레지스트리 도구(tasks.create·calendar.createEvent·memory.remember)로 실행. share_target 은 GET `/capture?title&text&url`(iOS 는 미지원, Android·데스크톱). 실기기 검증 필요: 길게 누르기 제스처·마이크 권한.
 
 ---
 
@@ -471,3 +473,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S2.1~S2.5 완료: OAuth(Vault)·증분 동기화·캘린더 3뷰·CRUD write-through·도구 6개·Today 브리핑. 0006·0007 프로덕션 적용, 크론 3개 | **P3 S3.0** 회의 스파이크(iOS 녹음·Muse·VibeVoice) — Meta 키 필요 | 사용자 확인: Google 연결·양방향 반영·브리핑 |
 | 2026-09-03 | rachel-d5 | **버그 수정**: calendar 모듈 등록 누락·insights 모듈 배열 누락으로 프로덕션 잡 "핸들러 없음". 모듈 내부 `@/modules` 순환 import 제거(ctx.registry·getRegistry), 레지스트리 조립 회귀 테스트·biome 금지 규칙 추가. 재실행 결과 일정 30건 동기화·브리핑 생성 확인 | P3 S3.0 | 교훈: 파이썬 문자열 치환은 실패해도 조용하다 → 치환 후 assert, 조립 결과는 테스트로 검증 |
 | 2026-09-03 | rachel-d5 | P3 S3.0(Muse)~S3.8 코드 완료·배포: 0008·0009, 녹음기(워클릿·세그먼터·IndexedDB), 라이브 패스, 라이브 화면, 파이널 패스(청킹·스티칭·diarize), 요약 v1/v2, 상세·리뷰 시트·재생, 도구 6개, 테스트 59개 | **사용자 실기기 검증**(iPhone PWA 녹음 → 전사 → 종료 → 요약 → 화자 분리) → P4 S4.1 | 미확인: iOS 동시 녹음, 분당 한도, VibeVoice |
+| 2026-09-03 | rachel-d5 | 버그 수정: 대화 메시지 미저장(id text)·캘린더 "미연결" 오답(q 제거·connected 반환)·[지금] ISO 포함. P4 S4.1~S4.3 완료·배포: 기억 화면, 인덱서 4개·하이브리드 검색·⌘K, 캡처(입력·음성·공유·분류 인박스). 0010·0011, 테스트 63개, 프로덕션 인덱스 백필 | **P5 S5.1** 지표 뷰·위젯 (실기기 검증과 병행) | — |
