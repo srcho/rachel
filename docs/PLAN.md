@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P1 진행 중 — S1.2 완료, 다음 S1.3 tasks 도구·위젯** |
+| 상태 | **P1 진행 중 — S1.3 완료, 다음 S1.4 레이첼 채팅 Dock** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -221,10 +221,11 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 > 변경(2026-09-03): TanStack Query 대신 **RSC 초기 데이터 + 클라이언트 낙관적 상태 + Server Action + Realtime→router.refresh()**(진행 중 조작이 있으면 서버 반영 보류). 오프라인 읽기는 Serwist 페이지 캐시로 충족. chrono-node에 한국어 로케일이 없어 `parse-due.ts`에 자체 규칙 파서(오늘·내일·모레·N일 후·다음주 X요일·M/D·M월 D일·오후 N시 등) + 영어 폴백. 0003 마이그레이션으로 cards·board_columns Realtime 발행. 브라우저 실측(스크롤·Realtime)은 배포 후 사용자 확인.
 
 #### S1.3 tasks 액션·도구·위젯
-- [ ] 산출: `src/modules/tasks/{actions,tools,widgets,events,indexer,module}.ts`, `src/modules/index.ts`에 등록(`_hello` 제거).
+- [x] 산출: `src/modules/tasks/{actions,tools,widgets,events,indexer,module}.ts`, `src/modules/index.ts`에 등록(`_hello` 제거).
 - 구현: 도구 `list(filter: {board?, column?, due?: 'today'|'overdue'|'week', label?, q?})`, `get`, `create`, `update`, `move`, `complete`(write + undo), `delete`(destructive), `bulkUpdate`(write, 5건 초과 시 destructive 승격), `boards.list`. `undo`는 이전 값 스냅샷으로 복원. 위젯 `DueTodayWidget`(today), `ThroughputWidget`(insights, P5에 채움). `contextProvider`: 마감·지연 카드 ≤ 10, 예산 600토큰.
 - 검증: 도구 스키마 테스트, `list` 필터 테스트.
 - 커밋: `feat(tasks): agent tools, server actions, today widget`
+> 변경(2026-09-03): 도구는 `defineTool()` 헬퍼로 입력·출력 타입 추론. `bulkUpdate`는 항상 destructive(승인). undo 는 출력에 `_before` 스냅샷을 실어 구현. `_hello` 모듈 삭제, Today·설정 nav 는 코어(app 레이아웃)에서 고정. 인덱서는 S4.2 에서.
 
 #### S1.4 agent 모듈 — 채팅 Dock과 도구 루프
 - [ ] 산출: `supabase/migrations/0003_agent.sql`(chat_threads, chat_messages), `src/modules/agent/{module,schema,repository,service,context,persona,tools}.ts`, `src/app/api/chat/route.ts`, `src/modules/agent/dock/{RachelDock,Fab,MessageList,Message,ToolCard,ApprovalCard,Composer,ContextChip,CostChip,ThreadList}.tsx`, `src/modules/agent/store.ts`(zustand: open, mode, threadId, uiContext).
@@ -454,3 +455,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | D13 결정: VibeVoice-ASR 로컬 파이널 패스(맥 워커 + Muse 폴백) 후보를 S3.0 스파이크·S3.5 변경 후보로 기록 | P1 S1.1 | 맥 M4 Max 64GB |
 | 2026-09-03 | rachel-d5 | S1.1 완료: 0002_tasks(로컬·프로덕션), schema/repository/service, 통합 테스트 7개(총 30개) | **S1.2** 칸반 UI | — |
 | 2026-09-03 | rachel-d5 | S1.2 완료: 칸반 UI(dnd-kit·낙관적 업데이트·Realtime), 카드 시트, 빠른 추가(한국어 마감 파서), /tasks 라우트, 배포 | **S1.3** tasks 도구·액션·위젯 | 테스트 36개. Google 로그인 사용자 확인 완료 |
+| 2026-09-03 | rachel-d5 | S1.3 완료: tasks 도구 10개(undo 포함)·컨텍스트 프로바이더·Today 위젯·커맨드, 통합 테스트 | **S1.4** agent 모듈(채팅 Dock·도구 루프) | 테스트 38개 |

@@ -1,6 +1,8 @@
 import type { RachelModule } from "@/core/contracts";
+import { tasksContextProvider } from "./context";
+import { tasksTools } from "./tools";
+import { dueTodayWidget } from "./widgets";
 
-/** tasks 모듈. 도구·위젯·인덱서는 S1.3 에서 채운다. */
 export const tasksModule: RachelModule = {
   manifest: {
     id: "tasks",
@@ -9,4 +11,15 @@ export const tasksModule: RachelModule = {
     nav: { href: "/tasks", order: 20, mobileTab: true },
     schemaVersion: 3,
   },
+  tools: tasksTools,
+  widgets: [dueTodayWidget],
+  contextProviders: [tasksContextProvider],
+  commands: [
+    {
+      id: "tasks.open",
+      label: "할 일 보드 열기",
+      keywords: ["칸반", "tasks"],
+      run: ({ navigate }) => navigate("/tasks"),
+    },
+  ],
 };
