@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "db:types": "supabase gen types typescript --local > src/core/db/types.generated.ts",
     "db:reset": "supabase db reset",
-    "sw:build": "serwist build"
+    "sw:build": "serwist build",
+    "test:rls": "supabase test db"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.56",

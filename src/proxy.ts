@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/manifest.webmanifest",
   "/sw.js",
   "/api/jobs/run",
+  "/api/test/login",
 ];
 
 /**

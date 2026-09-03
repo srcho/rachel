@@ -23,6 +23,8 @@ export function BriefCard({
     try {
       await generateBriefAction(force);
       router.refresh();
+    } catch (e) {
+      console.warn("[brief] 생성 실패", e instanceof Error ? e.message : e);
     } finally {
       setLoading(false);
     }
