@@ -13,11 +13,15 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { registerOutboxHandler, runOrQueue } from "@/core/offline/outbox";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
+import { PageHeader } from "@/core/ui/PageHeader";
 import {
   archiveCardAction,
   createCardAction,
@@ -30,6 +34,7 @@ import type { BoardView } from "../service";
 import { CardBody } from "./Card";
 import { CardSheet } from "./CardSheet";
 import { Column } from "./Column";
+import { NewCardDialog, type NewCardInput } from "./NewCardDialog";
 import { ChipGhost, type StripEvent, TodayStrip } from "./TodayStrip";
 
 type ByColumn = Record<string, CardRow[]>;
@@ -67,11 +72,13 @@ export function Board({
   userId,
   todayEvents = [],
   timezone = "Asia/Seoul",
+  showAllDone = false,
 }: {
   initial: BoardView;
   userId: string;
   todayEvents?: StripEvent[];
   timezone?: string;
+  showAllDone?: boolean;
 }) {
   const router = useRouter();
   const [columns, setColumns] = useState(initial.columns);
@@ -83,6 +90,38 @@ export function Board({
   /** 드래그 고스트를 원래 카드와 같은 폭으로 그린다 */
   const [activeWidth, setActiveWidth] = useState<number | undefined>();
   const [open, setOpen] = useState<CardRow | null>(null);
+  const [adding, setAdding] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  // 모바일: 첫 진입은 Todo 컬럼부터(Backlog 는 왼쪽으로 스와이프)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 마운트 시 1회
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    const el = stripRef.current?.querySelector<HTMLElement>(
+      'section[aria-label="Todo"]',
+    );
+    if (el) stripRef.current?.scrollTo({ left: el.offsetLeft - 16 });
+  }, []);
+
+  // N: 카드 추가(입력 중이 아닐 때)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        e.key.toLowerCase() !== "n" ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        t?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(t?.tagName ?? "")
+      )
+        return;
+      e.preventDefault();
+      setAdding(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const pending = useRef(0);
 
   // 서버 데이터가 갱신되면(라우터 refresh) 진행 중 조작이 없을 때만 반영
@@ -233,12 +272,7 @@ export function Board({
 
   async function add(
     columnId: string,
-    input: {
-      title: string;
-      dueAt?: string;
-      dueHasTime?: boolean;
-      calendarEventId?: string;
-    },
+    input: Omit<NewCardInput, "columnId"> & { calendarEventId?: string },
   ) {
     const temp: CardRow = {
       id: `temp-${crypto.randomUUID()}`,
@@ -246,9 +280,9 @@ export function Board({
       board_id: initial.board.id,
       column_id: columnId,
       title: input.title,
-      description_md: "",
+      description_md: input.description ?? "",
       position: "~",
-      priority: 2,
+      priority: input.priority ?? 2,
       due_at: input.dueAt ?? null,
       due_has_time: input.dueHasTime ?? false,
       labels: [],
@@ -297,8 +331,32 @@ export function Board({
     setOpen((o) => (o && o.id === id ? { ...o, ...patch } : o));
   }
 
+  const openCount = allCards.filter((c) => !c.completed_at).length;
   return (
     <>
+      <PageHeader
+        title={initial.board.name}
+        meta={`열린 카드 ${openCount}`}
+        actions={
+          <Button
+            size="sm"
+            onClick={() => setAdding(true)}
+            aria-label="카드 추가"
+          >
+            <Plus />
+            <span className="hidden sm:inline">카드 추가</span>
+            <kbd className="ml-1 hidden rounded border border-primary-foreground/30 px-1 font-sans text-[10px] md:inline">
+              N
+            </kbd>
+          </Button>
+        }
+      />
+      <NewCardDialog
+        open={adding}
+        columns={columns}
+        onClose={() => setAdding(false)}
+        onCreate={({ columnId, ...input }) => add(columnId, input)}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -309,14 +367,31 @@ export function Board({
       >
         <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col md:h-full">
           <TodayStrip events={todayEvents} timezone={timezone} />
-          <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 py-3 md:snap-none">
+          <div
+            ref={stripRef}
+            className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 py-3 md:snap-none"
+          >
             {columns.map((col) => (
               <Column
                 key={col.id}
                 column={col}
                 cards={byColumn[col.id] ?? []}
                 onOpen={setOpen}
-                onAdd={(input) => add(col.id, input)}
+                footer={
+                  col.is_done ? (
+                    showAllDone ? (
+                      <Link href="?" className="hover:text-foreground">
+                        오늘 완료만 보기
+                      </Link>
+                    ) : initial.hiddenDone > 0 ? (
+                      <Link href="?done=all" className="hover:text-foreground">
+                        이전 완료 {initial.hiddenDone}개 보기
+                      </Link>
+                    ) : (
+                      "오늘 완료한 카드만 보여요"
+                    )
+                  ) : undefined
+                }
               />
             ))}
           </div>

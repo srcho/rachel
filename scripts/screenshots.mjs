@@ -150,6 +150,11 @@ await shoot(desk, "d-insights", "/insights");
 await shoot(desk, "d-memory", "/memory");
 await shoot(desk, "d-capture", "/capture");
 await shoot(desk, "d-settings", "/settings");
+await shoot(desk, "d-new-card", `/tasks/${boardId}`, async (p) => {
+  await p.getByRole("button", { name: "카드 추가" }).click();
+  await p.getByLabel("제목").fill("내일 3시 PRD 검토");
+  await p.waitForTimeout(600);
+});
 await shoot(desk, "d-card-dialog", `/tasks/${boardId}`, async (p) => {
   await p
     .getByRole("button", { name: /PRD 검토 의견 정리 열기/ })
@@ -176,6 +181,10 @@ await shoot(mob, "m-cal-agenda", "/calendar?view=agenda");
 await shoot(mob, "m-cal-month", "/calendar?view=month");
 await shoot(mob, "m-meetings", "/meetings");
 await shoot(mob, "m-insights", "/insights");
+await shoot(mob, "m-new-card", `/tasks/${boardId}`, async (p) => {
+  await p.getByRole("button", { name: "카드 추가" }).click();
+  await p.waitForTimeout(400);
+});
 await shoot(mob, "m-settings", "/settings");
 await shoot(mob, "m-live", `/meetings/live/${liveId}`);
 await shoot(mob, "m-card-dialog", `/tasks/${boardId}`, async (p) => {

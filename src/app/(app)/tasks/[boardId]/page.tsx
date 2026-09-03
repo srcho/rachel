@@ -3,7 +3,6 @@ import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { Page } from "@/core/ui/Page";
-import { PageHeader } from "@/core/ui/PageHeader";
 import { dayBounds } from "@/core/utils/date";
 import { registry } from "@/modules";
 import { eventService } from "@/modules/calendar/events";
@@ -14,17 +13,20 @@ export const dynamic = "force-dynamic";
 
 export default async function BoardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ boardId: string }>;
+  searchParams: Promise<{ done?: string }>;
 }) {
   const { boardId } = await params;
+  const sp = await searchParams;
   const user = await requireUser();
   const db = await createServerSupabase();
   const ctx = createContext({ db, userId: user.id, actor: "user", registry });
   const svc = tasksService(ctx);
   let view: Awaited<ReturnType<typeof svc.getBoardView>>;
   try {
-    view = await svc.getBoardView(boardId);
+    view = await svc.getBoardView(boardId, { showAllDone: sp.done === "all" });
   } catch {
     notFound();
   }
@@ -45,19 +47,14 @@ export default async function BoardPage({
     linked: linked.has(e.id),
   }));
   return (
-    <>
-      <PageHeader
-        title={view.board.name}
-        meta={`카드 ${view.cards.filter((c) => !c.completed_at).length}`}
+    <Page width="full">
+      <Board
+        initial={view}
+        userId={user.id}
+        todayEvents={todayEvents}
+        timezone={ctx.timezone}
+        showAllDone={sp.done === "all"}
       />
-      <Page width="full">
-        <Board
-          initial={view}
-          userId={user.id}
-          todayEvents={todayEvents}
-          timezone={ctx.timezone}
-        />
-      </Page>
-    </>
+    </Page>
   );
 }

@@ -46,7 +46,9 @@ async function columnsFor(
 ): Promise<ColumnRow[]> {
   const svc = tasksService(ctx);
   const ids = [...new Set(boardIds)];
-  const views = await Promise.all(ids.map((id) => svc.getBoardView(id)));
+  const views = await Promise.all(
+    ids.map((id) => svc.getBoardView(id, { showAllDone: true })),
+  );
   return views.flatMap((v) => v.columns);
 }
 
@@ -62,7 +64,7 @@ export const tasksTools: Record<string, AnyAgentTool> = {
       const svc = tasksService(ctx);
       const boards = await svc.listBoards();
       const views = await Promise.all(
-        boards.map((b) => svc.getBoardView(b.id)),
+        boards.map((b) => svc.getBoardView(b.id, { showAllDone: true })),
       );
       return views.map((v) => ({
         id: v.board.id,
@@ -91,8 +93,8 @@ export const tasksTools: Record<string, AnyAgentTool> = {
       let boardId = filter.boardId;
       if (column && !columnId) {
         const board = boardId
-          ? await svc.getBoardView(boardId)
-          : await svc.getBoardView();
+          ? await svc.getBoardView(boardId, { showAllDone: true })
+          : await svc.getBoardView(undefined, { showAllDone: true });
         boardId = board.board.id;
         const col = board.columns.find(
           (c) =>

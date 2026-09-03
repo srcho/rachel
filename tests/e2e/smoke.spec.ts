@@ -18,11 +18,14 @@ test("today → tasks: create a card and see it on the board", async ({
     await page.goto("/tasks");
     await expect(page).toHaveURL(/\/tasks\/[0-9a-f-]{36}/);
     await expect(page.getByRole("heading", { name: "Personal" })).toBeVisible();
-    // Todo 컬럼의 "카드 추가"
+    // 헤더 "카드 추가" → 다이얼로그(기본 상태 Todo) → Enter
+    await page.getByRole("button", { name: "카드 추가" }).click();
+    const dialog = page.getByRole("dialog", { name: "카드 추가" });
+    await dialog.getByLabel("제목").fill("내일 3시 E2E 카드");
+    await expect(dialog.getByText("마감 제안")).toBeVisible();
+    await dialog.getByLabel("제목").press("Enter");
+    await expect(dialog).toBeHidden();
     const todo = page.getByRole("region", { name: "Todo" });
-    await todo.getByRole("button", { name: "카드 추가" }).click();
-    await todo.getByLabel("새 카드 제목").fill("내일 3시 E2E 카드");
-    await todo.getByLabel("새 카드 제목").press("Enter");
     const card = todo
       .getByRole("button", { name: "E2E 카드 열기", exact: true })
       .last();

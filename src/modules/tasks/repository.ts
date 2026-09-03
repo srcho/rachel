@@ -125,13 +125,31 @@ export function tasksRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
-    async listCardsByBoard(boardId: string): Promise<CardRow[]> {
-      const { data, error } = await own(db.from("cards").select("*"))
+    /** 보드의 카드. completedSince 를 주면 그 전에 완료된 카드는 뺀다(오늘 완료만 보이는 Done). */
+    async listCardsByBoard(
+      boardId: string,
+      opts: { completedSince?: string } = {},
+    ): Promise<CardRow[]> {
+      let q = own(db.from("cards").select("*"))
         .eq("board_id", boardId)
-        .is("archived_at", null)
-        .order("position");
+        .is("archived_at", null);
+      if (opts.completedSince)
+        q = q.or(
+          `completed_at.is.null,completed_at.gte.${opts.completedSince}`,
+        );
+      const { data, error } = await q.order("position");
       if (error) throw error;
       return data;
+    },
+    async countCompletedBefore(boardId: string, iso: string): Promise<number> {
+      const { count, error } = await own(
+        db.from("cards").select("id", { count: "exact", head: true }),
+      )
+        .eq("board_id", boardId)
+        .is("archived_at", null)
+        .lt("completed_at", iso);
+      if (error) throw error;
+      return count ?? 0;
     },
     /** 컬럼 내 마지막 카드(position 최대) */
     async lastCardInColumn(columnId: string): Promise<CardRow | null> {

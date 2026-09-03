@@ -7,22 +7,18 @@ import {
 import { cn } from "@/lib/utils";
 import type { CardRow, ColumnRow } from "../repository";
 import { SortableCard } from "./Card";
-import { QuickAdd } from "./QuickAdd";
 
 export function Column({
   column,
   cards,
   onOpen,
-  onAdd,
+  footer,
 }: {
   column: ColumnRow;
   cards: CardRow[];
   onOpen: (card: CardRow) => void;
-  onAdd: (input: {
-    title: string;
-    dueAt?: string;
-    dueHasTime?: boolean;
-  }) => Promise<void>;
+  /** 컬럼 바닥(예: Done 의 "이전 완료 N개") */
+  footer?: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -62,9 +58,13 @@ export function Column({
           ))}
         </SortableContext>
       </div>
-      <div className="shrink-0 px-2 pt-1.5 pb-2">
-        <QuickAdd onAdd={onAdd} />
-      </div>
+      {footer ? (
+        <div className="shrink-0 px-3 py-2 text-xs text-muted-foreground">
+          {footer}
+        </div>
+      ) : (
+        <div className="h-2 shrink-0" />
+      )}
     </section>
   );
 }

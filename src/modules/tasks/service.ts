@@ -25,6 +25,8 @@ export interface BoardView {
   board: BoardRow;
   columns: ColumnRow[];
   cards: CardRow[];
+  /** 오늘(타임존 기준) 전에 완료돼 숨겨진 카드 수 */
+  hiddenDone: number;
 }
 
 /**
@@ -78,16 +80,30 @@ export function tasksService(ctx: ServiceContext) {
     return board;
   }
 
-  async function getBoardView(boardId?: string): Promise<BoardView> {
+  /**
+   * 보드 화면 데이터. 기본은 Done 에 "오늘 완료"만 보인다(어제 이전 완료는 숨김, 개수만).
+   * showAllDone 이면 전부.
+   */
+  async function getBoardView(
+    boardId?: string,
+    opts: { showAllDone?: boolean } = {},
+  ): Promise<BoardView> {
     const board = boardId
       ? await repo.getBoard(boardId)
       : await ensureDefaultBoard();
     if (!board) throw new Error("보드를 찾을 수 없어요");
-    const [columns, cards] = await Promise.all([
+    const todayStart = dayBounds(ctx.now, ctx.timezone).start;
+    const [columns, cards, hiddenDone] = await Promise.all([
       repo.listColumns(board.id),
-      repo.listCardsByBoard(board.id),
+      repo.listCardsByBoard(
+        board.id,
+        opts.showAllDone ? {} : { completedSince: todayStart },
+      ),
+      opts.showAllDone
+        ? Promise.resolve(0)
+        : repo.countCompletedBefore(board.id, todayStart),
     ]);
-    return { board, columns, cards };
+    return { board, columns, cards, hiddenDone };
   }
 
   async function resolveColumn(
