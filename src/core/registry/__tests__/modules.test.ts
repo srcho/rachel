@@ -27,6 +27,7 @@ describe("assembled registry", () => {
   });
   it("has today widgets ordered", () => {
     expect(registry.widgets("today").map((w) => w.id)).toEqual([
+      "capture.input",
       "insights.brief",
       "calendar.today",
       "tasks.due",

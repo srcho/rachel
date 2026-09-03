@@ -24,7 +24,13 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       { name: "Today", url: "/today" },
-      { name: "설정", url: "/settings" },
+      { name: "녹음 시작", url: "/meetings" },
+      { name: "인박스", url: "/capture" },
     ],
+    share_target: {
+      action: "/capture",
+      method: "GET",
+      params: { title: "title", text: "text", url: "url" },
+    },
   };
 }

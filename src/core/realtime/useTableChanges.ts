@@ -8,7 +8,8 @@ type Table =
   | "boards"
   | "calendar_events"
   | "meetings"
-  | "transcript_segments";
+  | "transcript_segments"
+  | "captures";
 
 /**
  * 사용자 행의 변경을 구독한다(RLS 적용). 보이는 화면의 테이블만 구독할 것.

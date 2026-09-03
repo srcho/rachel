@@ -3,6 +3,7 @@ import { setRegistry } from "@/core/registry/current";
 import { createRegistry } from "@/core/registry/registry";
 import { agentModule } from "./agent/module";
 import { calendarModule } from "./calendar/module";
+import { captureModule } from "./capture/module";
 import { insightsModule } from "./insights/module";
 import { meetingsModule } from "./meetings/module";
 import { memoryModule } from "./memory/module";
@@ -16,6 +17,7 @@ export const modules: RachelModule[] = [
   memoryModule,
   meetingsModule,
   insightsModule,
+  captureModule,
 ];
 
 export const registry = createRegistry(() => modules);

@@ -247,6 +247,45 @@ export type Database = {
           },
         ];
       };
+      captures: {
+        Row: {
+          created_at: string;
+          id: string;
+          origin: string;
+          raw_text: string;
+          resolved_ref: Json | null;
+          status: string;
+          triage: Json | null;
+          updated_at: string;
+          url: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          origin?: string;
+          raw_text: string;
+          resolved_ref?: Json | null;
+          status?: string;
+          triage?: Json | null;
+          updated_at?: string;
+          url?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          origin?: string;
+          raw_text?: string;
+          resolved_ref?: Json | null;
+          status?: string;
+          triage?: Json | null;
+          updated_at?: string;
+          url?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       cards: {
         Row: {
           archived_at: string | null;
