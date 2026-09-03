@@ -46,6 +46,7 @@
 | D10 | Muse 실시간 WebSocket은 v1 제외(키 노출·60분·페이싱 제약). v2 relay 스파이크 | ARCHITECTURE 7.7 |
 | D11 | DB 접근 = supabase-js + 생성 타입(ORM 없음) | ARCHITECTURE 1장 |
 | D12 | 임베딩 = `text-embedding-3-small` 1536d | ARCHITECTURE 1장 |
+| D13 | **로컬 전사 옵션(2026-09-03)**: 파이널 패스는 맥(M4 Max 64GB)에서 도는 워커가 Microsoft VibeVoice-ASR(9B, MIT, 한국어·화자·타임스탬프, 60분 단일 패스)로 처리하는 것을 1순위로 검토. 맥이 없으면 Muse 폴백. 라이브 패스는 Muse 유지. 스트리밍 변형은 MLX 포팅 후 검토 | S3.0 스파이크, S3.5, S6.5 앞당김 |
 
 ---
 
@@ -294,7 +295,8 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
   2. Muse 배치: 실제 한국어 회의 10분 WAV(16k·24k 각각) → `ENDPOINTING`·`DIARIZATION` 응답, 체감 정확도, 처리 시간(실시간 대비 배율), 한·영 혼용 결과, `keywords` 효과, 분당 요청 한도(20초 세그먼트를 30개 연속 전송).
   3. IndexedDB에 115MB 저장·읽기 속도(iPhone), `storage.persist()` 결과.
   4. 60분 녹음의 청킹·업로드 총 소요(예상 3~7분) — G2는 라이브 전사 기준 요약으로 충족하므로 파이널은 백그라운드.
-- 결정: 품질 미달이면 `models.ts`의 `transcribe.provider`를 `'openai'`로 바꾸고 `openai.ts`를 구현(같은 인터페이스).
+  5. **VibeVoice-ASR 로컬(맥 M4 Max 64GB)**: `mlx-community/VibeVoice-ASR-bf16`(비스트리밍 7B/9B)로 같은 30분 한국어 회의를 돌려 정확도·화자 일관성·처리 시간(실시간 배율)·메모리를 Muse 결과와 나란히 기록. 핫워드(키워드) 효과 확인. 스트리밍 변형(`VibeVoice-ASR-Streaming-7B`)은 MLX 포팅 여부만 확인.
+- 결정: 품질 미달이면 `models.ts`의 `transcribe.provider`를 `'openai'`로 바꾸고 `openai.ts`를 구현(같은 인터페이스). VibeVoice가 Muse 이상이면 S3.5 파이널 패스를 **맥 워커 우선 + Muse 폴백**으로 설계 변경(아래 S3.5 변경 메모 참조).
 - 커밋: `docs: meetings spike results (iOS recording, Muse quality)`
 
 #### S3.1 meetings 스키마·서비스
@@ -326,6 +328,7 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 - 구현: ARCHITECTURE 7.3. 러너는 앱 시작 시 `final_pass_status in (pending, running)`인 회의를 찾아 이어서 실행. 진행률 UI(목록·상세). 완료 시 PCM 삭제, 실패 시 라이브 유지 + "다시 시도".
 - 검증: 25분 녹음(3청크) → 화자 라벨이 청크 경계에서 이어지는지 수동 확인. 원장 `transcribe_final` 기록.
 - 커밋: `feat(meetings): final-pass diarization with chunking and speaker stitching`
+> 계획 변경 후보(2026-09-03, D13): 스파이크 결과가 좋으면 파이널 패스를 이렇게 바꾼다. (a) 종료 시 압축 녹음을 Supabase Storage `meeting-audio/<user>/<meeting>.webm|m4a`에 업로드(S6.5를 여기로 앞당김, 시간당 약 14MB). (b) 잡 `meetings.final_pass`를 큐에 넣고 **맥 워커**(`workers/mac-transcriber/`, Python + MLX, `TranscriptionProvider`와 같은 입출력)가 service-role 키로 잡을 집어가 오디오를 내려받아 60분 단일 패스로 전사 → `transcript_segments(pass='final')` 저장 → `meeting.transcribed` 이벤트. (c) 워커가 N분 안에 집어가지 않으면(맥 꺼짐) 서버 잡이 Muse 청크·스티칭 경로로 폴백. 클라이언트 청킹·스티칭 코드는 폴백용으로 유지. 워커 실행은 launchd로 로그인 시 자동 시작.
 
 #### S3.6 후처리 잡 · 요약
 - [ ] 산출: `src/modules/meetings/postprocess.ts`, 잡 `meetings.postprocess`, `src/core/llm/prompts/meeting-summary.ts` + `MeetingSummarySchema`(zod), 이벤트 `meeting.summarized`, memory 모듈 핸들러·인덱서 연결.
@@ -428,6 +431,7 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 5 | Vercel Hobby 함수 한도로 60분 회의 요약(≤ 120초) | S3.6 | 전사 청크 요약 → 병합(map-reduce) |
 | 6 | 파이널 패스 총 소요(60분 회의 3~7분) | S3.5 | 청크 병렬 2, 24k 대신 16k 유지 |
 | 7 | Supabase Free 7일 정지 | 운영 | 일일 브리핑 크론이 활동 생성 |
+| 8 | VibeVoice-ASR 로컬: 출시 당일 모델, 스트리밍 변형 MLX 포팅 없음, 실시간 배율·발열 미측정 | S3.0 | 비스트리밍 파이널 패스부터. 맥 워커 미응답 시 Muse 폴백 |
 
 ## 8. 참고 링크
 
@@ -445,3 +449,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-02 | rachel-d5 | PRD v1.0 확정, ARCHITECTURE v1.0, PLAN v1.0 작성 | §3 환경 준비 → S0.1 | Muse 스펙 확인(10분·32MB, 한국어 포함, $0.18/h). 병렬 세션 PRD는 `docs/reference/`로 |
 | 2026-09-02 | rachel-d5 | S0.1~S0.6 완료(키 없이 가능한 범위). 테스트 21개, `pnpm build` 성공, 잡 러너 스모크 통과 | **§3 키 발급(Supabase·Google·OpenAI·Meta·Vercel)** → S0.7 배포 → 실제 Google 로그인 검증 → P1 S1.1 | 로컬 Supabase 553xx 포트. `.env.local`에 로컬 Supabase 값은 채워짐, 나머지 키는 빈칸. 미검증: Google 로그인, Muse 실키, Lighthouse |
 | 2026-09-03 | rachel-d5 | S0.7 완료: 프로덕션 DB 마이그레이션, Vercel 배포(rachel-seven-tau.vercel.app), env 10개, Auth 설정 push, pg_cron→잡 러너 동작 확인 | **P1 S1.1** tasks 스키마·서비스 | Meta 키만 미발급(Muse 실호출·S3.0 스파이크 대기). 사용자 확인 필요: Google 로그인 1회, Lighthouse/iPhone 설치 |
+| 2026-09-03 | rachel-d5 | D13 결정: VibeVoice-ASR 로컬 파이널 패스(맥 워커 + Muse 폴백) 후보를 S3.0 스파이크·S3.5 변경 후보로 기록 | P1 S1.1 | 맥 M4 Max 64GB |

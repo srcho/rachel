@@ -631,6 +631,10 @@ Safari(iOS)는 `AudioContext` sampleRate 옵션을 무시할 수 있다 → 워�
 | Muse 한국어 품질 | 출시 1일차, 미검증 | 스파이크에서 실제 회의 10분 WAV로 확인. 미달이면 `openai.ts` 프로바이더로 교체 |
 | 함수 실행 시간 | 기본 300초 | 세그먼트·청크 호출은 수 초~수십 초, 요약 ≤ 120초 |
 
+### 7.6b 로컬 전사 옵션 (D13, 스파이크 후 확정)
+
+맥(M4 Max 64GB)에서 Microsoft VibeVoice-ASR(MIT, 60분 단일 패스, 화자·타임스탬프·핫워드, 한국어)을 돌리는 **맥 워커**가 파이널 패스를 맡는 구성. 앱은 잡을 큐에 넣고, 워커(`workers/mac-transcriber/`, Python + MLX)가 service-role 키로 `meetings.final_pass` 잡을 집어가 Storage의 압축 녹음을 내려받아 전사한다. 워커가 일정 시간 안에 집어가지 않으면 서버 잡이 Muse 청크·스티칭 경로로 폴백한다. 라이브 패스는 그대로 Muse. 이 구성은 오디오가 Supabase Storage에 있어야 하므로(v1.5 항목 앞당김) 스파이크 결과에 따라 확정한다.
+
 ### 7.7 v2: 진짜 실시간(relay)
 
 Vercel 함수는 WebSocket을 지원하지만 실행 시간 한도가 있어 60분 relay가 안 된다. 선택지: (a) 4.5분마다 relay 함수를 교체(ENDPOINTING이면 세션이 바뀌어도 무방, 화자는 파이널 패스가 담당), (b) 상시 소형 서버(Fly.io 등). 둘 다 v2 스파이크 항목.
