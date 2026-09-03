@@ -55,6 +55,8 @@ export class MeetingRecorder {
         },
       });
       this.ctx = new AudioContext({ sampleRate: TARGET_RATE });
+      // iOS 는 제스처 밖에서 만든 컨텍스트를 suspended 로 둔다
+      if (this.ctx.state !== "running") await this.ctx.resume().catch(() => {});
       await this.ctx.audioWorklet.addModule("/worklets/pcm-capture.js");
       const src = this.ctx.createMediaStreamSource(this.stream);
       this.node = new AudioWorkletNode(this.ctx, "pcm-capture", {
@@ -128,16 +130,28 @@ export class MeetingRecorder {
     void this.uploader?.enqueue(seg);
   }
 
-  pause() {
+  /** 일시정지: 전사 입력을 끊고(onBlock 무시) 오디오 컨텍스트를 재운다. 마이크 트랙은 유지(재개가 빨라야 한다). */
+  async pause(): Promise<void> {
     if (this.state !== "recording") return;
     this.pausedAt = Date.now();
-    this.media?.pause();
     this.setState("paused");
+    try {
+      if (this.media?.state === "recording") this.media.pause();
+    } catch (e) {
+      console.warn("[recorder] MediaRecorder.pause 실패", e);
+    }
+    await this.ctx?.suspend().catch(() => {});
   }
-  resume() {
+  async resume(): Promise<void> {
     if (this.state !== "paused") return;
     this.pausedAccum += Date.now() - this.pausedAt;
-    this.media?.resume();
+    await this.ctx?.resume().catch(() => {});
+    try {
+      if (this.media?.state === "paused") this.media.resume();
+    } catch (e) {
+      console.warn("[recorder] MediaRecorder.resume 실패", e);
+    }
+    await this.requestWakeLock();
     this.setState("recording");
   }
 
@@ -149,6 +163,13 @@ export class MeetingRecorder {
 
   /** 마지막 세그먼트를 내보내고 업로드가 끝날 때까지 기다린다. */
   async stop(): Promise<{ durationSec: number; mime: string }> {
+    if (this.state === "done" || this.state === "ending")
+      return {
+        durationSec: Math.round(this.elapsed() / 1000),
+        mime: this.mime,
+      };
+    if (this.state === "paused") this.pausedAccum += Date.now() - this.pausedAt;
+    await this.ctx?.resume().catch(() => {});
     this.setState("ending");
     const durationSec = Math.round(this.elapsed() / 1000);
     const last = this.segmenter.flush();
@@ -188,7 +209,11 @@ export class MeetingRecorder {
     }
   }
   private onVisibility = () => {
-    if (document.visibilityState === "visible") void this.requestWakeLock();
+    if (document.visibilityState !== "visible") return;
+    void this.requestWakeLock();
+    // iOS 가 백그라운드에서 컨텍스트를 멈춘 경우 되살린다
+    if (this.state === "recording" && this.ctx?.state !== "running")
+      void this.ctx?.resume().catch(() => {});
   };
 
   private setState(s: RecorderState, error?: string) {

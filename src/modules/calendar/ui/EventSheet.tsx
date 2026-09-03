@@ -3,19 +3,7 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { useIsDesktop } from "@/core/ui/useMediaQuery";
+import { FormDialog } from "@/core/ui/FormDialog";
 import {
   createEventAction,
   deleteEventAction,
@@ -46,40 +34,22 @@ export function EventSheet({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const isDesktop = useIsDesktop();
-  const open = draft !== null;
-  const body = draft ? (
-    <EventForm
-      key={draft.id ?? "new"}
-      draft={draft}
-      calendars={calendars}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
-  ) : null;
-  if (isDesktop) {
-    return (
-      <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-        <SheetContent className="w-[420px] overflow-y-auto sm:max-w-[420px]">
-          <SheetHeader>
-            <SheetTitle>{draft?.id ? "일정" : "새 일정"}</SheetTitle>
-          </SheetHeader>
-          {body}
-        </SheetContent>
-      </Sheet>
-    );
-  }
   return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[92dvh]">
-        <DrawerHeader>
-          <DrawerTitle>{draft?.id ? "일정" : "새 일정"}</DrawerTitle>
-        </DrawerHeader>
-        <div className="overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-          {body}
-        </div>
-      </DrawerContent>
-    </Drawer>
+    <FormDialog
+      open={draft !== null}
+      onClose={onClose}
+      title={draft?.id ? "일정" : "새 일정"}
+    >
+      {draft ? (
+        <EventForm
+          key={draft.id ?? "new"}
+          draft={draft}
+          calendars={calendars}
+          onClose={onClose}
+          onSaved={onSaved}
+        />
+      ) : null}
+    </FormDialog>
   );
 }
 
@@ -168,7 +138,7 @@ function EventForm({
 
   return (
     <form
-      className="space-y-3 pt-2"
+      className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
         void save();

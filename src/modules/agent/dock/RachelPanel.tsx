@@ -46,7 +46,7 @@ function isEditable(el: EventTarget | null): boolean {
 
 /**
  * 데스크톱: 우하단 플로팅 창(⇧Space · ⌘J 토글, Esc 닫기). 화면과 독립적이라 어디서든 바로 말을 건다.
- * 열기 버튼은 레일 하단(DesktopDockButton).
+ * 열기 버튼은 우하단 FAB(RachelFab).
  * 모바일: 바텀 드로어(FAB).
  */
 export function RachelPanel() {

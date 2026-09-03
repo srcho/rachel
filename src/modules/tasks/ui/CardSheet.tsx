@@ -2,19 +2,7 @@
 import { Archive, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { useIsDesktop } from "@/core/ui/useMediaQuery";
+import { FormDialog } from "@/core/ui/FormDialog";
 import { PRIORITY_LABEL } from "../format";
 import type { CardRow, ColumnRow } from "../repository";
 import type { UpdateCardInput } from "../schema";
@@ -38,33 +26,11 @@ function toLocalInput(iso: string | null, hasTime: boolean): string {
 }
 
 export function CardSheet(props: Props) {
-  const isDesktop = useIsDesktop();
   const { card, onClose } = props;
-  const open = card !== null;
-  const body = card ? <CardForm key={card.id} {...props} card={card} /> : null;
-  if (isDesktop) {
-    return (
-      <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-        <SheetContent className="w-[420px] overflow-y-auto sm:max-w-[420px]">
-          <SheetHeader>
-            <SheetTitle className="sr-only">카드 상세</SheetTitle>
-          </SheetHeader>
-          {body}
-        </SheetContent>
-      </Sheet>
-    );
-  }
   return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[92dvh]">
-        <DrawerHeader className="sr-only">
-          <DrawerTitle>카드 상세</DrawerTitle>
-        </DrawerHeader>
-        <div className="overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-          {body}
-        </div>
-      </DrawerContent>
-    </Drawer>
+    <FormDialog open={card !== null} onClose={onClose} title="카드">
+      {card ? <CardForm key={card.id} {...props} card={card} /> : null}
+    </FormDialog>
   );
 }
 
@@ -121,7 +87,7 @@ function CardForm({
   const field =
     "w-full rounded-md border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring/50";
   return (
-    <div className="space-y-4 pt-2">
+    <div className="space-y-3">
       <input
         value={title}
         onChange={(e) => edit(setTitle)(e.target.value)}

@@ -10,8 +10,10 @@ import {
   Kanban,
   type LucideIcon,
   Mic,
+  Settings,
   Sparkles,
   SquareKanban,
+  Sun,
   X,
 } from "lucide-react";
 
@@ -29,6 +31,8 @@ const ICONS: Record<string, LucideIcon> = {
   inbox: Inbox,
   kanban: Kanban,
   mic: Mic,
+  settings: Settings,
+  sun: Sun,
   sparkles: Sparkles,
   "square-kanban": SquareKanban,
   x: X,

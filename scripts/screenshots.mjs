@@ -150,6 +150,20 @@ await shoot(desk, "d-insights", "/insights");
 await shoot(desk, "d-memory", "/memory");
 await shoot(desk, "d-capture", "/capture");
 await shoot(desk, "d-settings", "/settings");
+await shoot(desk, "d-card-dialog", `/tasks/${boardId}`, async (p) => {
+  await p
+    .getByRole("button", { name: /PRD 검토 의견 정리 열기/ })
+    .last()
+    .click();
+  await p.waitForTimeout(400);
+});
+await shoot(desk, "d-event-dialog", "/calendar?view=month", async (p) => {
+  await p.getByRole("button", { name: "일정 추가" }).click();
+  await p.waitForTimeout(400);
+});
+const liveId = sql(
+  `insert into meetings (user_id, title, status, final_pass_status, started_at) values ('${uid}','라이브 레이아웃 확인','recording','pending',now()) returning id`,
+);
 const mob = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
@@ -162,6 +176,15 @@ await shoot(mob, "m-cal-agenda", "/calendar?view=agenda");
 await shoot(mob, "m-cal-month", "/calendar?view=month");
 await shoot(mob, "m-meetings", "/meetings");
 await shoot(mob, "m-insights", "/insights");
+await shoot(mob, "m-settings", "/settings");
+await shoot(mob, "m-live", `/meetings/live/${liveId}`);
+await shoot(mob, "m-card-dialog", `/tasks/${boardId}`, async (p) => {
+  await p
+    .getByRole("button", { name: /PRD 검토 의견 정리 열기/ })
+    .last()
+    .click();
+  await p.waitForTimeout(400);
+});
 await browser.close();
 await admin.auth.admin.deleteUser(uid);
 server.kill();

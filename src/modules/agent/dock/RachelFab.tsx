@@ -1,5 +1,6 @@
 "use client";
 import { Mic, Sparkles } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -12,9 +13,13 @@ import { useDock } from "./store";
 
 const HOLD_MS = 400;
 
-/** 탭: 레이첼 열기 · 길게 누르기: 음성 캡처(놓으면 전사 → 인박스) */
+/**
+ * 우하단 플로팅 버튼. 탭: 레이첼 열기 · 길게 누르기: 음성 캡처(놓으면 전사 → 인박스).
+ * 모바일은 하단 탭 위, 데스크톱은 창이 열려 있으면 숨긴다. 녹음 화면에서는 숨긴다.
+ */
 export function RachelFab() {
   const { open, toggle } = useDock();
+  const pathname = usePathname();
   const { recording, start, stop } = useVoiceClip();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
@@ -53,6 +58,7 @@ export function RachelFab() {
     }
   }
 
+  if (pathname.startsWith("/meetings/live/")) return null;
   return (
     <button
       type="button"
@@ -66,13 +72,13 @@ export function RachelFab() {
       aria-label={
         recording
           ? "녹음 중 — 놓으면 캡처"
-          : "레이첼 열기 (길게 누르면 음성 캡처)"
+          : "레이첼 열기 (길게 누르면 음성 캡처, 데스크톱 Shift+Space)"
       }
       aria-pressed={open}
       className={cn(
-        "-mt-5 flex size-12 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform active:scale-95",
-        open && "bg-primary/80",
-        recording && "scale-110 bg-red-500 ring-red-500/30",
+        "fixed right-4 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-40 flex size-12 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/15 transition-transform active:scale-95 md:bottom-4",
+        open && "md:hidden",
+        recording && "scale-110 bg-red-500",
         busy && "opacity-70",
       )}
       style={{ touchAction: "none" }}

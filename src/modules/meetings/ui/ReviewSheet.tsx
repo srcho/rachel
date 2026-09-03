@@ -2,19 +2,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { useIsDesktop } from "@/core/ui/useMediaQuery";
+import { FormDialog } from "@/core/ui/FormDialog";
 import { createCardsFromMeetingAction } from "../review-actions";
 import type { MeetingSummary } from "../schema";
 
@@ -35,7 +23,6 @@ export function ReviewSheet({
   items,
   onDone,
 }: Props) {
-  const isDesktop = useIsDesktop();
   const [selected, setSelected] = useState<boolean[]>(items.map(() => true));
   const [busy, setBusy] = useState(false);
 
@@ -104,28 +91,9 @@ export function ReviewSheet({
       </div>
     </div>
   );
-  if (isDesktop) {
-    return (
-      <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-        <SheetContent className="w-[420px] sm:max-w-[420px]">
-          <SheetHeader>
-            <SheetTitle>액션 아이템 → 카드</SheetTitle>
-          </SheetHeader>
-          {body}
-        </SheetContent>
-      </Sheet>
-    );
-  }
   return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>액션 아이템 → 카드</DrawerTitle>
-        </DrawerHeader>
-        <div className="px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-          {body}
-        </div>
-      </DrawerContent>
-    </Drawer>
+    <FormDialog open={open} onClose={onClose} title="액션 아이템 → 카드">
+      {body}
+    </FormDialog>
   );
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { FormDialog } from "@/core/ui/FormDialog";
 import { cn } from "@/lib/utils";
 import { bookmarkAction, finalizeMeetingAction } from "../actions";
 import { fmtClock } from "../format";
@@ -35,6 +36,9 @@ export function LiveScreen({
   const [lines, setLines] = useState<Line[]>([]);
   const [hidden, setHidden] = useState(false);
   const [fontSize, setFontSize] = useState(15);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [endError, setEndError] = useState<string | null>(null);
+  const durationRef = useRef<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const elapsedRef = useRef(0);
 
@@ -97,153 +101,209 @@ export function LiveScreen({
     endRef.current?.scrollIntoView({ block: "end" });
   });
 
+  /** 종료: 남은 세그먼트 업로드 → 서버에 종료 알림(요약 시작) → 상세로. 실패하면 화면에 남아 다시 시도 */
   async function end() {
     const r = rec.current;
     if (!r) return;
-    if (!confirm("회의를 끝낼까요? 남은 전사를 마무리하고 요약을 시작해요."))
-      return;
+    setConfirmEnd(false);
+    setEndError(null);
     try {
-      const { durationSec } = await r.stop();
-      await finalizeMeetingAction(meetingId, durationSec);
+      if (durationRef.current === null) {
+        const { durationSec } = await r.stop();
+        durationRef.current = durationSec;
+      }
+      await finalizeMeetingAction(meetingId, durationRef.current);
       router.replace(`/meetings/${meetingId}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "종료 실패");
+      setEndError(e instanceof Error ? e.message : "종료 실패");
     }
   }
 
   const recording = state === "recording";
+  const live = recording || state === "paused";
+  const queued = lines.filter((l) => l.status === "queued").length;
   const okText = lines.filter((l) => l.status === "ok" && l.text);
   return (
-    <div className="flex min-h-[calc(100dvh-3rem)] flex-col">
-      <div className="sticky top-12 z-10 border-b bg-background/95 px-4 py-3 backdrop-blur">
+    <div data-immersive className="flex h-[calc(100dvh-3rem)] flex-col">
+      <div className="shrink-0 border-b bg-background px-4 py-2.5">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div
             className={cn(
-              "flex size-10 items-center justify-center rounded-full",
+              "flex size-9 shrink-0 items-center justify-center rounded-full",
               recording
                 ? "bg-red-500/15 text-red-600"
                 : "bg-muted text-muted-foreground",
             )}
           >
             <Mic
-              className="size-5"
+              className="size-4"
               style={{ transform: `scale(${1 + Math.min(0.6, level * 8)})` }}
             />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{title}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="truncate text-xs text-muted-foreground">
               {state === "requesting" && "마이크 권한 확인 중…"}
               {state === "recording" && "녹음 중 · 문장 단위로 전사돼요"}
-              {state === "paused" && "일시정지"}
-              {state === "ending" && "남은 전사를 마무리하는 중…"}
+              {state === "paused" && "일시정지 · 마이크는 켜져 있어요"}
+              {state === "ending" && `마무리 중 · 남은 전사 ${queued}개 업로드`}
+              {state === "done" && (endError ? "종료 실패" : "요약 시작 중…")}
               {state === "error" && `오류: ${error}`}
             </p>
           </div>
-          <span className="text-2xl font-semibold tabular-nums">
+          <span
+            className={cn(
+              "text-xl font-semibold tabular-nums",
+              state === "paused" && "text-muted-foreground",
+            )}
+          >
             {fmtClock(elapsed)}
           </span>
         </div>
         {hidden && recording && (
-          <p className="mx-auto mt-2 max-w-3xl rounded bg-amber-100 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="mx-auto mt-2 max-w-3xl rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
             화면을 켜 두세요. 백그라운드에서는 iOS가 마이크를 멈출 수 있어요.
           </p>
         )}
       </div>
 
       <div
-        className="mx-auto w-full max-w-3xl flex-1 space-y-2 px-4 py-4"
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
         style={{ fontSize }}
       >
-        {lines.length === 0 && state === "recording" && (
-          <p className="text-sm text-muted-foreground">
-            말을 시작하면 8~20초 단위로 전사가 나타나요.
-          </p>
-        )}
-        {lines.map((l) => (
-          <div key={l.key} className="flex gap-3">
-            <span className="w-12 shrink-0 pt-0.5 text-xs tabular-nums text-muted-foreground">
-              {fmtClock(l.startMs)}
-            </span>
-            {l.status === "queued" ? (
-              <span className="text-muted-foreground">전사 중…</span>
-            ) : l.status === "failed" ? (
-              <span className="text-xs text-destructive">
-                전사 실패 {l.error ? `(${l.error.slice(0, 60)})` : ""}
+        <div className="mx-auto max-w-3xl space-y-2">
+          {lines.length === 0 && state === "recording" && (
+            <p className="text-sm text-muted-foreground">
+              말을 시작하면 8~20초 단위로 전사가 나타나요.
+            </p>
+          )}
+          {lines.map((l) => (
+            <div key={l.key} className="flex gap-3">
+              <span className="w-12 shrink-0 pt-0.5 text-xs tabular-nums text-muted-foreground">
+                {fmtClock(l.startMs)}
               </span>
-            ) : (
-              <p className="leading-relaxed">{l.text}</p>
-            )}
-          </div>
-        ))}
-        <div ref={endRef} />
+              {l.status === "queued" ? (
+                <span className="text-muted-foreground">전사 중…</span>
+              ) : l.status === "failed" ? (
+                <span className="text-xs text-destructive">
+                  전사 실패 {l.error ? `(${l.error.slice(0, 60)})` : ""}
+                </span>
+              ) : (
+                <p className="leading-relaxed">{l.text}</p>
+              )}
+            </div>
+          ))}
+          <div ref={endRef} />
+        </div>
       </div>
 
-      <div className="sticky bottom-0 border-t bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setFontSize((f) => Math.min(24, f + 2))}
-              aria-label="글자 크게"
-            >
-              가+
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setFontSize((f) => Math.max(12, f - 2))}
-              aria-label="글자 작게"
-            >
-              가−
-            </Button>
-          </div>
+      <div className="shrink-0 border-t bg-background px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto max-w-3xl space-y-2">
+          {endError && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
+              <span className="min-w-0 truncate text-destructive">
+                {endError}
+              </span>
+              <div className="flex shrink-0 gap-1">
+                <Button size="xs" onClick={end}>
+                  다시 시도
+                </Button>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => router.replace("/meetings")}
+                >
+                  목록으로
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Button
-              size="sm"
-              variant="outline"
+              size="icon-sm"
+              variant="ghost"
               disabled={!recording}
+              aria-label="중요 표시"
               onClick={async () => {
                 await bookmarkAction(meetingId, elapsedRef.current);
                 toast.success(`중요 표시 ${fmtClock(elapsedRef.current)}`);
               }}
             >
-              <Bookmark className="size-4" /> 중요
+              <Bookmark />
             </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => setFontSize((f) => Math.max(12, f - 2))}
+              aria-label="글자 작게"
+            >
+              <span className="text-xs">가-</span>
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => setFontSize((f) => Math.min(24, f + 2))}
+              aria-label="글자 크게"
+            >
+              <span className="text-xs">가+</span>
+            </Button>
+            <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+              {okText.length}문장{queued > 0 ? ` · 대기 ${queued}` : ""}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             {state === "paused" ? (
               <Button
-                size="sm"
+                className="h-11"
                 variant="outline"
-                onClick={() => rec.current?.resume()}
+                onClick={() => void rec.current?.resume()}
               >
-                <Play className="size-4" /> 재개
+                <Play /> 재개
               </Button>
             ) : (
               <Button
-                size="sm"
+                className="h-11"
                 variant="outline"
                 disabled={!recording}
-                onClick={() => rec.current?.pause()}
+                onClick={() => void rec.current?.pause()}
               >
-                <Pause className="size-4" /> 일시정지
+                <Pause /> 일시정지
               </Button>
             )}
             <Button
-              size="sm"
+              className="h-11"
               variant="destructive"
-              disabled={state !== "recording" && state !== "paused"}
-              onClick={end}
+              disabled={!live && !endError}
+              onClick={() => (endError ? end() : setConfirmEnd(true))}
             >
-              <Square className="size-4" /> 종료
+              <Square /> 종료
             </Button>
           </div>
         </div>
-        <p className="mx-auto mt-1 max-w-3xl text-[11px] text-muted-foreground">
-          전사 {okText.length}문장 · 대기{" "}
-          {lines.filter((l) => l.status === "queued").length}
-        </p>
       </div>
+
+      <FormDialog
+        open={confirmEnd}
+        onClose={() => setConfirmEnd(false)}
+        title="회의를 끝낼까요?"
+      >
+        <p className="text-sm text-muted-foreground">
+          남은 전사 {queued}개를 마무리하고 요약을 시작해요. 녹음 파일은 이
+          기기에 남아요.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfirmEnd(false)}
+          >
+            계속 녹음
+          </Button>
+          <Button variant="destructive" size="sm" onClick={end}>
+            종료하고 요약
+          </Button>
+        </div>
+      </FormDialog>
     </div>
   );
 }
