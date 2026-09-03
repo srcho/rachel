@@ -19,10 +19,16 @@ export const meetingsModule: RachelModule = {
   jobs: { postprocess: postprocessJob },
   commands: [
     {
+      id: "meetings.start",
+      label: "녹음 시작",
+      keywords: ["record", "회의"],
+      action: "startMeeting",
+    },
+    {
       id: "meetings.open",
       label: "회의 목록",
       keywords: ["meeting", "녹음"],
-      run: ({ navigate }) => navigate("/meetings"),
+      href: "/meetings",
     },
   ],
 };

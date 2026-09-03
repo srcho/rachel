@@ -23,7 +23,7 @@ export const calendarModule: RachelModule = {
       id: "calendar.open",
       label: "캘린더 열기",
       keywords: ["일정", "calendar"],
-      run: ({ navigate }) => navigate("/calendar"),
+      href: "/calendar",
     },
   ],
   settings: {

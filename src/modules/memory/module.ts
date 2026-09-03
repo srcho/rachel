@@ -14,6 +14,14 @@ export const memoryModule: RachelModule = {
   tools: memoryTools,
   contextProviders: [memoryContextProvider],
   jobs: { extract: extractJob },
+  commands: [
+    {
+      id: "memory.open",
+      label: "기억 보기",
+      keywords: ["memory"],
+      href: "/memory",
+    },
+  ],
   eventHandlers: [
     {
       on: "chat.turn_completed",

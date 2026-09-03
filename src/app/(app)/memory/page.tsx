@@ -1,0 +1,47 @@
+import { requireUser } from "@/core/auth/session";
+import { createContext } from "@/core/context";
+import { createServerSupabase } from "@/core/db/server";
+import { PageHeader } from "@/core/ui/PageHeader";
+import { registry } from "@/modules";
+import { MEMORY_KINDS, type MemoryKind } from "@/modules/memory/schema";
+import { memoryService } from "@/modules/memory/service";
+import { MemoryList } from "@/modules/memory/ui/MemoryList";
+import { MemorySearch } from "@/modules/memory/ui/MemorySearch";
+
+export const dynamic = "force-dynamic";
+
+export default async function MemoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string; q?: string; archived?: string }>;
+}) {
+  const sp = await searchParams;
+  const user = await requireUser();
+  const db = await createServerSupabase();
+  const svc = memoryService(
+    createContext({ db, userId: user.id, actor: "user", registry }),
+  );
+  const kind = MEMORY_KINDS.includes(sp.kind as MemoryKind)
+    ? (sp.kind as MemoryKind)
+    : null;
+  const archived = sp.archived === "1";
+  const memories = await svc.list({
+    kind: kind ?? undefined,
+    q: sp.q,
+    status: archived ? "archived" : "active",
+    limit: 200,
+  });
+  return (
+    <>
+      <PageHeader title="기억" actions={<MemorySearch q={sp.q ?? ""} />} />
+      <div className="mx-auto max-w-3xl p-4">
+        <MemoryList
+          memories={memories}
+          kind={kind}
+          q={sp.q ?? ""}
+          archived={archived}
+        />
+      </div>
+    </>
+  );
+}

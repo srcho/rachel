@@ -9,7 +9,7 @@ export const agentModule: RachelModule = {
       label: "레이첼에게 말하기",
       shortcut: "mod+j",
       keywords: ["chat", "채팅"],
-      run: ({ openDock }) => openDock(),
+      action: "openDock",
     },
   ],
 };

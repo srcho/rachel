@@ -19,7 +19,7 @@ export const tasksModule: RachelModule = {
       id: "tasks.open",
       label: "할 일 보드 열기",
       keywords: ["칸반", "tasks"],
-      run: ({ navigate }) => navigate("/tasks"),
+      href: "/tasks",
     },
   ],
 };
