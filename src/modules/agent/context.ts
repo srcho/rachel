@@ -49,13 +49,19 @@ export async function buildDynamicContext(
   return blocks.join("\n\n");
 }
 
-/** "[지금] 2026년 9월 3일 목요일 오후 5:40 (Asia/Seoul, UTC+09:00) · ISO 2026-09-03T17:40:00+09:00" — 상대 날짜·ISO 계산의 기준점 */
+/** "[지금] 2026년 9월 3일 목요일 17:40 (Asia/Seoul, UTC+09:00) · ISO 2026-09-03T17:40:00+09:00" — 상대 날짜·ISO 계산의 기준점 */
 export function nowLine(now: Date, timeZone: string): string {
-  const human = new Intl.DateTimeFormat("ko-KR", {
+  const date = new Intl.DateTimeFormat("ko-KR", {
     timeZone,
     dateStyle: "full",
-    timeStyle: "short",
   }).format(now);
+  const time = new Intl.DateTimeFormat("ko-KR", {
+    timeZone,
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(now);
+  const human = `${date} ${time}`;
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hourCycle: "h23",
