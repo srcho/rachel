@@ -1,5 +1,6 @@
 import type { ServiceContext } from "@/core/contracts";
 import type { Json } from "@/core/db/types.generated";
+import { eventService } from "./events";
 import { type GEvent, GoogleApiError, google } from "./google";
 import {
   type CalendarRow,
@@ -96,6 +97,13 @@ export async function syncCalendars(ctx: ServiceContext): Promise<SyncResult> {
     if (e instanceof NeedsReauthError)
       return { ...result, errors: [e.message] };
     throw e;
+  }
+
+  // 먼저 밀리지 못한 로컬 변경을 Google 에 반영
+  try {
+    await eventService(ctx).pushPending();
+  } catch (e) {
+    result.errors.push(`push: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   const calendars = await repo.listCalendars(true);

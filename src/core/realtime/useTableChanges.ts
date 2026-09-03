@@ -2,7 +2,13 @@
 import { useEffect } from "react";
 import { createBrowserSupabase } from "@/core/db/browser";
 
-type Table = "cards" | "board_columns" | "boards";
+type Table =
+  | "cards"
+  | "board_columns"
+  | "boards"
+  | "calendar_events"
+  | "meetings"
+  | "transcript_segments";
 
 /**
  * 사용자 행의 변경을 구독한다(RLS 적용). 보이는 화면의 테이블만 구독할 것.
