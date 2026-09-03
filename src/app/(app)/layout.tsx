@@ -1,5 +1,6 @@
 import { requireUser } from "@/core/auth/session";
 import { AppShell } from "@/core/ui/AppShell";
+import { PaletteHost } from "@/core/ui/PaletteHost";
 import { registry } from "@/modules";
 import { DesktopDockButton } from "@/modules/agent/dock/DesktopDockButton";
 import { RachelFab } from "@/modules/agent/dock/RachelFab";
@@ -26,6 +27,7 @@ export default async function AppLayout({
       railFooter={<DesktopDockButton />}
     >
       {children}
+      <PaletteHost commands={registry.commands()} />
     </AppShell>
   );
 }

@@ -1,5 +1,6 @@
 import type { RachelModule } from "@/core/contracts";
 import { tasksContextProvider } from "./context";
+import { cardsIndexer } from "./indexer";
 import { tasksTools } from "./tools";
 import { dueTodayWidget } from "./widgets";
 
@@ -11,6 +12,7 @@ export const tasksModule: RachelModule = {
     nav: { href: "/tasks", order: 20, mobileTab: true },
     schemaVersion: 3,
   },
+  indexers: [cardsIndexer],
   tools: tasksTools,
   widgets: [dueTodayWidget],
   contextProviders: [tasksContextProvider],

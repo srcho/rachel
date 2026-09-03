@@ -28,6 +28,7 @@ const TOOL_LABEL: Record<string, string> = {
   memory_list: "기억 목록",
   memory_update: "기억 수정",
   memory_forget: "기억 삭제",
+  memory_searchAll: "전체 검색",
   meetings_list: "회의 목록",
   meetings_get: "회의 요약 조회",
   meetings_search: "회의 검색",
@@ -72,6 +73,7 @@ function summary(name: string, part: ToolPartLike): string {
     case "meetings_list":
     case "meetings_search":
     case "memory_recall":
+    case "memory_searchAll":
       return Array.isArray(output) ? `${output.length}건` : "";
     case "calendar_listEvents": {
       const events =

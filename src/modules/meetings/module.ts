@@ -1,5 +1,6 @@
 import type { RachelModule } from "@/core/contracts";
 import { meetingContextProvider } from "./context";
+import { meetingsIndexer } from "./indexer";
 import { postprocessJob } from "./jobs";
 import { meetingsTools } from "./tools";
 import { meetingsWidget } from "./widgets";
@@ -13,6 +14,7 @@ export const meetingsModule: RachelModule = {
     nav: { href: "/meetings", order: 35, mobileTab: true },
     schemaVersion: 9,
   },
+  indexers: [meetingsIndexer],
   tools: meetingsTools,
   widgets: [meetingsWidget],
   contextProviders: [meetingContextProvider],

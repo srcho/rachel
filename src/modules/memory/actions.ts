@@ -5,6 +5,7 @@ import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { getRegistry } from "@/core/registry/current";
 import type { MemoryKind } from "./schema";
+import { type SearchHit, searchAll } from "./search";
 import { memoryService } from "./service";
 
 async function svc() {
@@ -45,4 +46,19 @@ export async function archiveMemoryAction(id: string, archived: boolean) {
     status: archived ? "archived" : "active",
   } as never);
   revalidatePath("/memory");
+}
+
+export async function searchAction(
+  query: string,
+  types?: string[],
+): Promise<SearchHit[]> {
+  const user = await requireUser();
+  const db = await createServerSupabase();
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    actor: "user",
+    registry: await getRegistry(),
+  });
+  return searchAll(ctx, query, { types, k: 12 });
 }

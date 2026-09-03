@@ -1,9 +1,31 @@
 import { z } from "zod";
 import { type AnyAgentTool, defineTool } from "@/core/contracts";
 import { MEMORY_KINDS } from "./schema";
+import { searchAll } from "./search";
 import { memoryService } from "./service";
 
 export const memoryTools: Record<string, AnyAgentTool> = {
+  searchAll: defineTool({
+    description:
+      "할 일·일정·회의 전사/요약·기억을 한 번에 검색한다(의미 + 키워드). '지난번에 예산 얘기', '김민수 관련' 같은 질문에 먼저 쓴다. types 로 범위를 좁힐 수 있다: card, calendar_event, meeting, memory.",
+    inputSchema: z.object({
+      query: z.string().min(1),
+      types: z
+        .array(z.enum(["card", "calendar_event", "meeting", "memory"]))
+        .optional(),
+      k: z.number().int().min(1).max(30).default(10),
+    }),
+    risk: "read",
+    execute: async ({ query, types, k }, ctx) =>
+      (await searchAll(ctx, query, { types, k })).map((h) => ({
+        type: h.sourceType,
+        id: h.sourceId,
+        title: h.title,
+        snippet: h.snippet,
+        score: Number(h.score.toFixed(3)),
+        href: h.href,
+      })),
+  }),
   remember: defineTool({
     description:
       "사용자가 '기억해'라고 하거나 앞으로 유용할 선호·사람·결정·목표를 말했을 때 저장한다. 한 문장으로.",

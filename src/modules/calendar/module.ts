@@ -1,5 +1,6 @@
 import type { RachelModule } from "@/core/contracts";
 import { calendarContextProvider } from "./context";
+import { eventsIndexer } from "./indexer";
 import { syncJob } from "./jobs";
 import { calendarTools } from "./tools";
 import { CalendarSettings } from "./ui/CalendarSettings";
@@ -14,6 +15,7 @@ export const calendarModule: RachelModule = {
     nav: { href: "/calendar", order: 30, mobileTab: true },
     schemaVersion: 6,
   },
+  indexers: [eventsIndexer],
   tools: calendarTools,
   widgets: [todayTimelineWidget],
   contextProviders: [calendarContextProvider],

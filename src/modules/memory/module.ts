@@ -1,6 +1,8 @@
 import type { RachelModule } from "@/core/contracts";
 import { memoryContextProvider } from "./context";
+import { memoriesIndexer } from "./indexer";
 import { extractJob } from "./jobs";
+import { indexJob, indexOnEvent } from "./search";
 import { memoryTools } from "./tools";
 
 export const memoryModule: RachelModule = {
@@ -13,7 +15,8 @@ export const memoryModule: RachelModule = {
   },
   tools: memoryTools,
   contextProviders: [memoryContextProvider],
-  jobs: { extract: extractJob },
+  jobs: { extract: extractJob, index: indexJob },
+  indexers: [memoriesIndexer],
   commands: [
     {
       id: "memory.open",
@@ -23,6 +26,7 @@ export const memoryModule: RachelModule = {
     },
   ],
   eventHandlers: [
+    indexOnEvent,
     {
       on: "chat.turn_completed",
       handle: async (e, ctx) => {
