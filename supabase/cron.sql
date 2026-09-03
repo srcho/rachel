@@ -41,3 +41,14 @@ select cron.schedule(
   from public.profiles p
   $$
 );
+
+-- 일요일 20:00 KST(= 11:00 UTC) 주간 리뷰
+select cron.unschedule(jobname) from cron.job where jobname = 'rachel-weekly-review';
+select cron.schedule(
+  'rachel-weekly-review',
+  '0 11 * * 0',
+  $$
+  select public.enqueue_job('insights.weekly', '{}'::jsonb, 'insights.weekly:' || p.id::text || ':' || to_char(now() at time zone 'Asia/Seoul', 'IYYY-IW'), now(), p.id)
+  from public.profiles p
+  $$
+);

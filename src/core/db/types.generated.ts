@@ -946,6 +946,43 @@ export type Database = {
       };
     };
     Views: {
+      v_calendar_load_weekly: {
+        Row: {
+          events: number | null;
+          hours: number | null;
+          user_id: string | null;
+          week: string | null;
+        };
+        Relationships: [];
+      };
+      v_capture_conversion: {
+        Row: {
+          captured: number | null;
+          dismissed: number | null;
+          resolved: number | null;
+          user_id: string | null;
+          week: string | null;
+        };
+        Relationships: [];
+      };
+      v_completion_days: {
+        Row: {
+          completed: number | null;
+          day: string | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
+      v_event_slots: {
+        Row: {
+          dow: number | null;
+          hour: number | null;
+          hours: number | null;
+          start_at: string | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
       v_llm_usage_by_feature: {
         Row: {
           audio_seconds: number | null;
@@ -981,6 +1018,34 @@ export type Database = {
           month: string | null;
           output_tokens: number | null;
           user_id: string | null;
+        };
+        Relationships: [];
+      };
+      v_meetings_weekly: {
+        Row: {
+          meetings: number | null;
+          minutes: number | null;
+          user_id: string | null;
+          week: string | null;
+        };
+        Relationships: [];
+      };
+      v_task_cycle_time: {
+        Row: {
+          avg_hours: number | null;
+          completed: number | null;
+          median_hours: number | null;
+          user_id: string | null;
+          week: string | null;
+        };
+        Relationships: [];
+      };
+      v_tasks_weekly: {
+        Row: {
+          completed: number | null;
+          created: number | null;
+          user_id: string | null;
+          week: string | null;
         };
         Relationships: [];
       };

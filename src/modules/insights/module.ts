@@ -1,9 +1,17 @@
 import type { RachelModule } from "@/core/contracts";
-import { briefJob } from "./jobs";
+import { briefJob, weeklyJob } from "./jobs";
 import { insightsTools } from "./tools";
 import { briefWidget } from "./widgets";
+import {
+  calendarLoadWidget,
+  captureConversionWidget,
+  costWidget,
+  meetingsHoursWidget,
+  patternsWidget,
+  throughputWidget,
+} from "./widgets-metrics";
 
-/** insights 모듈: 브리핑(S2.5) → 지표·대시보드·주간 리뷰(P5) */
+/** insights 모듈: 브리핑·지표 위젯·AI 비용·주간 리뷰 */
 export const insightsModule: RachelModule = {
   manifest: {
     id: "insights",
@@ -13,6 +21,22 @@ export const insightsModule: RachelModule = {
     schemaVersion: 7,
   },
   tools: insightsTools,
-  widgets: [briefWidget],
-  jobs: { brief: briefJob },
+  widgets: [
+    briefWidget,
+    patternsWidget,
+    throughputWidget,
+    meetingsHoursWidget,
+    calendarLoadWidget,
+    captureConversionWidget,
+    costWidget,
+  ],
+  jobs: { brief: briefJob, weekly: weeklyJob },
+  commands: [
+    {
+      id: "insights.open",
+      label: "인사이트 보기",
+      keywords: ["dashboard", "지표"],
+      href: "/insights",
+    },
+  ],
 };
