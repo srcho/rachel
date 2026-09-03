@@ -624,6 +624,84 @@ export type Database = {
         };
         Relationships: [];
       };
+      meetings: {
+        Row: {
+          audio_local_key: string | null;
+          audio_mime: string | null;
+          audio_uploaded_path: string | null;
+          bookmarks: Json;
+          calendar_event_id: string | null;
+          created_at: string;
+          duration_sec: number | null;
+          ended_at: string | null;
+          final_pass_progress: Json;
+          final_pass_status: string;
+          id: string;
+          keywords: string[];
+          provider: string;
+          speaker_map: Json;
+          started_at: string;
+          status: string;
+          summary: Json | null;
+          summary_md: string | null;
+          summary_model: string | null;
+          summary_version: number;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          audio_local_key?: string | null;
+          audio_mime?: string | null;
+          audio_uploaded_path?: string | null;
+          bookmarks?: Json;
+          calendar_event_id?: string | null;
+          created_at?: string;
+          duration_sec?: number | null;
+          ended_at?: string | null;
+          final_pass_progress?: Json;
+          final_pass_status?: string;
+          id?: string;
+          keywords?: string[];
+          provider?: string;
+          speaker_map?: Json;
+          started_at?: string;
+          status?: string;
+          summary?: Json | null;
+          summary_md?: string | null;
+          summary_model?: string | null;
+          summary_version?: number;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          audio_local_key?: string | null;
+          audio_mime?: string | null;
+          audio_uploaded_path?: string | null;
+          bookmarks?: Json;
+          calendar_event_id?: string | null;
+          created_at?: string;
+          duration_sec?: number | null;
+          ended_at?: string | null;
+          final_pass_progress?: Json;
+          final_pass_status?: string;
+          id?: string;
+          keywords?: string[];
+          provider?: string;
+          speaker_map?: Json;
+          started_at?: string;
+          status?: string;
+          summary?: Json | null;
+          summary_md?: string | null;
+          summary_model?: string | null;
+          summary_version?: number;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       memories: {
         Row: {
           content: string;
@@ -737,6 +815,68 @@ export type Database = {
           user_id?: string;
         };
         Relationships: [];
+      };
+      transcript_segments: {
+        Row: {
+          chunk_index: number | null;
+          created_at: string;
+          end_ms: number;
+          id: string;
+          meeting_id: string;
+          pass: string;
+          raw: Json | null;
+          raw_speaker: string | null;
+          seq: number;
+          speaker: string | null;
+          start_ms: number;
+          status: string;
+          text: string;
+          turn_id: number | null;
+          user_id: string;
+        };
+        Insert: {
+          chunk_index?: number | null;
+          created_at?: string;
+          end_ms: number;
+          id?: string;
+          meeting_id: string;
+          pass?: string;
+          raw?: Json | null;
+          raw_speaker?: string | null;
+          seq?: number;
+          speaker?: string | null;
+          start_ms: number;
+          status?: string;
+          text?: string;
+          turn_id?: number | null;
+          user_id?: string;
+        };
+        Update: {
+          chunk_index?: number | null;
+          created_at?: string;
+          end_ms?: number;
+          id?: string;
+          meeting_id?: string;
+          pass?: string;
+          raw?: Json | null;
+          raw_speaker?: string | null;
+          seq?: number;
+          speaker?: string | null;
+          start_ms?: number;
+          status?: string;
+          text?: string;
+          turn_id?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "transcript_segments_meeting_id_fkey";
+            columns: ["meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "meetings";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       undo_tokens: {
         Row: {
