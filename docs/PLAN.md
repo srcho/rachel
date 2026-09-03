@@ -195,7 +195,7 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 
 #### S0.7 배포 · 크론 연결
 - [x] 목표: Vercel 프로덕션 URL에서 로그인·Today가 뜨고 pg_cron이 잡 러너를 호출한다.
-- 산출: `vercel.ts`(`@vercel/config`; framework nextjs, 헤더 CSP), `supabase/cron.sql`(프로덕션에 수동 적용, ARCHITECTURE 11장 스케줄 5개 중 `rachel-jobs`만 먼저), 프로덕션 마이그레이션 적용(`supabase link` → `supabase db push`).
+- 산출: `vercel.json`(framework nextjs, 보안 헤더; 처음엔 `vercel.ts` 였으나 Git 배포가 설정을 못 읽어 2026-09-03 json 으로 교체), `supabase/cron.sql`(프로덕션에 수동 적용, ARCHITECTURE 11장 스케줄 5개 중 `rachel-jobs`만 먼저), 프로덕션 마이그레이션 적용(`supabase link` → `supabase db push`).
 - 검증: 프로덕션에서 로그인, `jobs`에 `hello.echo` 넣고 1분 내 done. Vercel 로그에 `/api/jobs/run` 호출 확인.
 - 커밋: `chore: Vercel config and production cron wiring`
 > 변경(2026-09-03): 프로덕션 URL **https://rachel-seven-tau.vercel.app**(Vercel 프로젝트 `rachel`, 리전 icn1). Supabase `rachel`(ref `lpieoftpmhvxibhkhayn`, 서울). DB 비밀번호 없이 `supabase db query --linked -f`로 마이그레이션 적용 후 `migration repair`(이후 스키마 변경도 같은 방식 또는 `db push -p`). Auth 설정은 `config.toml` + `supabase config push`. Vault 시크릿 2개 + `cron.sql`로 rachel-jobs 등록 → pg_cron→Vercel→잡 done 확인. Google 로그인 실제 플로우는 사용자 확인 필요(Google 클라이언트 리디렉션 URI에 `https://lpieoftpmhvxibhkhayn.supabase.co/auth/v1/callback` 등록).
@@ -479,3 +479,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | P5 완료·배포: 지표 뷰(0012)·패턴·인사이트 대시보드·AI 비용·주간 리뷰(크론)·웹 푸시(0013, VAPID). 크론 4개 | **P6 S6.1** 오프라인 아웃박스 → S6.2 백업·내보내기 → S6.3 테스트·CI → S6.4 성능 | 사용자 확인: 설정 > 알림 켜기(아이폰은 설치 후), 인사이트 화면 |
 | 2026-09-03 | rachel-d5 | **P6 완료**(S6.5 제외)·배포: S6.1 아웃박스(IndexedDB 재생, tasks Board), S6.2 백업 잡·전체 내보내기(0014, Storage `backups`), S6.3 pgTAP 9·Playwright 6·GitHub Actions, S6.4 번들 예산(today 343→201KB, tasks 473→224KB; zod·lucide 인덱스·supabase-js·chrono 첫 로드 제거) | **사용자 실기기 검증**(아이폰 녹음·음성 캡처·푸시·설치, Lighthouse) → 피드백 반영 → S6.5(옵션: 오디오 Storage·맥 워커) | 교훈: 측정 스크립트는 "로그인 성공" 같은 전제를 명시적으로 검증할 것(리다이렉트된 로그인 화면을 잰 채 최적화하고 있었음). e2e 1회 간헐 실패(원인 미상, 24회 재실행 통과) |
 | 2026-09-03 | rachel-d5 | **UI 리디자인**·배포: Panel/Page/PageHeader 프레임, 4열·9rem 행 위젯 그리드(계약에 rows·placement·href·HeaderAction), Today 2×2 뷰포트 채움, 보드·캘린더 뷰포트 채움, 회의·기억·인박스·설정 Panel+Badge 통일, 레이첼 데스크톱 플로팅 창(⇧Space·⌘J·Esc). 스크린샷 스크립트 추가. E2E 6 통과, 번들 예산 통과(ARCHITECTURE §9b) | **사용자 실사용 피드백**(PC·아이폰) → 세부 다듬기 → S6.5(옵션) | 확인 부탁: ⇧Space 가 한/영 전환 등 OS 단축키와 충돌하지 않는지, 보드 4컬럼 최대폭(24rem)이 적당한지 |
+| 2026-09-03 | rachel-d5 | Vercel Git 배포 오류 수정: `vercel.ts` 는 CLI 배포에서만 컴파일돼 GitHub 푸시 배포가 "couldn't load a valid project configuration" 으로 실패 → `vercel.json` 으로 교체, `@vercel/config` 제거. Today 그리드를 내용 높이(`rowsMode="auto"`)로 바꿔 불필요한 공백 제거 | 사용자 실사용 피드백 | 원칙: 뷰포트 채우기는 보드·캘린더처럼 화면 자체가 스크롤 대상일 때만 |

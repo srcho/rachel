@@ -29,14 +29,14 @@ export const todayTimelineWidget: DashboardWidget<{
   },
   Component: ({ data }) =>
     !data.connected ? (
-      <p className="flex h-full min-h-16 items-center text-sm text-muted-foreground">
+      <p className="flex h-full min-h-10 items-center text-sm text-muted-foreground">
         <Link href="/settings" className="underline underline-offset-2">
           Google 캘린더를 연결
         </Link>
         하면 여기에 보여요.
       </p>
     ) : data.events.length === 0 ? (
-      <p className="flex h-full min-h-16 items-center text-sm text-muted-foreground">
+      <p className="flex h-full min-h-10 items-center text-sm text-muted-foreground">
         오늘은 일정이 없어요.
       </p>
     ) : (

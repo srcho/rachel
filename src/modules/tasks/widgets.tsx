@@ -71,7 +71,7 @@ export const dueTodayWidget: DashboardWidget<DueData> = {
 
 export function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <p className="flex h-full min-h-16 items-center text-sm text-muted-foreground">
+    <p className="flex h-full min-h-10 items-center text-sm text-muted-foreground">
       {children}
     </p>
   );

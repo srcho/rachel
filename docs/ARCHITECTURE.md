@@ -357,7 +357,7 @@ rachel/
 │  ├─ seed.sql
 │  └─ tests/                      pgTAP RLS 테스트
 ├─ tests/e2e/                     Playwright
-├─ vercel.ts · next.config.ts · biome.json · package.json · .env.example
+├─ vercel.json · next.config.ts · biome.json · package.json · .env.example
 ```
 
 ---
@@ -703,11 +703,11 @@ AI 비용 위젯          v_llm_usage_monthly·by_feature·daily → 월 누적,
 | `Panel` | `core/ui/Panel.tsx` | 유일한 카드 프레임. 헤더 2.5rem(제목 13px·개수·우측 액션) + 본문 패딩 0.75rem, `rounded-lg border bg-card`. `fill` 이면 부모 높이를 채우고 본문이 안에서 스크롤. 위젯·설정 섹션·목록 모두 이걸 쓴다. |
 | `Page` | `core/ui/Page.tsx` | 본문 폭 3종. `content`(대시보드, 1440px 까지 브라우저 폭을 따름) · `narrow`(목록·상세·설정, 48rem) · `full`(보드·캘린더, 데스크톱에서 `100dvh - 3rem` 높이 고정). |
 | `PageHeader` | `core/ui/PageHeader.tsx` | 3rem 고정. 제목 + `meta`(날짜·개수) + 우측 액션. |
-| `WidgetGrid` | `core/ui/WidgetGrid.tsx` | 모바일 1열 · md 2열 · xl 4열, 행 단위 9rem. `size` 가 열 span, `rows` 가 행 span. `placement: 'top'` 위젯은 그리드 위에 프레임 없이. `fill`(Today) 이면 그리드가 뷰포트 높이를 채우도록 행을 `minmax(9rem,1fr)` 로 늘린다. 각 셀은 `Panel(title=widget.title, action=HeaderAction+href)` 로 감싼다. |
+| `WidgetGrid` | `core/ui/WidgetGrid.tsx` | 모바일 1열 · md 2열 · xl 4열, 행 단위 9rem. `size` 가 열 span, `rows` 가 행 span. `placement: 'top'` 위젯은 그리드 위에 프레임 없이. `rowsMode="auto"`(Today) 면 행 고정을 풀고 내용 높이를 따른다. 뷰포트 채우기는 보드·캘린더처럼 스크롤 대상이 화면 자체일 때만 쓴다. 각 셀은 `Panel(title=widget.title, action=HeaderAction+href)` 로 감싼다. |
 | 상태 칩 | shadcn `Badge` | 회의 상태·기억 종류·캡처 분류·패턴 모두 Badge(secondary/outline/destructive). 색은 의미(지연 red·오늘 amber·좋음 emerald)에만 쓴다. |
 
 화면별 의도:
-- **Today**(`content`, fill): 캡처 바 → 브리핑·오늘 일정·오늘 할 일·회의 2×2. 하루의 시작점이라 스크롤 없이 한 화면.
+- **Today**(`content`, `rowsMode="auto"`): 캡처 바 → 브리핑·오늘 일정·오늘 할 일·회의 2×2. 카드는 내용 높이를 따르고 같은 줄끼리만 높이를 맞춘다. 브라우저에 맞춰 늘려서 빈 공간을 만들지 않는다(사용자 피드백 2026-09-03).
 - **보드**(`full`): 컬럼이 화면 폭을 나눠 갖고(`min-w-64 max-w-sm flex-1`) 높이를 채운다. 카드 목록만 내부 스크롤, 빠른 추가는 컬럼 하단 고정. 모바일은 가로 스냅 스크롤.
 - **캘린더**(`full`): 월 = 6행이 뷰포트를 채움(셀당 4개 + `+n`), 주 = 7열 균등·열 내부 스크롤, 일정 = xl 에서 2단(CSS columns).
 - **인사이트**(`content`): 패턴 1행 → 처리량 3행 | 회의·일정 2행씩 → 캡처 2행 → 비용 3행(2단). 차트는 패널 높이를 채운다.

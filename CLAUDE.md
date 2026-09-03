@@ -40,7 +40,7 @@ P6 완료(2026-09-03, S6.5 옵션 제외): P5 + 오프라인 아웃박스·주�
 ## 프로덕션 운영 명령
 - 스키마 적용: `pnpm supabase db query --linked -f supabase/migrations/<file>.sql` 후 `pnpm supabase migration repair --status applied <version> --linked` (DB 비밀번호 없이). 또는 `pnpm supabase db push -p <pw>`
 - Auth 설정: `supabase/config.toml` 수정 → `set -a; . ./.env.local; set +a; pnpm supabase config push`
-- 배포: `vercel --prod --yes` · env: `vercel env add NAME production,preview --force`
+- 배포: `git push`(Git 연동, `vercel.json`) 또는 `vercel --prod --yes` · env: `vercel env add NAME production,preview --force`
 - 프로덕션 SQL: `pnpm supabase db query --linked "<sql>"`
 
 ## Next.js 규칙

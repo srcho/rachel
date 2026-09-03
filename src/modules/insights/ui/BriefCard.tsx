@@ -54,7 +54,7 @@ export function BriefCard({
       ))}
     </div>
   ) : (
-    <p className="flex h-full min-h-16 items-center text-sm text-muted-foreground">
+    <p className="flex h-full min-h-10 items-center text-sm text-muted-foreground">
       {loading ? "오늘 브리핑을 준비하고 있어요…" : "브리핑이 아직 없어요."}
     </p>
   );

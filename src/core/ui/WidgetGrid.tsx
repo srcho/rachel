@@ -30,12 +30,15 @@ const ROW: Record<number, string> = {
 export function WidgetGrid({
   items,
   range,
-  fill,
+  rowsMode = "fixed",
 }: {
   items: LoadedWidget[];
   range: DateRange;
-  /** 데스크톱에서 그리드가 뷰포트 높이를 채우도록 행을 늘린다(Today). 넘치면 스크롤 */
-  fill?: boolean;
+  /**
+   * auto: 카드가 내용 높이를 따르고 같은 줄끼리만 높이를 맞춘다(Today — 빈 공간을 만들지 않는다).
+   * fixed(기본): 9rem 행 단위로 고정, 본문은 안에서 스크롤(인사이트 — 차트 높이가 필요).
+   */
+  rowsMode?: "auto" | "fixed";
 }) {
   if (items.length === 0) {
     return (
@@ -47,12 +50,7 @@ export function WidgetGrid({
   const top = items.filter((i) => i.widget.placement === "top");
   const grid = items.filter((i) => i.widget.placement !== "top");
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3",
-        fill && "md:min-h-[calc(100dvh-3rem-2rem)]",
-      )}
-    >
+    <div className="flex flex-col gap-3">
       {top.map(({ widget, data, error }) => (
         <section key={widget.id} aria-label={widget.title}>
           {error ? (
@@ -65,9 +63,7 @@ export function WidgetGrid({
       <div
         className={cn(
           "grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4",
-          fill
-            ? "md:flex-1 md:auto-rows-[minmax(9rem,1fr)]"
-            : "md:auto-rows-[9rem]",
+          rowsMode === "fixed" && "md:auto-rows-[9rem]",
         )}
       >
         {grid.map(({ widget, data, error }) => (
@@ -76,7 +72,8 @@ export function WidgetGrid({
             className={cn(
               "min-h-0 min-w-0",
               COL[widget.size],
-              ROW[widget.rows ?? DEFAULT_ROWS[widget.size]],
+              rowsMode === "fixed" &&
+                ROW[widget.rows ?? DEFAULT_ROWS[widget.size]],
             )}
           >
             {error ? (
@@ -84,7 +81,8 @@ export function WidgetGrid({
             ) : (
               <Panel
                 title={widget.title}
-                fill
+                fill={rowsMode === "fixed"}
+                className={rowsMode === "auto" ? "h-full" : undefined}
                 action={
                   widget.HeaderAction || widget.href ? (
                     <>

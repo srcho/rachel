@@ -8,7 +8,7 @@ import { registry } from "@/modules";
 
 export const dynamic = "force-dynamic";
 
-/** Today: 하루의 시작점. 캡처 한 줄 → 브리핑·일정·할 일·회의를 같은 크기의 카드 넷으로. */
+/** Today: 하루의 시작점. 캡처 한 줄 → 브리핑·일정·할 일·회의 2×2. 카드는 내용 높이(같은 줄끼리만 맞춤). */
 export default async function TodayPage() {
   const user = await requireUser();
   const db = await createServerSupabase();
@@ -46,7 +46,7 @@ export default async function TodayPage() {
     <>
       <PageHeader title="Today" meta={dateLabel} />
       <Page width="content">
-        <WidgetGrid items={loaded} range={range} fill />
+        <WidgetGrid items={loaded} range={range} rowsMode="auto" />
       </Page>
     </>
   );
