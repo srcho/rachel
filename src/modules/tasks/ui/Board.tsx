@@ -30,6 +30,7 @@ import type { BoardView } from "../service";
 import { CardBody } from "./Card";
 import { CardSheet } from "./CardSheet";
 import { Column } from "./Column";
+import { ChipGhost, type StripEvent, TodayStrip } from "./TodayStrip";
 
 type ByColumn = Record<string, CardRow[]>;
 
@@ -64,9 +65,13 @@ function group(columns: ColumnRow[], cards: CardRow[]): ByColumn {
 export function Board({
   initial,
   userId,
+  todayEvents = [],
+  timezone = "Asia/Seoul",
 }: {
   initial: BoardView;
   userId: string;
+  todayEvents?: StripEvent[];
+  timezone?: string;
 }) {
   const router = useRouter();
   const [columns, setColumns] = useState(initial.columns);
@@ -74,6 +79,7 @@ export function Board({
     group(initial.columns, initial.cards),
   );
   const [active, setActive] = useState<CardRow | null>(null);
+  const [activeEvent, setActiveEvent] = useState<StripEvent | null>(null);
   /** 드래그 고스트를 원래 카드와 같은 폭으로 그린다 */
   const [activeWidth, setActiveWidth] = useState<number | undefined>();
   const [open, setOpen] = useState<CardRow | null>(null);
@@ -137,14 +143,21 @@ export function Board({
     }
   }
 
+  const isEventDrag = (data: unknown): data is { event: StripEvent } =>
+    Boolean(data && (data as { type?: string }).type === "event");
+
   function onDragStart(e: DragStartEvent) {
+    if (isEventDrag(e.active.data.current)) {
+      setActiveEvent(e.active.data.current.event);
+      return;
+    }
     setActive(find(String(e.active.id)) ?? null);
     setActiveWidth(e.active.rect.current.initial?.width);
   }
 
   function onDragOver(e: DragOverEvent) {
     const { active, over } = e;
-    if (!over) return;
+    if (!over || isEventDrag(active.data.current)) return;
     const from = columnOf(String(active.id));
     const to = columnOf(String(over.id));
     if (!from || !to || from === to) return;
@@ -165,10 +178,22 @@ export function Board({
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     setActive(null);
+    setActiveEvent(null);
     if (!over) return;
-    const id = String(active.id);
     const to = columnOf(String(over.id));
     if (!to) return;
+    if (isEventDrag(active.data.current)) {
+      // 캘린더 일정 → 카드(일정과 연결). 이미 카드가 있으면 스트립에서 비활성이라 여기 오지 않는다
+      const ev = active.data.current.event;
+      void add(to, {
+        title: ev.title,
+        dueAt: ev.startAt,
+        dueHasTime: !ev.allDay,
+        calendarEventId: ev.id,
+      });
+      return;
+    }
+    const id = String(active.id);
     const snapshot = byColumn;
     setByColumn((prev) => {
       const list = [...(prev[to] ?? [])];
@@ -208,7 +233,12 @@ export function Board({
 
   async function add(
     columnId: string,
-    input: { title: string; dueAt?: string; dueHasTime?: boolean },
+    input: {
+      title: string;
+      dueAt?: string;
+      dueHasTime?: boolean;
+      calendarEventId?: string;
+    },
   ) {
     const temp: CardRow = {
       id: `temp-${crypto.randomUUID()}`,
@@ -224,7 +254,7 @@ export function Board({
       labels: [],
       checklist: [],
       source: { type: "manual" },
-      calendar_event_id: null,
+      calendar_event_id: input.calendarEventId ?? null,
       meeting_id: null,
       completed_at: null,
       archived_at: null,
@@ -277,22 +307,27 @@ export function Board({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActive(null)}
       >
-        <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 py-3 md:h-full md:snap-none">
-          {columns.map((col) => (
-            <Column
-              key={col.id}
-              column={col}
-              cards={byColumn[col.id] ?? []}
-              onOpen={setOpen}
-              onAdd={(input) => add(col.id, input)}
-            />
-          ))}
+        <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col md:h-full">
+          <TodayStrip events={todayEvents} timezone={timezone} />
+          <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 py-3 md:snap-none">
+            {columns.map((col) => (
+              <Column
+                key={col.id}
+                column={col}
+                cards={byColumn[col.id] ?? []}
+                onOpen={setOpen}
+                onAdd={(input) => add(col.id, input)}
+              />
+            ))}
+          </div>
         </div>
         <DragOverlay dropAnimation={null}>
           {active ? (
             <div style={{ width: activeWidth }}>
               <CardBody card={active} dragging />
             </div>
+          ) : activeEvent ? (
+            <ChipGhost event={activeEvent} />
           ) : null}
         </DragOverlay>
       </DndContext>

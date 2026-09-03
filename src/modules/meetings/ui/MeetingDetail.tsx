@@ -141,6 +141,7 @@ export function MeetingDetail({
             {new Intl.DateTimeFormat("ko-KR", {
               dateStyle: "medium",
               timeStyle: "short",
+              hour12: false,
             }).format(new Date(meeting.started_at))}
           </span>
           {meeting.duration_sec ? (

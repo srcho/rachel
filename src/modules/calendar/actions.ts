@@ -5,6 +5,7 @@ import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { getRegistry } from "@/core/registry/current";
 import { eventService } from "./events";
+import { gtasksService } from "./gtasks";
 import type { CreateEventInput, UpdateEventInput } from "./schema";
 import { calendarService } from "./service";
 
@@ -76,4 +77,30 @@ export async function syncNowAction() {
     payload: {},
     dedupeKey: `calendar.sync:${user.id}`,
   });
+}
+
+async function gtasksCtx() {
+  const user = await requireUser();
+  const db = await createServerSupabase();
+  return createContext({
+    db,
+    userId: user.id,
+    actor: "user",
+    registry: await getRegistry(),
+  });
+}
+
+/** 설정: Google Tasks 미러 켜기/끄기(켜면 마감 있는 카드 백필) */
+export async function setGtasksEnabledAction(enabled: boolean) {
+  const st = await gtasksService(await gtasksCtx()).setEnabled(enabled);
+  revalidatePath("/settings");
+  return st;
+}
+
+/** 설정: Google 쪽 변경 지금 가져오기 */
+export async function pullGtasksAction() {
+  const r = await gtasksService(await gtasksCtx()).pull();
+  revalidatePath("/settings");
+  revalidatePath("/tasks");
+  return r;
 }

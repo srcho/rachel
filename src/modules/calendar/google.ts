@@ -1,15 +1,18 @@
 /** Google Calendar REST 클라이언트(fetch 기반, googleapis 없이). */
 import { requireEnv } from "@/core/env";
 
+export const GTASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.readonly",
+  GTASKS_SCOPE,
   "openid",
   "email",
 ];
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API = "https://www.googleapis.com/calendar/v3";
+const TASKS_API = "https://tasks.googleapis.com/tasks/v1";
 
 export class GoogleApiError extends Error {
   constructor(
@@ -98,9 +101,12 @@ export function emailFromIdToken(idToken?: string): string | null {
 async function api<T>(
   accessToken: string,
   path: string,
-  init: RequestInit & { query?: Record<string, string | undefined> } = {},
+  init: RequestInit & {
+    query?: Record<string, string | undefined>;
+    base?: string;
+  } = {},
 ): Promise<T> {
-  const url = new URL(`${API}${path}`);
+  const url = new URL(`${init.base ?? API}${path}`);
   for (const [k, v] of Object.entries(init.query ?? {}))
     if (v !== undefined) url.searchParams.set(k, v);
   const res = await fetch(url, {
@@ -204,4 +210,66 @@ export const google = {
       `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
       { method: "DELETE" },
     ),
+};
+
+// ── Google Tasks (카드 미러) ──
+export interface GTaskList {
+  id: string;
+  title: string;
+}
+export interface GTask {
+  id: string;
+  title?: string;
+  notes?: string;
+  status?: "needsAction" | "completed";
+  /** RFC3339, 날짜만 의미 있음 (시각은 무시됨) */
+  due?: string;
+  completed?: string | null;
+  deleted?: boolean;
+  hidden?: boolean;
+  updated?: string;
+  etag?: string;
+}
+const t = (token: string, path: string, init: Parameters<typeof api>[2] = {}) =>
+  api(token, path, { ...init, base: TASKS_API });
+export const gtasks = {
+  listLists: (token: string) =>
+    t(token, "/users/@me/lists", { query: { maxResults: "100" } }) as Promise<{
+      items?: GTaskList[];
+    }>,
+  createList: (token: string, title: string) =>
+    t(token, "/users/@me/lists", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    }) as Promise<GTaskList>,
+  list: (
+    token: string,
+    listId: string,
+    query: Record<string, string | undefined>,
+  ) =>
+    t(token, `/lists/${encodeURIComponent(listId)}/tasks`, {
+      query: {
+        maxResults: "100",
+        showCompleted: "true",
+        showHidden: "true",
+        ...query,
+      },
+    }) as Promise<{ items?: GTask[]; nextPageToken?: string }>,
+  insert: (token: string, listId: string, body: Partial<GTask>) =>
+    t(token, `/lists/${encodeURIComponent(listId)}/tasks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }) as Promise<GTask>,
+  patch: (token: string, listId: string, id: string, body: Partial<GTask>) =>
+    t(
+      token,
+      `/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ) as Promise<GTask>,
+  delete: (token: string, listId: string, id: string) =>
+    t(
+      token,
+      `/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    ) as Promise<void>,
 };

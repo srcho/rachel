@@ -8,6 +8,14 @@ export const profileSettingsSchema = z.object({
   monthlyBudgetUsd: z.number().positive().max(10_000).nullable().optional(),
   dictionary: z.array(z.string()).max(200).optional(),
   notifications: z.record(z.string(), z.boolean()).optional(),
+  /** 마감 있는 카드를 Google Tasks("Rachel" 목록)에 비추기 */
+  gtasks: z
+    .object({
+      enabled: z.boolean(),
+      listId: z.string().optional(),
+      pulledAt: z.string().optional(),
+    })
+    .optional(),
 });
 export type ProfileSettings = z.infer<typeof profileSettingsSchema>;
 

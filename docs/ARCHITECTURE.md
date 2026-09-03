@@ -720,6 +720,29 @@ AI 비용 위젯          v_llm_usage_monthly·by_feature·daily → 월 누적,
 
 검증 도구: `OUT=<dir> node scripts/screenshots.mjs`(로컬 Supabase 빌드에서 시드 사용자 생성 → 데스크톱 1440·모바일 390 캡처).
 
+## 9c. 할 일 ↔ Google 연동 (2026-09-03)
+
+양방향 이벤트 동기화는 하지 않는다. 성격이 다른 단방향 둘로 나눈다.
+
+**캘린더 → 할 일 (읽기 전용 스트립)**
+- `/tasks/[boardId]` 페이지(앱 레이어)가 오늘 일정을 `calendar.eventService.listEvents` 로 읽어 `Board` 에 `todayEvents` 로 넘긴다. tasks 모듈은 calendar 를 import 하지 않는다.
+- `TodayStrip` 은 칩(시각·제목)만 보여 주고, 칩을 컬럼에 끌어다 놓을 때만 카드가 생긴다(`calendar_event_id` 로 연결, 마감 = 일정 시작). 이미 연결된 일정은 체크 표시·드래그 비활성.
+
+**할 일 → Google Tasks (미러 + 되돌려 받기)**
+- Google 캘린더 이벤트가 아니라 **Google Tasks** 의 "Rachel" 목록에 비춘다. Google 캘린더 UI 가 Tasks 를 기본으로 함께 보여 주므로 마감 있는 카드가 그 날짜에 체크박스 항목으로 나타난다. 이벤트 목록을 오염시키지 않는다.
+- 소유: **calendar 모듈**(`gtasks.ts`, Google OAuth·토큰을 이미 가진 곳). 스코프 `auth/tasks` 추가 → 기존 연결은 "권한 받기"(재동의 1회). Google Cloud 프로젝트에 **Tasks API 활성화** 필요.
+- 대상: `due_at` 이 있고 보관되지 않은 카드만. 마감 제거·보관·삭제 → Google 항목 삭제. 완료 ↔ `status: completed`.
+- 데이터: `google_task_links(card_id, tasklist_id, gtask_id, last_pushed_at, last_pulled_at)` (0015). 설정 `profiles.settings.gtasks = { enabled, listId, pulledAt }`.
+- 흐름(모듈 경계는 이벤트로만):
+  1. tasks 서비스가 모든 쓰기 이벤트(`task.created/updated/moved/completed/reopened/archived/deleted`)에 `card` 스냅샷을 싣는다(`cardSnapshot`). 외부 변경 반영은 `meta.origin = 'google'` 로 표시.
+  2. calendar `gtasksPushHandler` 가 task.* 를 받아 미러가 켜져 있으면 잡 `calendar.gtasks_push {card}` 를 건다(origin google 이면 되밀지 않음; gtaskId 가 있으면 링크만 저장).
+  3. `calendar.sync` 잡(15분)이 `gtasks.pull()` 도 실행: `updatedMin` 이후 항목을 읽어 링크된 것은 `gtask.changed {cardId,title,dueYmd,completed}`, 링크 없는 새 항목은 `gtask.created` 를 발행. 우리가 방금 민 변경의 메아리는 `last_pushed_at` 으로 건너뛴다.
+  4. tasks `gtaskChangedHandler`/`gtaskCreatedHandler` 가 서비스로 반영(완료 → Done, 미완료 → Todo, 제목·마감 변경, 새 카드 `source.type='google'`).
+  5. 미러를 켜면 `gtasks.enabled` 이벤트 → tasks 가 마감 있는 열린 카드를 `task.updated` 로 다시 내보내 백필.
+- 레이첼 도구: `googleTasksStatus` · `googleTasksSetEnabled` · `googleTasksPull` (calendar 모듈). 카드 CRUD 는 기존 tasks 도구가 그대로 미러를 탄다(서비스 훅).
+- 설정 UI: 설정 > Google 캘린더 하단 토글 + "지금 가져오기".
+- 마감 시각: Google Tasks 는 날짜만 저장한다. 밀 때는 로컬 날짜의 UTC 자정, 받을 때 날짜가 바뀐 경우에만 카드 마감을 그 날 로컬 자정(시각 없음)으로 바꾼다.
+
 ## 10. PWA와 오프라인
 
 | 자원 | 전략 |

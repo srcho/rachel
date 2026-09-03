@@ -9,7 +9,9 @@ export const DEFAULT_COLUMNS = [
 ] as const;
 
 export const cardSourceSchema = z.object({
-  type: z.enum(["manual", "agent", "meeting", "capture"]).default("manual"),
+  type: z
+    .enum(["manual", "agent", "meeting", "capture", "google"])
+    .default("manual"),
   ref_id: z.string().optional(),
 });
 export type CardSource = z.infer<typeof cardSourceSchema>;

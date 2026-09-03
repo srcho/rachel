@@ -1,7 +1,8 @@
 import type { RachelModule } from "@/core/contracts";
 import { calendarContextProvider } from "./context";
+import { gtasksPushHandler } from "./gtasks-handlers";
 import { eventsIndexer } from "./indexer";
-import { syncJob } from "./jobs";
+import { gtasksPullJob, gtasksPushJob, syncJob } from "./jobs";
 import { calendarTools } from "./tools";
 import { CalendarSettings } from "./ui/CalendarSettings";
 import { todayTimelineWidget } from "./widgets";
@@ -13,13 +14,18 @@ export const calendarModule: RachelModule = {
     name: "일정",
     icon: "calendar-days",
     nav: { href: "/calendar", order: 30, mobileTab: true },
-    schemaVersion: 6,
+    schemaVersion: 15,
   },
   indexers: [eventsIndexer],
   tools: calendarTools,
   widgets: [todayTimelineWidget],
   contextProviders: [calendarContextProvider],
-  jobs: { sync: syncJob },
+  jobs: {
+    sync: syncJob,
+    gtasks_push: gtasksPushJob,
+    gtasks_pull: gtasksPullJob,
+  },
+  eventHandlers: [gtasksPushHandler],
   commands: [
     {
       id: "calendar.open",

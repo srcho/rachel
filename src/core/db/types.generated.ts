@@ -474,6 +474,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      google_task_links: {
+        Row: {
+          card_id: string;
+          created_at: string;
+          gtask_id: string;
+          id: string;
+          last_pulled_at: string | null;
+          last_pushed_at: string | null;
+          tasklist_id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          card_id: string;
+          created_at?: string;
+          gtask_id: string;
+          id?: string;
+          last_pulled_at?: string | null;
+          last_pushed_at?: string | null;
+          tasklist_id: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          card_id?: string;
+          created_at?: string;
+          gtask_id?: string;
+          id?: string;
+          last_pulled_at?: string | null;
+          last_pushed_at?: string | null;
+          tasklist_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "google_task_links_card_id_fkey";
+            columns: ["card_id"];
+            isOneToOne: false;
+            referencedRelation: "cards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       insights: {
         Row: {
           content_md: string;

@@ -3,6 +3,8 @@ import type { Database, Json } from "@/core/db/types.generated";
 
 export type IntegrationRow =
   Database["public"]["Tables"]["integrations"]["Row"];
+export type TaskLinkRow =
+  Database["public"]["Tables"]["google_task_links"]["Row"];
 export type CalendarRow = Database["public"]["Tables"]["calendars"]["Row"];
 export type EventRow = Database["public"]["Tables"]["calendar_events"]["Row"];
 export type EventInsert =
@@ -16,6 +18,42 @@ export function calendarRepository(db: Db, userId: string) {
   const own = <T extends { eq: (col: string, val: string) => T }>(q: T) =>
     q.eq("user_id", userId);
   return {
+    // ── google_task_links (카드 ↔ Google Tasks) ──
+    async getTaskLink(cardId: string): Promise<TaskLinkRow | null> {
+      const { data, error } = await own(
+        db.from("google_task_links").select("*"),
+      )
+        .eq("card_id", cardId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    async listTaskLinks(): Promise<TaskLinkRow[]> {
+      const { data, error } = await own(
+        db.from("google_task_links").select("*"),
+      );
+      if (error) throw error;
+      return data ?? [];
+    },
+    async upsertTaskLink(row: {
+      card_id: string;
+      tasklist_id: string;
+      gtask_id: string;
+      last_pushed_at?: string | null;
+      last_pulled_at?: string | null;
+    }): Promise<void> {
+      const { error } = await db
+        .from("google_task_links")
+        .upsert({ user_id: userId, ...row }, { onConflict: "user_id,card_id" });
+      if (error) throw error;
+    },
+    async deleteTaskLink(cardId: string): Promise<void> {
+      const { error } = await own(db.from("google_task_links").delete()).eq(
+        "card_id",
+        cardId,
+      );
+      if (error) throw error;
+    },
     // ── integrations ──
     async getIntegration(): Promise<IntegrationRow | null> {
       const { data, error } = await own(db.from("integrations").select("*"))

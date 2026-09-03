@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { type AnyAgentTool, defineTool } from "@/core/contracts";
 import { eventService } from "./events";
+import { gtasksService } from "./gtasks";
 import type { EventRow } from "./repository";
 import {
   createEventSchema,
@@ -24,6 +25,27 @@ function summarize(e: EventRow) {
 }
 
 export const calendarTools: Record<string, AnyAgentTool> = {
+  googleTasksStatus: defineTool({
+    description:
+      "Google Tasks 미러 상태. 켜져 있으면 마감이 있는 카드가 Google 캘린더의 'Rachel' 할 일 목록에 보이고, Google 에서 완료·제목·마감을 바꾸면 카드에 반영된다.",
+    inputSchema: z.object({}),
+    risk: "read",
+    execute: async (_i, ctx) => gtasksService(ctx).status(),
+  }),
+  googleTasksSetEnabled: defineTool({
+    description:
+      "Google Tasks 미러를 켜거나 끈다. 켜면 마감 있는 카드가 모두 Google 로 나간다(백필). 권한이 없으면 설정에서 Google 다시 연결이 필요하다고 안내한다.",
+    inputSchema: z.object({ enabled: z.boolean() }),
+    risk: "write",
+    execute: async ({ enabled }, ctx) => gtasksService(ctx).setEnabled(enabled),
+  }),
+  googleTasksPull: defineTool({
+    description:
+      "Google Tasks 쪽 변경(완료·제목·마감·새 항목)을 지금 가져와 카드에 반영한다. 평소엔 15분마다 자동.",
+    inputSchema: z.object({}),
+    risk: "write",
+    execute: async (_i, ctx) => gtasksService(ctx).pull(),
+  }),
   listEvents: defineTool({
     description:
       "기간(from~to, ISO 8601 타임존 포함)의 일정 목록. '오늘'·'내일'·'이번 주'는 [지금] 컨텍스트의 시각으로 from/to 를 계산해 넘긴다. 결과의 connected 가 true 면 캘린더는 연결된 상태이고, events 가 비어 있으면 그 기간에 일정이 없는 것이다.",

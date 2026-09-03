@@ -1,5 +1,10 @@
 import type { RachelModule } from "@/core/contracts";
 import { tasksContextProvider } from "./context";
+import {
+  gtaskChangedHandler,
+  gtaskCreatedHandler,
+  gtasksEnabledHandler,
+} from "./events";
 import { cardsIndexer } from "./indexer";
 import { tasksTools } from "./tools";
 import { dueTodayWidget } from "./widgets";
@@ -10,9 +15,14 @@ export const tasksModule: RachelModule = {
     name: "할 일",
     icon: "square-kanban",
     nav: { href: "/tasks", order: 20, mobileTab: true },
-    schemaVersion: 3,
+    schemaVersion: 15,
   },
   indexers: [cardsIndexer],
+  eventHandlers: [
+    gtaskChangedHandler,
+    gtaskCreatedHandler,
+    gtasksEnabledHandler,
+  ],
   tools: tasksTools,
   widgets: [dueTodayWidget],
   contextProviders: [tasksContextProvider],

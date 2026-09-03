@@ -31,6 +31,28 @@ export interface BoardView {
  * tasks 규칙. Server Action 과 에이전트 도구가 함께 쓴다.
  * 모든 변경은 도메인 이벤트를 발행한다.
  */
+/** 다른 모듈(Google Tasks 미러 등)이 이벤트만 보고 쓸 수 있는 카드 스냅샷 */
+export function cardSnapshot(card: CardRow) {
+  return {
+    id: card.id,
+    title: card.title,
+    description: card.description_md,
+    dueAt: card.due_at,
+    dueHasTime: card.due_has_time,
+    completed: card.completed_at !== null,
+    archived: card.archived_at !== null,
+    boardId: card.board_id,
+    updatedAt: card.updated_at,
+  };
+}
+export type CardSnapshot = ReturnType<typeof cardSnapshot>;
+
+/** 외부(Google)에서 온 변경임을 이벤트에 표시해 되밀기(루프)를 막는다 */
+export interface WriteMeta {
+  origin?: "google";
+  gtaskId?: string;
+}
+
 export function tasksService(ctx: ServiceContext) {
   const repo = tasksRepository(ctx.db, ctx.userId);
 
@@ -85,7 +107,10 @@ export function tasksService(ctx: ServiceContext) {
     return todo;
   }
 
-  async function createCard(raw: CreateCardInput): Promise<CardRow> {
+  async function createCard(
+    raw: CreateCardInput,
+    meta: WriteMeta = {},
+  ): Promise<CardRow> {
     const input = createCardSchema.parse(raw);
     const board = input.boardId
       ? await repo.getBoard(input.boardId)
@@ -112,7 +137,13 @@ export function tasksService(ctx: ServiceContext) {
     await ctx.emit({
       type: TASK_EVENTS.created,
       entity: { type: "card", id: card.id },
-      payload: { title: card.title, columnId: column.id, source: input.source },
+      payload: {
+        title: card.title,
+        columnId: column.id,
+        source: input.source,
+        card: cardSnapshot(card),
+        ...meta,
+      },
     });
     return card;
   }
@@ -120,6 +151,7 @@ export function tasksService(ctx: ServiceContext) {
   async function updateCard(
     id: string,
     raw: UpdateCardInput,
+    meta: WriteMeta = {},
   ): Promise<{ card: CardRow; before: CardRow }> {
     const patch = updateCardSchema.parse(raw);
     const before = await repo.getCard(id);
@@ -144,7 +176,11 @@ export function tasksService(ctx: ServiceContext) {
     await ctx.emit({
       type: TASK_EVENTS.updated,
       entity: { type: "card", id },
-      payload: { fields: Object.keys(patch) },
+      payload: {
+        fields: Object.keys(patch),
+        card: cardSnapshot(card),
+        ...meta,
+      },
     });
     return { card, before };
   }
@@ -153,6 +189,7 @@ export function tasksService(ctx: ServiceContext) {
   async function moveCard(
     id: string,
     raw: MoveCardInput,
+    meta: WriteMeta = {},
   ): Promise<{ card: CardRow; before: CardRow }> {
     const input = moveCardSchema.parse(raw);
     const before = await repo.getCard(id);
@@ -185,32 +222,53 @@ export function tasksService(ctx: ServiceContext) {
     await ctx.emit({
       type: TASK_EVENTS.moved,
       entity: { type: "card", id },
-      payload: { from: before.column_id, to: target.id },
+      payload: {
+        from: before.column_id,
+        to: target.id,
+        card: cardSnapshot(card),
+        ...meta,
+      },
     });
     if (!wasDone && nowDone)
       await ctx.emit({
         type: TASK_EVENTS.completed,
         entity: { type: "card", id },
-        payload: { title: card.title },
+        payload: { title: card.title, card: cardSnapshot(card), ...meta },
       });
     if (wasDone && !nowDone)
       await ctx.emit({
         type: TASK_EVENTS.reopened,
         entity: { type: "card", id },
-        payload: {},
+        payload: { card: cardSnapshot(card), ...meta },
       });
     return { card, before };
   }
 
   async function completeCard(
     id: string,
+    meta: WriteMeta = {},
   ): Promise<{ card: CardRow; before: CardRow }> {
     const before = await repo.getCard(id);
     if (!before) throw new Error("카드를 찾을 수 없어요");
     const columns = await repo.listColumns(before.board_id);
     const done = columns.find((c) => c.is_done);
     if (!done) throw new Error("완료 컬럼이 없어요");
-    return moveCard(id, { columnId: done.id });
+    return moveCard(id, { columnId: done.id }, meta);
+  }
+
+  /** 완료 컬럼 밖(Todo 우선, 없으면 첫 미완료 컬럼)으로 되돌린다 */
+  async function reopenCard(
+    id: string,
+    meta: WriteMeta = {},
+  ): Promise<{ card: CardRow; before: CardRow }> {
+    const before = await repo.getCard(id);
+    if (!before) throw new Error("카드를 찾을 수 없어요");
+    const columns = await repo.listColumns(before.board_id);
+    const target =
+      columns.find((c) => !c.is_done && c.name.toLowerCase() === "todo") ??
+      columns.find((c) => !c.is_done);
+    if (!target) throw new Error("되돌릴 컬럼이 없어요");
+    return moveCard(id, { columnId: target.id }, meta);
   }
 
   async function archiveCard(id: string, archived = true): Promise<CardRow> {
@@ -220,7 +278,7 @@ export function tasksService(ctx: ServiceContext) {
     await ctx.emit({
       type: TASK_EVENTS.archived,
       entity: { type: "card", id },
-      payload: { archived },
+      payload: { archived, card: cardSnapshot(card) },
     });
     return card;
   }
@@ -232,7 +290,7 @@ export function tasksService(ctx: ServiceContext) {
     await ctx.emit({
       type: TASK_EVENTS.deleted,
       entity: { type: "card", id },
-      payload: { title: before.title },
+      payload: { title: before.title, card: cardSnapshot(before) },
     });
     return before;
   }
@@ -330,6 +388,7 @@ export function tasksService(ctx: ServiceContext) {
     updateCard,
     moveCard,
     completeCard,
+    reopenCard,
     archiveCard,
     deleteCard,
     bulkUpdate,

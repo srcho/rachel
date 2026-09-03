@@ -25,9 +25,9 @@ const TYPE_LABEL: Record<string, string> = {
 
 function proposalText(t: Triage): string {
   if (t.type === "task" && t.task)
-    return `${t.task.title}${t.task.due ? ` · ${new Date(t.task.due).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""} · P${t.task.priority}`;
+    return `${t.task.title}${t.task.due ? ` · ${new Date(t.task.due).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}` : ""} · P${t.task.priority}`;
   if (t.type === "event" && t.event)
-    return `${t.event.title} · ${new Date(t.event.startAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+    return `${t.event.title} · ${new Date(t.event.startAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}`;
   if (t.type === "memory" && t.memory) return t.memory.content;
   return "메모로 보관";
 }
@@ -126,6 +126,7 @@ export function Inbox({
                 day: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
+                hour12: false,
               })}
             </p>
           </li>

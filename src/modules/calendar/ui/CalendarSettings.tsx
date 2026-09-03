@@ -5,21 +5,25 @@ import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { getRegistry } from "@/core/registry/current";
 import { disconnectGoogleAction, refreshCalendarsAction } from "../actions";
+import { gtasksService } from "../gtasks";
 import { calendarService } from "../service";
 import { CalendarToggle } from "./CalendarToggle";
+import { GtasksToggle } from "./GtasksToggle";
 
 /** 설정 > Google 캘린더 섹션(서버 컴포넌트) */
 export async function CalendarSettings() {
   const user = await requireUser();
   const db = await createServerSupabase();
-  const { integration, calendars } = await calendarService(
-    createContext({
-      db,
-      userId: user.id,
-      actor: "user",
-      registry: await getRegistry(),
-    }),
-  ).status();
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    actor: "user",
+    registry: await getRegistry(),
+  });
+  const [{ integration, calendars }, gtasks] = await Promise.all([
+    calendarService(ctx).status(),
+    gtasksService(ctx).status(),
+  ]);
 
   if (!integration) {
     return (
@@ -53,7 +57,7 @@ export async function CalendarSettings() {
             {needsReauth
               ? "연결이 만료됐어요. 다시 연결해 주세요."
               : integration.last_synced_at
-                ? `마지막 동기화 ${new Date(integration.last_synced_at).toLocaleString("ko-KR")}`
+                ? `마지막 동기화 ${new Date(integration.last_synced_at).toLocaleString("ko-KR", { hour12: false })}`
                 : "아직 동기화 전"}
           </p>
         </div>
@@ -107,6 +111,7 @@ export async function CalendarSettings() {
           </li>
         ))}
       </ul>
+      <GtasksToggle status={gtasks} />
     </div>
   );
 }
