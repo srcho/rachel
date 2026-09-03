@@ -1,0 +1,17 @@
+import type { VercelConfig } from "@vercel/config/v1";
+
+const security = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=(self)" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+];
+
+export const config: VercelConfig = {
+  framework: "nextjs",
+  regions: ["icn1"],
+  headers: [
+    { source: "/(.*)", headers: security },
+    { source: "/sw.js", headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }, { key: "Service-Worker-Allowed", value: "/" }] },
+  ],
+};
