@@ -78,7 +78,7 @@ export function NotifyControls({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border p-3 text-sm">
+    <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p>

@@ -33,27 +33,25 @@ export function Column({
     <section
       aria-label={column.name}
       className={cn(
-        "flex w-[78vw] shrink-0 snap-start flex-col rounded-lg bg-muted/50 md:w-72",
+        "flex h-full min-h-0 w-[78vw] shrink-0 snap-start flex-col rounded-lg border bg-muted/40 md:w-auto md:min-w-64 md:max-w-sm md:flex-1 md:shrink",
         isOver && "ring-2 ring-ring/40",
       )}
     >
-      <header className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
-        <h2 className="text-sm font-medium">
-          {column.name}
-          <span
-            className={cn(
-              "ml-1.5 text-xs tabular-nums text-muted-foreground",
-              over && "text-red-500",
-            )}
-          >
-            {cards.length}
-            {column.wip_limit !== null && `/${column.wip_limit}`}
-          </span>
-        </h2>
+      <header className="flex h-10 shrink-0 items-center gap-1.5 px-3">
+        <h2 className="truncate text-[13px] font-medium">{column.name}</h2>
+        <span
+          className={cn(
+            "text-xs tabular-nums text-muted-foreground",
+            over && "text-red-500",
+          )}
+        >
+          {cards.length}
+          {column.wip_limit !== null && `/${column.wip_limit}`}
+        </span>
       </header>
       <div
         ref={setNodeRef}
-        className="flex min-h-10 flex-1 flex-col gap-1.5 px-2 pb-2"
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2"
       >
         <SortableContext
           items={cards.map((c) => c.id)}
@@ -63,6 +61,8 @@ export function Column({
             <SortableCard key={card.id} card={card} onOpen={onOpen} />
           ))}
         </SortableContext>
+      </div>
+      <div className="shrink-0 px-2 pt-1.5 pb-2">
         <QuickAdd onAdd={onAdd} />
       </div>
     </section>

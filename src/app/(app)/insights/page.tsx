@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { WidgetGrid } from "@/core/ui/WidgetGrid";
 import { cn } from "@/lib/utils";
@@ -60,13 +61,13 @@ export default async function InsightsPage({
       <PageHeader
         title="인사이트"
         actions={
-          <div className="flex rounded-md border p-0.5 text-xs">
+          <div className="flex rounded-lg border p-0.5 text-xs">
             {(Object.keys(RANGES) as RangeKey[]).map((k) => (
               <Link
                 key={k}
                 href={`/insights?range=${k}`}
                 className={cn(
-                  "rounded px-2 py-1",
+                  "rounded-md px-2.5 py-1",
                   k === key
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -78,7 +79,7 @@ export default async function InsightsPage({
           </div>
         }
       />
-      <div className="mx-auto max-w-5xl space-y-6 p-4">
+      <Page width="content" className="space-y-4">
         <WidgetGrid items={loaded} range={range} />
         <ReviewList
           reviews={reviews.map((r) => ({
@@ -89,7 +90,7 @@ export default async function InsightsPage({
             createdAt: r.created_at,
           }))}
         />
-      </div>
+      </Page>
     </>
   );
 }

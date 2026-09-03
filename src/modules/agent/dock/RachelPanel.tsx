@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -9,6 +9,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useIsDesktop } from "@/core/ui/useMediaQuery";
+import { cn } from "@/lib/utils";
 import { useDock } from "./store";
 
 /** Dock 본문(AI SDK·채팅)은 처음 열 때 로드한다 — 모든 라우트의 첫 JS 를 줄인다 */
@@ -33,32 +34,74 @@ function useUiContextSync() {
   }, [pathname, setUi]);
 }
 
-/** 데스크톱: 우측 패널. 모바일: 바텀 드로어. ⌘J 로 토글. */
+function isEditable(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  return (
+    el.isContentEditable ||
+    el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    el.tagName === "SELECT"
+  );
+}
+
+/**
+ * 데스크톱: 우하단 플로팅 창(⇧Space · ⌘J 토글, Esc 닫기). 화면과 독립적이라 어디서든 바로 말을 건다.
+ * 열기 버튼은 레일 하단(DesktopDockButton).
+ * 모바일: 바텀 드로어(FAB).
+ */
 export function RachelPanel() {
   const isDesktop = useIsDesktop();
-  const { open, setOpen, toggle } = useDock();
+  const { open, setOpen, toggle, expanded } = useDock();
+  const panelRef = useRef<HTMLDivElement>(null);
   useUiContextSync();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
+      const meta = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j";
+      // 입력 중에는 Shift+Space 가 그냥 공백이어야 한다
+      const shiftSpace =
+        e.shiftKey &&
+        (e.key === " " || e.code === "Space") &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditable(e.target);
+      if (meta || shiftSpace) {
         e.preventDefault();
         toggle();
+        return;
+      }
+      if (
+        e.key === "Escape" &&
+        useDock.getState().open &&
+        panelRef.current?.contains(document.activeElement)
+      ) {
+        setOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [toggle]);
+  }, [toggle, setOpen]);
 
   if (isDesktop) {
-    if (!open) return null;
     return (
-      <aside
-        className="sticky top-0 hidden h-dvh w-[400px] shrink-0 border-l bg-background md:block"
-        aria-label="레이첼"
-      >
-        <DockBody onClose={() => setOpen(false)} />
-      </aside>
+      <>
+        {open && (
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-label="레이첼"
+            className={cn(
+              "fixed right-4 bottom-4 z-50 hidden flex-col overflow-hidden rounded-xl border bg-background shadow-2xl shadow-black/10 md:flex dark:shadow-black/40",
+              expanded
+                ? "h-[calc(100dvh-2rem)] w-[min(640px,calc(100vw-2rem))]"
+                : "h-[min(600px,calc(100dvh-2rem))] w-[400px]",
+            )}
+          >
+            <DockBody onClose={() => setOpen(false)} />
+          </div>
+        )}
+      </>
     );
   }
   return (

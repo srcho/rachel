@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
+import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { cn } from "@/lib/utils";
 import { formatCost } from "@/modules/agent/dock/CostChip";
@@ -133,7 +135,7 @@ export function MeetingDetail({
           </>
         }
       />
-      <div className="mx-auto max-w-3xl space-y-4 p-4">
+      <Page width="narrow" className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>
             {new Intl.DateTimeFormat("ko-KR", {
@@ -144,23 +146,16 @@ export function MeetingDetail({
           {meeting.duration_sec ? (
             <span>{fmtDuration(meeting.duration_sec)}</span>
           ) : null}
-          <span
-            className={cn(
-              "rounded px-1.5 py-px",
-              meeting.status === "ready"
-                ? "bg-muted"
-                : "bg-amber-500/15 text-amber-700",
-            )}
-          >
+          <Badge variant={meeting.status === "ready" ? "secondary" : "outline"}>
             {STATUS_LABEL[meeting.status]}
-          </span>
+          </Badge>
           {meeting.final_pass_status !== "skipped" && (
-            <span className="rounded bg-muted px-1.5 py-px">
+            <Badge variant="secondary">
               {FINAL_LABEL[meeting.final_pass_status]}
               {finalPass.progress
                 ? ` ${finalPass.progress.done}/${finalPass.progress.total}`
                 : ""}
-            </span>
+            </Badge>
           )}
           {totalCost > 0 && (
             <span
@@ -242,7 +237,7 @@ export function MeetingDetail({
                         {a.owner && (
                           <span className="text-muted-foreground">
                             {" "}
-                            — {a.owner}
+                            · {a.owner}
                           </span>
                         )}
                         {a.due && (
@@ -358,7 +353,7 @@ export function MeetingDetail({
             <Trash2 className="size-4" /> 회의 삭제
           </Button>
         </div>
-      </div>
+      </Page>
       {summary && (
         <ReviewSheet
           open={review}

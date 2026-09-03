@@ -1,6 +1,7 @@
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { registry } from "@/modules";
 import { captureService } from "@/modules/capture/service";
@@ -27,11 +28,14 @@ export default async function CapturePage({
       : null;
   return (
     <>
-      <PageHeader title="인박스" />
-      <div className="mx-auto max-w-2xl p-4">
+      <PageHeader
+        title="인박스"
+        meta={items.length ? `${items.length}개` : undefined}
+      />
+      <Page width="narrow">
         {shared && <ShareReceiver text={shared.text} url={shared.url} />}
         <Inbox items={items} userId={user.id} />
-      </div>
+      </Page>
     </>
   );
 }

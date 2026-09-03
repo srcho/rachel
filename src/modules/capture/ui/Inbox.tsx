@@ -3,8 +3,10 @@ import { Check, RefreshCw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
+import { Panel } from "@/core/ui/Panel";
 import { cn } from "@/lib/utils";
 import {
   dismissCaptureAction,
@@ -44,10 +46,12 @@ export function Inbox({
 
   if (items.length === 0)
     return (
-      <p className="py-10 text-center text-sm text-muted-foreground">
-        인박스가 비어 있어요. Today 입력창이나 공유 시트, 레이첼 버튼 길게
-        누르기로 던져 보세요.
-      </p>
+      <Panel>
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          인박스가 비어 있어요. Today 입력창이나 공유 시트, 레이첼 버튼 길게
+          누르기로 던져 보세요.
+        </p>
+      </Panel>
     );
   return (
     <ul className={cn("space-y-2", pending && "opacity-70")}>
@@ -69,9 +73,7 @@ export function Inbox({
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {t ? (
                 <>
-                  <span className="rounded bg-muted px-1.5 py-px text-[11px]">
-                    {TYPE_LABEL[t.type]}
-                  </span>
+                  <Badge variant="secondary">{TYPE_LABEL[t.type]}</Badge>
                   <span
                     className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
                     title={t.reason}
@@ -96,18 +98,16 @@ export function Inbox({
                 </span>
               )}
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="ghost"
-                className="size-8"
                 aria-label="다시 분류"
                 onClick={() => start(() => retriageAction(c.id))}
               >
                 <RefreshCw className="size-4" />
               </Button>
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="ghost"
-                className="size-8"
                 aria-label="무시"
                 onClick={() => start(() => dismissCaptureAction(c.id))}
               >

@@ -23,7 +23,7 @@ export async function CalendarSettings() {
 
   if (!integration) {
     return (
-      <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
+      <div className="flex items-center justify-between text-sm">
         <div>
           <p>Google 캘린더가 연결되지 않았어요.</p>
           <p className="text-xs text-muted-foreground">
@@ -43,7 +43,7 @@ export async function CalendarSettings() {
   }
   const needsReauth = integration.status !== "connected";
   return (
-    <div className="space-y-3 rounded-lg border p-3 text-sm">
+    <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate">

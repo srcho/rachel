@@ -1,7 +1,8 @@
 "use client";
-import { History, Plus, X } from "lucide-react";
+import { History, Maximize2, Minimize2, Plus, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useIsDesktop } from "@/core/ui/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { listThreadsAction, loadThreadAction } from "../actions";
 import type { RachelUIMessage } from "../agent";
@@ -11,7 +12,17 @@ import { useDock } from "./store";
 type ThreadItem = { id: string; title: string; lastMessageAt: string };
 
 export default function DockBody({ onClose }: { onClose: () => void }) {
-  const { threadId, setThread, newThread, ui, useUi, setUseUi } = useDock();
+  const {
+    threadId,
+    setThread,
+    newThread,
+    ui,
+    useUi,
+    setUseUi,
+    expanded,
+    toggleExpanded,
+  } = useDock();
+  const isDesktop = useIsDesktop();
   const [initial, setInitial] = useState<RachelUIMessage[] | null>([]);
   const [threads, setThreads] = useState<ThreadItem[] | null>(null);
   const [showThreads, setShowThreads] = useState(false);
@@ -42,7 +53,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center gap-1 border-b px-2 py-1.5">
+      <header className="flex h-11 shrink-0 items-center gap-1 border-b px-2">
         <span className="px-1 text-sm font-semibold">레이첼</span>
         {contextLabel && (
           <button
@@ -82,12 +93,27 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
           >
             <Plus className="size-4" />
           </Button>
+          {isDesktop && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              onClick={toggleExpanded}
+              aria-label={expanded ? "작게" : "크게"}
+            >
+              {expanded ? (
+                <Minimize2 className="size-4" />
+              ) : (
+                <Maximize2 className="size-4" />
+              )}
+            </Button>
+          )}
           <Button
             size="icon"
             variant="ghost"
             className="size-8"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label="닫기 (Esc)"
           >
             <X className="size-4" />
           </Button>

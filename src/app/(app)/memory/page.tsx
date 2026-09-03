@@ -1,6 +1,7 @@
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { registry } from "@/modules";
 import { MEMORY_KINDS, type MemoryKind } from "@/modules/memory/schema";
@@ -33,15 +34,19 @@ export default async function MemoryPage({
   });
   return (
     <>
-      <PageHeader title="기억" actions={<MemorySearch q={sp.q ?? ""} />} />
-      <div className="mx-auto max-w-3xl p-4">
+      <PageHeader
+        title="기억"
+        meta={`${memories.length}개`}
+        actions={<MemorySearch q={sp.q ?? ""} />}
+      />
+      <Page width="narrow">
         <MemoryList
           memories={memories}
           kind={kind}
           q={sp.q ?? ""}
           archived={archived}
         />
-      </div>
+      </Page>
     </>
   );
 }

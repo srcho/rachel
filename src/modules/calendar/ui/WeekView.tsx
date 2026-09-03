@@ -35,8 +35,8 @@ export function WeekView({
     byDay.set(ymd, [...(byDay.get(ymd) ?? []), e]);
   }
   return (
-    <div className="overflow-x-auto px-2 pb-6">
-      <div className="grid min-w-[840px] grid-cols-7 gap-1">
+    <div className="overflow-x-auto px-3 pb-3 md:min-h-0 md:flex-1 md:overflow-x-hidden">
+      <div className="grid min-w-[840px] grid-cols-7 gap-1.5 md:h-full md:min-w-0">
         {days.map((ymd, i) => {
           const items = (byDay.get(ymd) ?? []).sort(
             (a, b) =>
@@ -48,7 +48,7 @@ export function WeekView({
             <div
               key={ymd}
               className={cn(
-                "min-h-[60vh] rounded-md border bg-muted/30 p-1",
+                "flex min-h-[60vh] flex-col rounded-lg border bg-muted/30 p-1 md:min-h-0",
                 isToday && "border-primary/50",
               )}
             >
@@ -65,7 +65,7 @@ export function WeekView({
                   {Number(ymd.slice(8))}
                 </span>
               </button>
-              <div className="space-y-1">
+              <div className="min-h-0 flex-1 space-y-1 md:overflow-y-auto">
                 {items.map((e) => (
                   <EventChip
                     key={e.id}

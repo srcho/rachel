@@ -7,6 +7,7 @@ export const captureWidget: DashboardWidget<{ open: number }> = {
   title: "캡처",
   surface: "today",
   size: "lg",
+  placement: "top",
   order: -10,
   load: async (ctx) => ({
     open: (await captureService(ctx).list("open", 100)).length,

@@ -8,12 +8,15 @@ export interface UiContextState {
 
 interface DockState {
   open: boolean;
+  /** 데스크톱 플로팅 창 확장(넓게·높게) */
+  expanded: boolean;
   threadId: string;
   /** 화면 컨텍스트(칩). 사용자가 끄면 전송하지 않는다 */
   ui: UiContextState | null;
   useUi: boolean;
   setOpen: (open: boolean) => void;
   toggle: () => void;
+  toggleExpanded: () => void;
   setThread: (id: string) => void;
   newThread: () => void;
   setUi: (ui: UiContextState | null) => void;
@@ -22,11 +25,13 @@ interface DockState {
 
 export const useDock = create<DockState>((set) => ({
   open: false,
+  expanded: false,
   threadId: crypto.randomUUID(),
   ui: null,
   useUi: true,
   setOpen: (open) => set({ open }),
   toggle: () => set((s) => ({ open: !s.open })),
+  toggleExpanded: () => set((s) => ({ expanded: !s.expanded })),
   setThread: (threadId) => set({ threadId }),
   newThread: () => set({ threadId: crypto.randomUUID() }),
   setUi: (ui) => set({ ui }),

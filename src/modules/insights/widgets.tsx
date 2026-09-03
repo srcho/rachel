@@ -2,7 +2,7 @@ import type { DashboardWidget } from "@/core/contracts";
 import { localYmd } from "@/core/utils/date";
 import { formatCost } from "@/modules/agent/dock/CostChip";
 import { insightsRepository } from "./repository";
-import { BriefCard } from "./ui/BriefCard";
+import { BriefActions, BriefCard } from "./ui/BriefCard";
 
 export interface BriefData {
   contentMd: string | null;
@@ -16,7 +16,8 @@ export const briefWidget: DashboardWidget<BriefData> = {
   id: "insights.brief",
   title: "브리핑",
   surface: "today",
-  size: "lg",
+  size: "md",
+  rows: 2,
   order: 0,
   load: async (ctx) => {
     const today = localYmd(ctx.now, ctx.timezone);
@@ -46,6 +47,11 @@ export const briefWidget: DashboardWidget<BriefData> = {
   Component: ({ data }) => (
     <BriefCard
       data={data}
+      costLabel={data.costUsd !== null ? formatCost(data.costUsd) : null}
+    />
+  ),
+  HeaderAction: ({ data }) => (
+    <BriefActions
       costLabel={data.costUsd !== null ? formatCost(data.costUsd) : null}
     />
   ),

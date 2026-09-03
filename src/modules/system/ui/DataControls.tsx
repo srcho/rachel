@@ -12,7 +12,7 @@ export function DataControls({
 }) {
   const [pending, start] = useTransition();
   return (
-    <div className="space-y-3 rounded-lg border p-3 text-sm">
+    <div className="space-y-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p>내 데이터는 언제든 통째로 가져갈 수 있어요.</p>

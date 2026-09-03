@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { registry } from "@/modules";
 import { tasksService } from "@/modules/tasks/service";
@@ -28,10 +29,13 @@ export default async function BoardPage({
   }
   return (
     <>
-      <PageHeader title={view.board.name} />
-      <div className="pt-3">
+      <PageHeader
+        title={view.board.name}
+        meta={`카드 ${view.cards.filter((c) => !c.completed_at).length}`}
+      />
+      <Page width="full">
         <Board initial={view} userId={user.id} />
-      </div>
+      </Page>
     </>
   );
 }

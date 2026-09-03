@@ -4,7 +4,9 @@ import { requireUser } from "@/core/auth/session";
 import { createServerSupabase } from "@/core/db/server";
 import { saveBudgetAction, saveHonorificAction } from "@/core/settings/actions";
 import { getProfileSettings } from "@/core/settings/profile";
+import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
+import { Panel } from "@/core/ui/Panel";
 import { ThemeToggle } from "@/core/ui/ThemeToggle";
 import { UsagePanel } from "@/core/ui/UsagePanel";
 import { registry } from "@/modules";
@@ -22,24 +24,21 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader title="설정" />
-      <div className="mx-auto max-w-2xl space-y-8 p-4">
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground">계정</h2>
-          <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
-            <span>{user.email ?? user.id}</span>
+      <Page width="narrow" className="space-y-3">
+        <Panel
+          title="계정"
+          action={
             <form action={signOut}>
-              <Button variant="outline" size="sm" type="submit">
+              <Button variant="ghost" size="xs" type="submit">
                 로그아웃
               </Button>
             </form>
-          </div>
-        </section>
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground">레이첼</h2>
-          <form
-            action={saveHonorificAction}
-            className="flex items-end gap-2 rounded-lg border p-3"
-          >
+          }
+        >
+          <p className="text-sm">{user.email ?? user.id}</p>
+        </Panel>
+        <Panel title="레이첼">
+          <form action={saveHonorificAction} className="flex items-end gap-2">
             <label className="flex-1 space-y-1 text-sm">
               <span className="text-xs text-muted-foreground">
                 레이첼이 부르는 호칭
@@ -55,15 +54,12 @@ export default async function SettingsPage() {
               저장
             </Button>
           </form>
-        </section>
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            AI 사용량·비용
-          </h2>
+        </Panel>
+        <Panel title="AI 사용량·비용">
           <UsagePanel db={db} userId={user.id} />
           <form
             action={saveBudgetAction}
-            className="flex items-end gap-2 rounded-lg border p-3"
+            className="mt-3 flex items-end gap-2 border-t pt-3"
           >
             <label className="flex-1 space-y-1 text-sm">
               <span className="text-xs text-muted-foreground">
@@ -83,20 +79,16 @@ export default async function SettingsPage() {
               저장
             </Button>
           </form>
-        </section>
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground">테마</h2>
+        </Panel>
+        <Panel title="테마">
           <ThemeToggle />
-        </section>
+        </Panel>
         {sections.map((s) => (
-          <section key={s.id} className="space-y-2">
-            <h2 className="text-sm font-medium text-muted-foreground">
-              {s.title}
-            </h2>
+          <Panel key={s.id} title={s.title}>
             <s.Component />
-          </section>
+          </Panel>
         ))}
-      </div>
+      </Page>
     </>
   );
 }

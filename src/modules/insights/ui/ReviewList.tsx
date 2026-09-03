@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/core/ui/Panel";
 import { generateWeeklyReviewAction } from "../actions";
 
 interface Review {
@@ -19,12 +20,13 @@ export function ReviewList({ reviews }: { reviews: Review[] }) {
   const [pending, start] = useTransition();
   const [open, setOpen] = useState<string | null>(reviews[0]?.id ?? null);
   return (
-    <section className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">주간 리뷰</h2>
+    <Panel
+      title="주간 리뷰"
+      count={reviews.length || undefined}
+      action={
         <Button
-          size="sm"
-          variant="outline"
+          size="xs"
+          variant="ghost"
           disabled={pending}
           onClick={() =>
             start(async () => {
@@ -34,25 +36,26 @@ export function ReviewList({ reviews }: { reviews: Review[] }) {
             })
           }
         >
-          <RefreshCw className={pending ? "size-4 animate-spin" : "size-4"} />{" "}
-          지금 만들기
+          <RefreshCw className={pending ? "animate-spin" : ""} /> 지금 만들기
         </Button>
-      </div>
+      }
+    >
       {reviews.length === 0 ? (
-        <p className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           일요일 저녁마다 한 주를 정리한 리뷰가 여기에 쌓여요. 지금 만들어 볼
           수도 있어요.
         </p>
       ) : (
-        <ul className="divide-y rounded-lg border bg-card">
+        <ul className="divide-y">
           {reviews.map((r) => (
             <li key={r.id}>
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm"
+                className="flex w-full items-center justify-between py-2 text-left text-sm"
                 onClick={() => setOpen(open === r.id ? null : r.id)}
+                aria-expanded={open === r.id}
               >
-                <span>
+                <span className="tabular-nums">
                   {r.periodStart} ~ {r.periodEnd}
                 </span>
                 <span className="text-xs text-muted-foreground">
@@ -60,7 +63,7 @@ export function ReviewList({ reviews }: { reviews: Review[] }) {
                 </span>
               </button>
               {open === r.id && (
-                <div className="space-y-1 px-3 pb-3 text-sm leading-relaxed">
+                <div className="space-y-1 pb-3 text-sm leading-relaxed">
                   {r.contentMd.split("\n").map((line, i) => (
                     <p
                       key={`${r.id}-${i}`}
@@ -81,6 +84,6 @@ export function ReviewList({ reviews }: { reviews: Review[] }) {
           ))}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }

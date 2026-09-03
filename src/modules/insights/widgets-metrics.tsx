@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import type { DashboardWidget } from "@/core/contracts";
 import { formatCost, formatTokens } from "@/modules/agent/dock/CostChip";
 import {
@@ -19,6 +20,7 @@ export const throughputWidget: DashboardWidget<
   title: "할 일 처리량",
   surface: "insights",
   size: "md",
+  rows: 3,
   order: 10,
   load: async (ctx, range) => ({
     ...(await tasksWeekly(ctx, range)),
@@ -28,8 +30,8 @@ export const throughputWidget: DashboardWidget<
   Component: ({ data }) => {
     const c = data.cycle.at(-1);
     return (
-      <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-2">
+      <div className="flex h-full flex-col gap-3">
+        <div className="grid grid-cols-3 gap-3 border-b pb-3">
           <StatTile
             label="이번 주 완료"
             value={data.weekly.at(-1)?.completed ?? 0}
@@ -47,7 +49,6 @@ export const throughputWidget: DashboardWidget<
           />
         </div>
         <ChartCard
-          title="주간 생성·완료"
           data={data.weekly}
           series={[
             { key: "created", label: "생성" },
@@ -68,14 +69,13 @@ export const meetingsHoursWidget: DashboardWidget<
   Awaited<ReturnType<typeof meetingsWeekly>>
 > = {
   id: "insights.meetings",
-  title: "회의 시간",
+  title: "주간 회의 시간(분)",
   surface: "insights",
   size: "md",
   order: 20,
   load: (ctx, range) => meetingsWeekly(ctx, range),
   Component: ({ data }) => (
     <ChartCard
-      title="주간 회의(분)"
       data={data}
       series={[{ key: "minutes", label: "분" }]}
       footer={`총 ${data.reduce((n, d) => n + d.meetings, 0)}회 · ${Math.round(data.reduce((n, d) => n + d.minutes, 0) / 60)}시간`}
@@ -87,14 +87,13 @@ export const calendarLoadWidget: DashboardWidget<
   Awaited<ReturnType<typeof calendarWeekly>>
 > = {
   id: "insights.calendar",
-  title: "캘린더 부하",
+  title: "주간 일정 시간",
   surface: "insights",
   size: "md",
   order: 30,
   load: (ctx, range) => calendarWeekly(ctx, range),
   Component: ({ data }) => (
     <ChartCard
-      title="주간 일정(시간)"
       data={data}
       series={[{ key: "hours", label: "시간" }]}
       footer={`주당 평균 ${(data.reduce((n, d) => n + d.hours, 0) / Math.max(1, data.length)).toFixed(1)}시간`}
@@ -106,7 +105,7 @@ export const captureConversionWidget: DashboardWidget<
   Awaited<ReturnType<typeof captureWeekly>>
 > = {
   id: "insights.capture",
-  title: "캡처 → 정리",
+  title: "주간 캡처 → 정리",
   surface: "insights",
   size: "md",
   order: 40,
@@ -116,7 +115,6 @@ export const captureConversionWidget: DashboardWidget<
     const resolved = data.reduce((n, d) => n + d.resolved, 0);
     return (
       <ChartCard
-        title="주간 캡처·정리"
         data={data}
         series={[
           { key: "captured", label: "캡처" },
@@ -139,17 +137,24 @@ export const patternsWidget: DashboardWidget<
   title: "패턴",
   surface: "insights",
   size: "lg",
+  rows: 1,
   order: 5,
   load: async (ctx, range) => (await detectPatterns(ctx, range)).patterns,
   Component: ({ data }) =>
-    data.length === 0 ? null : (
-      <ul className="flex flex-wrap gap-2">
+    data.length === 0 ? (
+      <p className="flex h-full min-h-10 items-center text-sm text-muted-foreground">
+        아직 눈에 띄는 패턴이 없어요. 몇 주 쌓이면 여기에 나타나요.
+      </p>
+    ) : (
+      <ul className="flex flex-wrap gap-1.5">
         {data.map((p) => (
-          <li
-            key={p.id}
-            className={`rounded-full border px-3 py-1 text-xs ${p.severity === "warn" ? "border-amber-400/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200" : "bg-card"}`}
-          >
-            {p.text}
+          <li key={p.id}>
+            <Badge
+              variant={p.severity === "warn" ? "destructive" : "secondary"}
+              className="h-6 px-2.5"
+            >
+              {p.text}
+            </Badge>
           </li>
         ))}
       </ul>
@@ -189,6 +194,7 @@ export const costWidget: DashboardWidget<CostData> = {
   title: "AI 비용",
   surface: "insights",
   size: "lg",
+  rows: 3,
   order: 50,
   load: async (ctx) => {
     const m0 = new Date(
@@ -260,31 +266,60 @@ export const costWidget: DashboardWidget<CostData> = {
   Component: ({ data }) => {
     const max = Math.max(0.0001, ...data.daily.map((d) => d.cost));
     return (
-      <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-2">
-          <StatTile
-            label="이번 달 AI 비용"
-            value={formatCost(data.monthCost)}
-            sub={
-              data.prevMonthCost
-                ? `지난달 ${formatCost(data.prevMonthCost)}`
-                : undefined
-            }
-          />
-          <StatTile label="호출" value={data.calls} />
-          <StatTile
-            label="회의당 평균"
-            value={data.perMeeting !== null ? formatCost(data.perMeeting) : "—"}
-          />
+      <div className="grid h-full gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-3 gap-3 md:grid-cols-1">
+            <StatTile
+              label="이번 달 AI 비용"
+              value={formatCost(data.monthCost)}
+              sub={
+                data.prevMonthCost
+                  ? `지난달 ${formatCost(data.prevMonthCost)}`
+                  : undefined
+              }
+            />
+            <StatTile label="호출" value={data.calls} />
+            <StatTile
+              label="회의당 평균"
+              value={
+                data.perMeeting !== null ? formatCost(data.perMeeting) : "-"
+              }
+            />
+          </div>
+          {data.daily.length > 0 && (
+            <div className="mt-auto">
+              <p className="mb-1 text-[11px] text-muted-foreground">
+                최근 30일
+              </p>
+              <div className="flex h-10 items-end gap-px">
+                {data.daily.map((d) => (
+                  <div
+                    key={d.day}
+                    className="flex-1 rounded-sm bg-primary/70"
+                    style={{ height: `${Math.max(4, (d.cost / max) * 100)}%` }}
+                    title={`${d.day}: ${formatCost(d.cost)}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="rounded-lg border bg-card p-3">
-          <h3 className="mb-2 text-sm font-medium">기능별</h3>
+        <div className="min-h-0 overflow-y-auto md:border-l md:pl-4">
           {data.byFeature.length === 0 ? (
-            <p className="py-4 text-center text-xs text-muted-foreground">
+            <p className="py-4 text-xs text-muted-foreground">
               이번 달 사용 기록이 없어요.
             </p>
           ) : (
             <table className="w-full text-xs tabular-nums">
+              <thead className="text-muted-foreground">
+                <tr>
+                  <th className="pb-1 text-left font-normal">기능</th>
+                  <th className="pb-1 text-left font-normal">모델</th>
+                  <th className="pb-1 text-right font-normal">호출</th>
+                  <th className="pb-1 text-right font-normal">사용량</th>
+                  <th className="pb-1 text-right font-normal">비용</th>
+                </tr>
+              </thead>
               <tbody>
                 {data.byFeature.map((r) => (
                   <tr key={`${r.feature}-${r.model}`} className="border-t">
@@ -292,7 +327,7 @@ export const costWidget: DashboardWidget<CostData> = {
                       {FEATURE_LABEL[r.feature] ?? r.feature}
                     </td>
                     <td className="py-1 text-muted-foreground">{r.model}</td>
-                    <td className="py-1 text-right">{r.calls}회</td>
+                    <td className="py-1 text-right">{r.calls}</td>
                     <td className="py-1 text-right">
                       {r.seconds > 0
                         ? `${Math.round(r.seconds / 60)}분`
@@ -303,18 +338,6 @@ export const costWidget: DashboardWidget<CostData> = {
                 ))}
               </tbody>
             </table>
-          )}
-          {data.daily.length > 0 && (
-            <div className="mt-3 flex h-12 items-end gap-0.5">
-              {data.daily.map((d) => (
-                <div
-                  key={d.day}
-                  className="flex-1 rounded-sm bg-primary/70"
-                  style={{ height: `${Math.max(4, (d.cost / max) * 100)}%` }}
-                  title={`${d.day}: ${formatCost(d.cost)}`}
-                />
-              ))}
-            </div>
           )}
         </div>
       </div>

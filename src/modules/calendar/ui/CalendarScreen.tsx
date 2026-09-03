@@ -6,6 +6,7 @@ import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
+import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { cn } from "@/lib/utils";
 import { syncNowAction } from "../actions";
@@ -107,13 +108,13 @@ export function CalendarScreen(props: CalendarScreenProps) {
         title={title}
         actions={
           <>
-            <div className="flex rounded-md border p-0.5 text-xs">
+            <div className="flex rounded-lg border p-0.5 text-xs">
               {(["agenda", "week", "month"] as CalendarView[]).map((v) => (
                 <Link
                   key={v}
                   href={href(v, date)}
                   className={cn(
-                    "rounded px-2 py-1",
+                    "rounded-md px-2.5 py-1",
                     v === view
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground",
@@ -172,50 +173,52 @@ export function CalendarScreen(props: CalendarScreenProps) {
           </>
         }
       />
-      {!connected ? (
-        <div className="p-6 text-center text-sm text-muted-foreground">
-          <p>Google 캘린더가 연결되지 않았어요.</p>
-          <Button asChild size="sm" className="mt-3">
-            <Link
-              href="/api/integrations/google/start?next=/calendar"
-              prefetch={false}
-            >
-              Google 캘린더 연결
-            </Link>
-          </Button>
-        </div>
-      ) : view === "agenda" ? (
-        <AgendaView
-          events={events}
-          fromYmd={date}
-          days={14}
-          today={today}
-          timezone={timezone}
-          calendars={calendars}
-          onOpen={openEvent}
-          onAdd={openNew}
-        />
-      ) : view === "week" ? (
-        <WeekView
-          events={events}
-          weekStart={startOfWeek(date)}
-          today={today}
-          timezone={timezone}
-          calendars={calendars}
-          onOpen={openEvent}
-          onAdd={openNew}
-        />
-      ) : (
-        <MonthView
-          events={events}
-          monthDate={date}
-          today={today}
-          timezone={timezone}
-          calendars={calendars}
-          onOpen={openEvent}
-          onAdd={openNew}
-        />
-      )}
+      <Page width="full" className="flex flex-col">
+        {!connected ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            <p>Google 캘린더가 연결되지 않았어요.</p>
+            <Button asChild size="sm" className="mt-3">
+              <Link
+                href="/api/integrations/google/start?next=/calendar"
+                prefetch={false}
+              >
+                Google 캘린더 연결
+              </Link>
+            </Button>
+          </div>
+        ) : view === "agenda" ? (
+          <AgendaView
+            events={events}
+            fromYmd={date}
+            days={14}
+            today={today}
+            timezone={timezone}
+            calendars={calendars}
+            onOpen={openEvent}
+            onAdd={openNew}
+          />
+        ) : view === "week" ? (
+          <WeekView
+            events={events}
+            weekStart={startOfWeek(date)}
+            today={today}
+            timezone={timezone}
+            calendars={calendars}
+            onOpen={openEvent}
+            onAdd={openNew}
+          />
+        ) : (
+          <MonthView
+            events={events}
+            monthDate={date}
+            today={today}
+            timezone={timezone}
+            calendars={calendars}
+            onOpen={openEvent}
+            onAdd={openNew}
+          />
+        )}
+      </Page>
       <EventSheet
         draft={draft}
         calendars={calendars}

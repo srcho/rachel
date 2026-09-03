@@ -24,7 +24,7 @@ export function MessageList({
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center text-sm text-muted-foreground">
         <p className="font-medium text-foreground">무엇을 도와드릴까요?</p>
-        <p>
+        <p className="max-w-[28ch]">
           “오늘 마감인 것 보여줘”, “내일 3시 PRD 검토 카드 만들어줘”, “Doing에서
           지연된 건 다음주 월요일로 옮겨줘”
         </p>

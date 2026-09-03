@@ -16,6 +16,7 @@ interface Props {
 }
 
 const DOW = ["월", "화", "수", "목", "금", "토", "일"];
+const MAX_PER_CELL = 4;
 
 export function MonthView({
   events,
@@ -36,15 +37,15 @@ export function MonthView({
     byDay.set(ymd, [...(byDay.get(ymd) ?? []), e]);
   }
   return (
-    <div className="px-2 pb-6">
-      <div className="grid grid-cols-7 text-center text-[11px] text-muted-foreground">
+    <div className="flex flex-col px-3 pb-3 md:min-h-0 md:flex-1">
+      <div className="grid shrink-0 grid-cols-7 text-center text-[11px] text-muted-foreground">
         {DOW.map((d) => (
-          <div key={d} className="py-1">
+          <div key={d} className="py-1.5">
             {d}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-md border bg-border">
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border bg-border md:min-h-0 md:flex-1 md:grid-rows-6">
         {cells.map((ymd) => {
           const items = (byDay.get(ymd) ?? []).sort(
             (a, b) =>
@@ -57,7 +58,7 @@ export function MonthView({
             <div
               key={ymd}
               className={cn(
-                "min-h-20 bg-background p-1",
+                "flex min-h-20 flex-col bg-background p-1 md:min-h-0",
                 !inMonth && "bg-muted/40 text-muted-foreground",
               )}
             >
@@ -71,13 +72,13 @@ export function MonthView({
               >
                 {Number(ymd.slice(8))}
               </button>
-              <div className="space-y-px">
-                {items.slice(0, 3).map((e) => (
+              <div className="min-h-0 flex-1 space-y-px overflow-hidden">
+                {items.slice(0, MAX_PER_CELL).map((e) => (
                   <button
                     key={e.id}
                     type="button"
                     onClick={() => onOpen(e)}
-                    className="block w-full truncate rounded px-1 text-left text-[10px] leading-4 hover:bg-accent"
+                    className="block w-full truncate rounded px-1 text-left text-[11px] leading-[18px] hover:bg-accent"
                     style={{
                       background: `${calendars.find((c) => c.id === e.calendar_id)?.color ?? "#888"}22`,
                     }}
@@ -85,9 +86,9 @@ export function MonthView({
                     {e.title}
                   </button>
                 ))}
-                {items.length > 3 && (
+                {items.length > MAX_PER_CELL && (
                   <p className="px-1 text-[10px] text-muted-foreground">
-                    +{items.length - 3}
+                    +{items.length - MAX_PER_CELL}
                   </p>
                 )}
               </div>

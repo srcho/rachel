@@ -274,7 +274,7 @@ export function Board({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActive(null)}
       >
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:snap-none">
+        <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 py-3 md:h-full md:snap-none">
           {columns.map((col) => (
             <Column
               key={col.id}
@@ -287,7 +287,7 @@ export function Board({
         </div>
         <DragOverlay dropAnimation={null}>
           {active ? (
-            <div className="w-[74vw] md:w-68">
+            <div className="w-[74vw] md:w-72">
               {<CardBody card={active} dragging />}
             </div>
           ) : null}

@@ -25,6 +25,12 @@ const server = spawn("pnpm", ["exec", "next", "start", "-p", String(PORT)], {
   env: { ...process.env, E2E_TEST_SECRET: secret },
 });
 const base = `http://localhost:${PORT}`;
+process.on("exit", () => server.kill());
+process.on("uncaughtException", (e) => {
+  console.error(e);
+  server.kill();
+  process.exit(1);
+});
 for (let i = 0; i < 60; i++) {
   try {
     if ((await fetch(`${base}/login`)).ok) break;

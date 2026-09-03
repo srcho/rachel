@@ -44,7 +44,7 @@ export async function UsagePanel({ db, userId }: { db: Db; userId: string }) {
   );
 
   return (
-    <div className="space-y-3 rounded-lg border p-3 text-sm">
+    <div className="space-y-3 text-sm">
       <div className="flex items-baseline justify-between">
         <div>
           <p className="text-xs text-muted-foreground">이번 달 AI 비용</p>

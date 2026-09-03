@@ -5,6 +5,7 @@ import { eventService } from "./events";
 import { eventTimeLabel } from "./format";
 import type { EventRow } from "./repository";
 
+/** 오늘 일정. 목적: 지금 이후 무엇이 남았는지, 시간순으로. */
 export const todayTimelineWidget: DashboardWidget<{
   events: EventRow[];
   connected: boolean;
@@ -13,6 +14,8 @@ export const todayTimelineWidget: DashboardWidget<{
   title: "오늘 일정",
   surface: "today",
   size: "md",
+  rows: 2,
+  href: "/calendar",
   order: 10,
   load: async (ctx) => {
     const svc = eventService(ctx);
@@ -24,32 +27,27 @@ export const todayTimelineWidget: DashboardWidget<{
       connected: true,
     };
   },
-  Component: ({ data }) => (
-    <div className="rounded-lg border bg-card p-3">
-      <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-sm font-medium">오늘 일정</h3>
-        <Link
-          href="/calendar"
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          캘린더
+  Component: ({ data }) =>
+    !data.connected ? (
+      <p className="flex h-full min-h-16 items-center text-sm text-muted-foreground">
+        <Link href="/settings" className="underline underline-offset-2">
+          Google 캘린더를 연결
         </Link>
-      </div>
-      {!data.connected ? (
-        <p className="py-2 text-sm text-muted-foreground">
-          <Link href="/settings" className="underline">
-            Google 캘린더를 연결
-          </Link>
-          하면 여기에 보여요.
-        </p>
-      ) : data.events.length === 0 ? (
-        <p className="py-2 text-sm text-muted-foreground">
-          오늘은 일정이 없어요.
-        </p>
-      ) : (
-        <ul className="divide-y">
-          {data.events.map((e) => (
-            <li key={e.id} className="flex items-center gap-2 py-1 text-sm">
+        하면 여기에 보여요.
+      </p>
+    ) : data.events.length === 0 ? (
+      <p className="flex h-full min-h-16 items-center text-sm text-muted-foreground">
+        오늘은 일정이 없어요.
+      </p>
+    ) : (
+      <ul className="divide-y">
+        {data.events.map((e) => {
+          const past = new Date(e.end_at).getTime() < Date.now();
+          return (
+            <li
+              key={e.id}
+              className={`flex items-center gap-2 py-1.5 text-sm ${past ? "text-muted-foreground" : ""}`}
+            >
               <span className="w-[5.5rem] shrink-0 tabular-nums text-muted-foreground">
                 {eventTimeLabel(e)}
               </span>
@@ -60,9 +58,8 @@ export const todayTimelineWidget: DashboardWidget<{
                 </span>
               )}
             </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  ),
+          );
+        })}
+      </ul>
+    ),
 };

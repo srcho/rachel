@@ -16,10 +16,11 @@ export interface WeeklyPoint {
 export function WeeklyBars({
   data,
   series,
-  height = 160,
+  height,
 }: {
   data: WeeklyPoint[];
   series: Array<{ key: string; label: string; color?: string }>;
+  /** 생략하면 부모 flex 높이를 채운다 */
   height?: number;
 }) {
   const config = Object.fromEntries(
@@ -29,7 +30,13 @@ export function WeeklyBars({
     ]),
   ) as ChartConfig;
   return (
-    <ChartContainer config={config} className="w-full" style={{ height }}>
+    <ChartContainer
+      config={config}
+      className={
+        height ? "w-full" : "max-h-44 min-h-24 w-full flex-1 md:max-h-none"
+      }
+      style={height ? { height } : undefined}
+    >
       <BarChart data={data} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis
