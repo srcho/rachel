@@ -192,6 +192,80 @@ export type Database = {
           },
         ];
       };
+      chat_messages: {
+        Row: {
+          created_at: string;
+          id: string;
+          parts: Json;
+          role: string;
+          thread_id: string;
+          tokens: number | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          parts?: Json;
+          role: string;
+          thread_id: string;
+          tokens?: number | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          parts?: Json;
+          role?: string;
+          thread_id?: string;
+          tokens?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_threads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      chat_threads: {
+        Row: {
+          created_at: string;
+          id: string;
+          last_message_at: string;
+          scope: Json | null;
+          summary: string | null;
+          summary_upto_message_id: string | null;
+          title: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          last_message_at?: string;
+          scope?: Json | null;
+          summary?: string | null;
+          summary_upto_message_id?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          last_message_at?: string;
+          scope?: Json | null;
+          summary?: string | null;
+          summary_upto_message_id?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       domain_events: {
         Row: {
           actor: string;

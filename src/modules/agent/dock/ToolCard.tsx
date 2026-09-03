@@ -1,0 +1,171 @@
+"use client";
+import { Check, ChevronRight, Loader2, Undo2, X } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { undoAction } from "../actions";
+
+const TOOL_LABEL: Record<string, string> = {
+  tasks_listBoards: "보드 확인",
+  tasks_list: "카드 목록 조회",
+  tasks_get: "카드 조회",
+  tasks_create: "카드 생성",
+  tasks_update: "카드 수정",
+  tasks_move: "카드 이동",
+  tasks_complete: "카드 완료",
+  tasks_bulkUpdate: "카드 일괄 변경",
+  tasks_archive: "카드 보관",
+  tasks_delete: "카드 삭제",
+};
+
+export interface ToolPartLike {
+  type: string;
+  toolCallId: string;
+  state: string;
+  input?: unknown;
+  output?: unknown;
+  errorText?: string;
+  approval?: { id: string; isAutomatic?: boolean; approved?: boolean };
+}
+
+function summary(name: string, part: ToolPartLike): string {
+  const input = (part.input ?? {}) as Record<string, unknown>;
+  const output = part.output as
+    | Record<string, unknown>
+    | Array<unknown>
+    | undefined;
+  if (name === "tasks_create" && typeof input.title === "string")
+    return `“${input.title}”`;
+  if (
+    (name === "tasks.update" ||
+      name === "tasks.move" ||
+      name === "tasks.complete" ||
+      name === "tasks.archive" ||
+      name === "tasks.delete") &&
+    output &&
+    !Array.isArray(output) &&
+    typeof output.title === "string"
+  )
+    return `“${output.title}”`;
+  if (name === "tasks_list" && Array.isArray(output))
+    return `${output.length}건`;
+  if (name === "tasks_bulkUpdate")
+    return `${Array.isArray(input.ids) ? input.ids.length : "?"}건`;
+  return "";
+}
+
+export function ToolCard({
+  part,
+  onApprove,
+}: {
+  part: ToolPartLike;
+  onApprove?: (id: string, approved: boolean) => void;
+}) {
+  const name = part.type.replace(/^tool-/, "");
+  const label = TOOL_LABEL[name] ?? name;
+  const [open, setOpen] = useState(false);
+  const [undone, setUndone] = useState(false);
+  const running =
+    part.state === "input-streaming" || part.state === "input-available";
+  const failed =
+    part.state === "output-error" || part.state === "output-denied";
+  const undoId = (part.output as { _undo?: string } | undefined)?._undo;
+
+  if (
+    part.state === "approval-requested" &&
+    part.approval &&
+    !part.approval.isAutomatic
+  ) {
+    return (
+      <div className="my-1 rounded-md border border-amber-400/60 bg-amber-50 p-2.5 text-sm dark:bg-amber-950/30">
+        <p className="font-medium">
+          {label} {summary(name, part)} — 실행할까요?
+        </p>
+        <pre className="mt-1 max-h-32 overflow-auto rounded bg-background/60 p-1.5 text-[11px] text-muted-foreground">
+          {JSON.stringify(part.input, null, 1)}
+        </pre>
+        <div className="mt-2 flex gap-1.5">
+          <Button
+            size="sm"
+            onClick={() => onApprove?.(part.approval?.id ?? "", true)}
+          >
+            <Check className="size-3.5" /> 승인
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onApprove?.(part.approval?.id ?? "", false)}
+          >
+            <X className="size-3.5" /> 거절
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "my-1 rounded-md border bg-muted/40 text-xs",
+        failed && "border-destructive/50",
+      )}
+    >
+      <button
+        type="button"
+        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {running ? (
+          <Loader2 className="size-3 animate-spin text-muted-foreground" />
+        ) : (
+          <ChevronRight
+            className={cn(
+              "size-3 text-muted-foreground transition-transform",
+              open && "rotate-90",
+            )}
+          />
+        )}
+        <span className="font-medium">{label}</span>
+        <span className="truncate text-muted-foreground">
+          {summary(name, part)}
+        </span>
+        {part.state === "approval-responded" &&
+          part.approval?.approved === false && (
+            <span className="ml-auto text-muted-foreground">거절됨</span>
+          )}
+        {failed && (
+          <span className="ml-auto text-destructive">
+            {part.state === "output-denied" ? "거절됨" : "실패"}
+          </span>
+        )}
+        {undoId && !undone && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-6 px-1.5 text-[11px]"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const r = await undoAction(undoId);
+              if (r.ok) {
+                setUndone(true);
+                toast.success("되돌렸어요");
+              } else toast.error(r.reason ?? "되돌리기 실패");
+            }}
+          >
+            <Undo2 className="size-3" /> 되돌리기
+          </Button>
+        )}
+        {undone && (
+          <span className="ml-auto text-muted-foreground">되돌림</span>
+        )}
+      </button>
+      {open && (
+        <pre className="max-h-48 overflow-auto border-t px-2 py-1.5 text-[11px] text-muted-foreground">
+          {part.errorText ??
+            JSON.stringify({ input: part.input, output: part.output }, null, 1)}
+        </pre>
+      )}
+    </div>
+  );
+}

@@ -60,6 +60,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.2",
+    "@next/env": "^16.3.4",
     "@playwright/test": "^1.62.1",
     "@serwist/cli": "^9.5.12",
     "@tailwindcss/postcss": "^4",

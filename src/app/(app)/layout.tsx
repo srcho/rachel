@@ -1,6 +1,9 @@
 import { requireUser } from "@/core/auth/session";
 import { AppShell } from "@/core/ui/AppShell";
 import { registry } from "@/modules";
+import { DesktopDockButton } from "@/modules/agent/dock/DesktopDockButton";
+import { RachelFab } from "@/modules/agent/dock/RachelFab";
+import { RachelPanel } from "@/modules/agent/dock/RachelPanel";
 
 export default async function AppLayout({
   children,
@@ -15,5 +18,13 @@ export default async function AppLayout({
     href: n.href,
     mobileTab: n.mobileTab,
   }));
-  return <AppShell nav={nav}>{children}</AppShell>;
+  return (
+    <AppShell
+      nav={nav}
+      dock={{ fab: <RachelFab />, panel: <RachelPanel /> }}
+      railFooter={<DesktopDockButton />}
+    >
+      {children}
+    </AppShell>
+  );
 }

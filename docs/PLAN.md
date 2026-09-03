@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P1 진행 중 — S1.3 완료, 다음 S1.4 레이첼 채팅 Dock** |
+| 상태 | **P1 진행 중 — S1.4 완료, 다음 S1.5 memory 기본** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -228,7 +228,7 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 > 변경(2026-09-03): 도구는 `defineTool()` 헬퍼로 입력·출력 타입 추론. `bulkUpdate`는 항상 destructive(승인). undo 는 출력에 `_before` 스냅샷을 실어 구현. `_hello` 모듈 삭제, Today·설정 nav 는 코어(app 레이아웃)에서 고정. 인덱서는 S4.2 에서.
 
 #### S1.4 agent 모듈 — 채팅 Dock과 도구 루프
-- [ ] 산출: `supabase/migrations/0003_agent.sql`(chat_threads, chat_messages), `src/modules/agent/{module,schema,repository,service,context,persona,tools}.ts`, `src/app/api/chat/route.ts`, `src/modules/agent/dock/{RachelDock,Fab,MessageList,Message,ToolCard,ApprovalCard,Composer,ContextChip,CostChip,ThreadList}.tsx`, `src/modules/agent/store.ts`(zustand: open, mode, threadId, uiContext).
+- [x] 산출: `supabase/migrations/0003_agent.sql`(chat_threads, chat_messages), `src/modules/agent/{module,schema,repository,service,context,persona,tools}.ts`, `src/app/api/chat/route.ts`, `src/modules/agent/dock/{RachelDock,Fab,MessageList,Message,ToolCard,ApprovalCard,Composer,ContextChip,CostChip,ThreadList}.tsx`, `src/modules/agent/store.ts`(zustand: open, mode, threadId, uiContext).
 - 구현:
   - `/api/chat`: ARCHITECTURE 6.1 흐름. `ToolLoopAgent`(AI SDK v6; 생성자·`stream` 메서드명은 `node_modules/ai/docs` 확인) + `toAiSdkTools(registry.tools(), ctx)` + `stopWhen: stepCountIs(6)`. `needsApproval`로 destructive 승인. 응답은 UI 메시지 스트림. `onFinish`에 메시지 저장·`llm_usage`(ref {thread})·`enqueue('memory.extract', dedupe: threadId, runAt: +10m)`.
   - 컨텍스트: `registry.contextProviders()` 병렬 → 예산 합 ≤ 6K(`core/utils/tokens.ts` 근사: 한글 1자 ≈ 1토큰, 영문 4자 ≈ 1토큰). 고정 접두어(persona + 도구 안내)와 동적 꼬리 분리.
@@ -237,6 +237,7 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
   - 스레드: 최근 스레드 이어가기, 새 대화, 목록. 압축: 메시지 40개 초과 시 앞 20개를 luna로 요약해 `chat_threads.summary`.
 - 검증: "Doing에서 마감 지난 것 보여줘" → 목록. "이 보드에서 마감 지난 것 다 다음 주 월요일로" → 승인 카드 → 실행 → 되돌리기. 첫 토큰 ≤ 1.5s 측정. 비용 칩 표시.
 - 커밋: `feat(agent): Rachel chat dock with tool loop, approvals, undo, cost chip` (UI와 API를 2커밋으로 나눠도 됨)
+> 변경(2026-09-03): AI SDK v7 규격 — `ToolLoopAgent` + `toolApproval`(destructive → 'user-approval') + `createAgentUIStreamResponse`(onStepFinish 로 사용량 합산, messageMetadata 로 비용 칩, onFinish 로 저장·원장). **OpenAI 도구 이름은 `^[a-zA-Z0-9_-]+$`** 라 레지스트리 `tasks.create` 를 어댑터가 `tasks_create` 로 노출(undo 토큰엔 레지스트리 이름). 실제 luna 통합 테스트(`agent.integration.test.ts`, 키 있을 때만) 통과. 스레드 압축(요약)·메시지 40개 초과 처리는 미구현 → S1.5/P4. 첫 토큰 시간·모바일 실측은 사용자 확인. 테스트 실행 시 키가 필요하면 `set -a; . ./.env.local; set +a; pnpm test`.
 
 #### S1.5 memory 기본(추출·회상, UI는 P4)
 - [ ] 산출: `supabase/migrations/0004_memory.sql`(memories, search_chunks, HNSW·trgm 인덱스, RPC `match_memories`, `search_chunks_hybrid`), `src/modules/memory/{module,schema,repository,service,extract,retrieve,tools,jobs,events}.ts`, `src/core/llm/prompts/memory-extract.ts`.
@@ -456,3 +457,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S1.1 완료: 0002_tasks(로컬·프로덕션), schema/repository/service, 통합 테스트 7개(총 30개) | **S1.2** 칸반 UI | — |
 | 2026-09-03 | rachel-d5 | S1.2 완료: 칸반 UI(dnd-kit·낙관적 업데이트·Realtime), 카드 시트, 빠른 추가(한국어 마감 파서), /tasks 라우트, 배포 | **S1.3** tasks 도구·액션·위젯 | 테스트 36개. Google 로그인 사용자 확인 완료 |
 | 2026-09-03 | rachel-d5 | S1.3 완료: tasks 도구 10개(undo 포함)·컨텍스트 프로바이더·Today 위젯·커맨드, 통합 테스트 | **S1.4** agent 모듈(채팅 Dock·도구 루프) | 테스트 38개 |
+| 2026-09-03 | rachel-d5 | S1.4 완료: 0004_agent, /api/chat(ToolLoopAgent·승인·undo·비용 메타), Dock(FAB·드로어·패널·⌘J·스레드·컨텍스트 칩), 실제 LLM 테스트 통과, 배포 | **S1.5** memory 기본 | 테스트 43개 |
