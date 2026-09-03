@@ -34,6 +34,164 @@ export type Database = {
   };
   public: {
     Tables: {
+      board_columns: {
+        Row: {
+          board_id: string;
+          created_at: string;
+          id: string;
+          is_done: boolean;
+          name: string;
+          position: string;
+          updated_at: string;
+          user_id: string;
+          wip_limit: number | null;
+        };
+        Insert: {
+          board_id: string;
+          created_at?: string;
+          id?: string;
+          is_done?: boolean;
+          name: string;
+          position: string;
+          updated_at?: string;
+          user_id?: string;
+          wip_limit?: number | null;
+        };
+        Update: {
+          board_id?: string;
+          created_at?: string;
+          id?: string;
+          is_done?: boolean;
+          name?: string;
+          position?: string;
+          updated_at?: string;
+          user_id?: string;
+          wip_limit?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "board_columns_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      boards: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          id: string;
+          is_default: boolean;
+          name: string;
+          position: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          id?: string;
+          is_default?: boolean;
+          name: string;
+          position?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          id?: string;
+          is_default?: boolean;
+          name?: string;
+          position?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      cards: {
+        Row: {
+          archived_at: string | null;
+          board_id: string;
+          calendar_event_id: string | null;
+          checklist: Json;
+          column_id: string;
+          completed_at: string | null;
+          created_at: string;
+          description_md: string;
+          due_at: string | null;
+          due_has_time: boolean;
+          id: string;
+          labels: string[];
+          meeting_id: string | null;
+          position: string;
+          priority: number;
+          source: Json;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          archived_at?: string | null;
+          board_id: string;
+          calendar_event_id?: string | null;
+          checklist?: Json;
+          column_id: string;
+          completed_at?: string | null;
+          created_at?: string;
+          description_md?: string;
+          due_at?: string | null;
+          due_has_time?: boolean;
+          id?: string;
+          labels?: string[];
+          meeting_id?: string | null;
+          position: string;
+          priority?: number;
+          source?: Json;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          board_id?: string;
+          calendar_event_id?: string | null;
+          checklist?: Json;
+          column_id?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          description_md?: string;
+          due_at?: string | null;
+          due_has_time?: boolean;
+          id?: string;
+          labels?: string[];
+          meeting_id?: string | null;
+          position?: string;
+          priority?: number;
+          source?: Json;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cards_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cards_column_id_fkey";
+            columns: ["column_id"];
+            isOneToOne: false;
+            referencedRelation: "board_columns";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       domain_events: {
         Row: {
           actor: string;

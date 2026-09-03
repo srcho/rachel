@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 버전 | v1.0 · 2026-09-02 |
-| 상태 | **P0 완료(2026-09-03, 프로덕션 배포·크론 동작) → P1 S1.1부터** |
+| 상태 | **P1 진행 중 — S1.1 완료, 다음 S1.2 칸반 UI** |
 | 기준 문서 | [PRD.md](./PRD.md) v1.0(무엇을·왜) · [ARCHITECTURE.md](./ARCHITECTURE.md) v1.0(어떻게) · 이 문서(언제·어떤 순서로) |
 | 저장소 | `github.com/srcho/rachel` · 브랜치 `main` · 의미 단위 커밋 |
 | 참고 | `docs/reference/PRD.taimen-v1.0.md`(병렬 세션 초안, 참고용) |
@@ -207,10 +207,11 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 ### P1 Tasks + Rachel v0 (5~7일) — 목표: S3 시나리오 통과, 매일 쓰기 시작
 
 #### S1.1 tasks 스키마·리포지토리·서비스
-- [ ] 산출: `supabase/migrations/0002_tasks.sql`(boards, board_columns, cards — ARCHITECTURE 5.3), `src/modules/tasks/{schema,repository,service}.ts`, `src/modules/tasks/__tests__/service.test.ts`.
+- [x] 산출: `supabase/migrations/0002_tasks.sql`(boards, board_columns, cards — ARCHITECTURE 5.3), `src/modules/tasks/{schema,repository,service}.ts`, `src/modules/tasks/__tests__/service.test.ts`.
 - 구현: `service.ensureDefaultBoard(userId)`(없으면 "Personal" + 4컬럼, `is_done` = Done), `createCard`, `moveCard(cardId, columnId, beforeId?, afterId?)` → `fractional-indexing`의 `generateKeyBetween`, `completeCard`(Done 컬럼 이동 + `completed_at`), `archive`, `bulkUpdate`. 모든 변경은 `emit('task.<event>')`. 자연어 마감: `chrono-node` ko 로케일(`chrono.ko.parseDate`) 우선.
 - 검증: 서비스 단위 테스트(로컬 Supabase): 이동 시 1행만 갱신, Done 이동 시 completed_at 세팅, 다른 user_id로 0행(RLS).
 - 커밋: `feat(tasks): schema, repository, service with fractional ordering`
+> 변경(2026-09-03): 자연어 마감 파싱은 서비스가 아니라 UI(QuickAdd)·도구 계층에서 처리(서비스는 ISO만). 통합 테스트 헬퍼 `src/test/supabase.ts`(로컬 사용자 생성·RLS 세션)는 로컬 Supabase가 없으면 skip. 타임존 하루 경계는 `core/utils/date.ts`. 프로덕션에도 적용됨(0002).
 
 #### S1.2 칸반 UI
 - [ ] 산출: `src/app/(app)/tasks/page.tsx`(기본 보드로 redirect), `tasks/[boardId]/page.tsx`(RSC: 보드+컬럼+카드 로드), `src/modules/tasks/ui/{Board,Column,Card,CardSheet,QuickAdd,LabelPicker,DuePicker}.tsx`, `src/modules/tasks/queries.ts`(TanStack Query 키·훅·낙관적 업데이트), `src/core/realtime/useTableChanges.ts`, `src/core/query/{provider,persister}.tsx`.
@@ -450,3 +451,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-02 | rachel-d5 | S0.1~S0.6 완료(키 없이 가능한 범위). 테스트 21개, `pnpm build` 성공, 잡 러너 스모크 통과 | **§3 키 발급(Supabase·Google·OpenAI·Meta·Vercel)** → S0.7 배포 → 실제 Google 로그인 검증 → P1 S1.1 | 로컬 Supabase 553xx 포트. `.env.local`에 로컬 Supabase 값은 채워짐, 나머지 키는 빈칸. 미검증: Google 로그인, Muse 실키, Lighthouse |
 | 2026-09-03 | rachel-d5 | S0.7 완료: 프로덕션 DB 마이그레이션, Vercel 배포(rachel-seven-tau.vercel.app), env 10개, Auth 설정 push, pg_cron→잡 러너 동작 확인 | **P1 S1.1** tasks 스키마·서비스 | Meta 키만 미발급(Muse 실호출·S3.0 스파이크 대기). 사용자 확인 필요: Google 로그인 1회, Lighthouse/iPhone 설치 |
 | 2026-09-03 | rachel-d5 | D13 결정: VibeVoice-ASR 로컬 파이널 패스(맥 워커 + Muse 폴백) 후보를 S3.0 스파이크·S3.5 변경 후보로 기록 | P1 S1.1 | 맥 M4 Max 64GB |
+| 2026-09-03 | rachel-d5 | S1.1 완료: 0002_tasks(로컬·프로덕션), schema/repository/service, 통합 테스트 7개(총 30개) | **S1.2** 칸반 UI | — |
