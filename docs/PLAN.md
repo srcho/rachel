@@ -467,3 +467,4 @@ ARCHITECTURE 14장이 전체. 여기서는 매 Step에서 어기기 쉬운 것�
 | 2026-09-03 | rachel-d5 | S1.5 완료: 0005_memory(pgvector·trgm·RPC 2개), memory 서비스(병합·회상·추출)·도구 5개·컨텍스트·추출 잡(스레드 유휴 10분) | **S1.6** 설정 사용량 화면 | 테스트 44개 |
 | 2026-09-03 | rachel-d5 | S1.6 완료(사용량·비용 패널, 호칭·예산 설정). **P1 Exit**: 배포됨, S3 시나리오는 사용자 실사용 확인 필요 | **P2 S2.1** Google 캘린더 OAuth 연동 | 매일 사용 시작 가능 |
 | 2026-09-03 | rachel-d5 | S2.1~S2.5 완료: OAuth(Vault)·증분 동기화·캘린더 3뷰·CRUD write-through·도구 6개·Today 브리핑. 0006·0007 프로덕션 적용, 크론 3개 | **P3 S3.0** 회의 스파이크(iOS 녹음·Muse·VibeVoice) — Meta 키 필요 | 사용자 확인: Google 연결·양방향 반영·브리핑 |
+| 2026-09-03 | rachel-d5 | **버그 수정**: calendar 모듈 등록 누락·insights 모듈 배열 누락으로 프로덕션 잡 "핸들러 없음". 모듈 내부 `@/modules` 순환 import 제거(ctx.registry·getRegistry), 레지스트리 조립 회귀 테스트·biome 금지 규칙 추가. 재실행 결과 일정 30건 동기화·브리핑 생성 확인 | P3 S3.0 | 교훈: 파이썬 문자열 치환은 실패해도 조용하다 → 치환 후 assert, 조립 결과는 테스트로 검증 |
