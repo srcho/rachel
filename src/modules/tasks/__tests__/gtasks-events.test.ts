@@ -71,6 +71,21 @@ describe.skipIf(!available)("tasks ↔ Google Tasks 이벤트", () => {
     );
   });
 
+  it("bulkUpdate 도 카드 스냅샷을 싣는다(레이첼의 여러 건 변경이 미러를 탄다)", async () => {
+    const svc = tasksService(ctx);
+    const a = await svc.createCard({ title: "벌크 A" });
+    const b = await svc.createCard({ title: "벌크 B" });
+    await svc.bulkUpdate([a.id, b.id], { dueAt: "2026-09-10T00:00:00+09:00" });
+    const evs = emitted.filter(
+      (e) => e.type === "task.updated" && e.payload.bulk === true,
+    );
+    expect(evs).toHaveLength(2);
+    for (const e of evs)
+      expect((e.payload.card as { dueAt: string }).dueAt).toBe(
+        "2026-09-09T15:00:00+00:00",
+      );
+  });
+
   it("Google 에서 완료 → Done 으로, 다시 미완료 → Todo 로", async () => {
     const svc = tasksService(ctx);
     const card = await svc.createCard({

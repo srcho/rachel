@@ -333,7 +333,11 @@ export function tasksService(ctx: ServiceContext) {
       await ctx.emit({
         type: TASK_EVENTS.updated,
         entity: { type: "card", id: c.id },
-        payload: { fields: Object.keys(patch), bulk: true },
+        payload: {
+          fields: Object.keys(patch),
+          bulk: true,
+          card: cardSnapshot(c),
+        },
       });
     return { cards, before };
   }

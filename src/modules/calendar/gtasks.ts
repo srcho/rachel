@@ -132,7 +132,10 @@ export function gtasksService(ctx: ServiceContext) {
     const st = await status();
     if (!st.enabled || !st.hasScope || !st.connected) return "skipped";
     const link = await repo.getTaskLink(card.id);
-    const shouldExist = Boolean(card.dueAt) && !card.archived;
+    // 마감이 있는 카드는 새로 비추고, 이미 연결된 카드(Google 에서 온 것 포함)는 마감이 없어져도 유지한다.
+    // Google 항목이 사라지는 건 보관·삭제뿐.
+    const shouldExist =
+      !card.archived && (Boolean(card.dueAt) || Boolean(link));
     const { token: t } = await token();
     if (!shouldExist) {
       if (!link) return "none";
@@ -144,10 +147,14 @@ export function gtasksService(ctx: ServiceContext) {
     }
     const listId = await ensureList();
     const body = toBody(card);
+    if (!card.dueAt) body.due = undefined; // 마감이 지워진 경우 Google 쪽 날짜도 비운다(PATCH 는 undefined 를 보내지 않으므로 null 로)
     const now = ctx.now.toISOString();
     if (link) {
       try {
-        await gtasks.patch(t, link.tasklist_id, link.gtask_id, body);
+        await gtasks.patch(t, link.tasklist_id, link.gtask_id, {
+          ...body,
+          ...(card.dueAt ? {} : { due: null }),
+        });
         await repo.upsertTaskLink({
           card_id: card.id,
           tasklist_id: link.tasklist_id,

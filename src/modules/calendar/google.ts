@@ -222,8 +222,8 @@ export interface GTask {
   title?: string;
   notes?: string;
   status?: "needsAction" | "completed";
-  /** RFC3339, 날짜만 의미 있음 (시각은 무시됨) */
-  due?: string;
+  /** RFC3339, 날짜만 의미 있음 (시각은 무시됨). PATCH 에서 null 이면 지운다 */
+  due?: string | null;
   completed?: string | null;
   deleted?: boolean;
   hidden?: boolean;
