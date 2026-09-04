@@ -31,9 +31,15 @@ export function useTableChanges(
       if (timer) clearTimeout(timer);
       timer = setTimeout(onChange, debounceMs);
     };
-    void import("@/core/db/browser").then(({ createBrowserSupabase }) => {
+    void import("@/core/db/browser").then(async ({ createBrowserSupabase }) => {
       if (cancelled) return;
       const supabase = createBrowserSupabase();
+      // RLS 가 걸린 postgres_changes 는 사용자 JWT 로 join 해야 한다. 세션 로드 전에 구독하면 익명 join 이 되어
+      // 변경이 조용히 걸러진다(2026-09-04 확인) — 먼저 세션을 읽어 Realtime 에 토큰을 넣는다.
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session)
+        await supabase.realtime.setAuth(data.session.access_token);
       let channel = supabase.channel(`user:${userId}:${key}`);
       for (const table of tableList) {
         channel = channel.on(
