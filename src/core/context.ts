@@ -43,3 +43,26 @@ export function createContext(input: CreateContextInput): ToolContext {
 }
 
 export type { ServiceContext };
+
+/**
+ * Server Action·서버 컴포넌트용: 로그인 사용자 + 서버 Supabase + 레지스트리로 ServiceContext 를 만든다.
+ * (예전엔 같은 6줄이 30곳에 복사돼 있었다)
+ */
+export async function userContext(
+  actor: Actor = "user",
+): Promise<ServiceContext> {
+  const [{ requireUser }, { createServerSupabase }, { getRegistry }] =
+    await Promise.all([
+      import("@/core/auth/session"),
+      import("@/core/db/server"),
+      import("@/core/registry/current"),
+    ]);
+  const user = await requireUser();
+  const db = await createServerSupabase();
+  return createContext({
+    db,
+    userId: user.id,
+    actor,
+    registry: await getRegistry(),
+  });
+}

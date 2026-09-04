@@ -10,7 +10,7 @@ export const captureWidget: DashboardWidget<{ open: number }> = {
   placement: "top",
   order: -10,
   load: async (ctx) => ({
-    open: (await captureService(ctx).list("open", 100)).length,
+    open: await captureService(ctx).countOpen(),
   }),
   Component: ({ data }) => <CaptureInput openCount={data.open} />,
 };

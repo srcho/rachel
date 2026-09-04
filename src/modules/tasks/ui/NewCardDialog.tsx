@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormDialog } from "@/core/ui/FormDialog";
 import { formatDue, PRIORITY_LABEL } from "../format";
@@ -44,26 +44,33 @@ export function NewCardDialog({
   const [busy, setBusy] = useState(false);
   const [parse, setParse] = useState<typeof parseDueFromTitle | null>(null);
 
+  // 열리는 순간에만 초기화한다. columns(Realtime 갱신)·parse(chrono 로드) 변화로 작성 중인 폼을 지우지 않는다
+  const columnsRef = useRef(columns);
+  columnsRef.current = columns;
+  const defaultColumnRef = useRef(defaultColumnId);
+  defaultColumnRef.current = defaultColumnId;
   useEffect(() => {
     if (!open) return;
+    const cols = columnsRef.current;
     setTitle("");
     setDue("");
     setHasTime(false);
     setPriority(2);
     setDescription("");
     setColumnId(
-      defaultColumnId ??
-        columns.find((c) => !c.is_done && c.name.toLowerCase() === "todo")
-          ?.id ??
-        columns.find((c) => !c.is_done)?.id ??
-        columns[0]?.id ??
+      defaultColumnRef.current ??
+        cols.find((c) => !c.is_done && c.name.toLowerCase() === "todo")?.id ??
+        cols.find((c) => !c.is_done)?.id ??
+        cols[0]?.id ??
         "",
     );
-    if (!parse)
-      void import("../parse-due").then((m) =>
-        setParse(() => m.parseDueFromTitle),
-      );
-  }, [open, defaultColumnId, columns, parse]);
+  }, [open]);
+  useEffect(() => {
+    if (!open || parse) return;
+    void import("../parse-due").then((m) =>
+      setParse(() => m.parseDueFromTitle),
+    );
+  }, [open, parse]);
 
   const parsed = parse && title.trim() && !due ? parse(title) : null;
   const hint = parsed

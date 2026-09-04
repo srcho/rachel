@@ -17,8 +17,8 @@ export const createEventSchema = z.object({
       "생략 가능. 시각 일정은 시작 +1시간, 종일(allDay) 은 생략 — 서버가 다음날(배타적 종료)을 채운다. 사용자에게 묻지 말 것",
     ),
   allDay: z.boolean().default(false),
-  location: z.string().max(500).optional(),
-  description: z.string().max(5000).optional(),
+  location: z.string().max(500).nullish(),
+  description: z.string().max(5000).nullish(),
 });
 export type CreateEventInput = z.input<typeof createEventSchema>;
 

@@ -10,6 +10,30 @@ import { cn } from "@/lib/utils";
 import { ModuleIcon } from "./icon";
 import type { NavItem } from "./nav-types";
 
+function Item({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          href={item.href}
+          aria-current={active ? "page" : undefined}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-md",
+            active
+              ? "bg-accent text-foreground"
+              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+          )}
+        >
+          <ModuleIcon name={item.icon} className="size-[18px]" />
+          <span className="sr-only">{item.name}</span>
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="right">{item.name}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function DesktopRail({
   items,
   footer,
@@ -19,30 +43,6 @@ export function DesktopRail({
   footer?: NavItem;
 }) {
   const pathname = usePathname();
-  const Item = ({ item }: { item: NavItem }) => {
-    const active =
-      pathname === item.href || pathname.startsWith(`${item.href}/`);
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Link
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex size-9 items-center justify-center rounded-md",
-              active
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-            )}
-          >
-            <ModuleIcon name={item.icon} className="size-[18px]" />
-            <span className="sr-only">{item.name}</span>
-          </Link>
-        </TooltipTrigger>
-        <TooltipContent side="right">{item.name}</TooltipContent>
-      </Tooltip>
-    );
-  };
   return (
     <aside className="sticky top-0 hidden h-dvh w-14 shrink-0 flex-col items-center border-r bg-background py-3 md:flex">
       <Link
@@ -55,10 +55,12 @@ export function DesktopRail({
         {items
           .filter((i) => i.id !== "today")
           .map((item) => (
-            <Item key={item.id} item={item} />
+            <Item key={item.id} item={item} pathname={pathname} />
           ))}
       </nav>
-      <div className="mt-auto">{footer && <Item item={footer} />}</div>
+      <div className="mt-auto">
+        {footer && <Item item={footer} pathname={pathname} />}
+      </div>
     </aside>
   );
 }

@@ -56,11 +56,8 @@ export function EventSheet({
 const field =
   "w-full rounded-md border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring/50";
 
-function toIso(local: string, allDay: boolean, endOfDay = false): string {
-  if (allDay)
-    return new Date(
-      `${local.slice(0, 10)}T${endOfDay ? "00:00:00" : "00:00:00"}`,
-    ).toISOString();
+function toIso(local: string, allDay: boolean): string {
+  if (allDay) return new Date(`${local.slice(0, 10)}T00:00:00`).toISOString();
   return new Date(local).toISOString();
 }
 
@@ -98,8 +95,9 @@ function EventForm({
         startAt,
         endAt,
         allDay: d.allDay,
-        location: d.location || undefined,
-        description: d.description || undefined,
+        // 비운 값은 null 로 보내야 지워진다(undefined 는 "변경 없음")
+        location: d.location.trim() || null,
+        description: d.description.trim() || null,
       };
       if (d.id) await updateEventAction(d.id, payload);
       else

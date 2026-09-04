@@ -64,7 +64,8 @@ function CardForm({
     try {
       let dueAt: string | null = null;
       if (due) {
-        const d = hasTime ? new Date(due) : new Date(`${due}T23:59:00`);
+        // 날짜만 있는 마감의 정규형은 로컬 자정(추가 다이얼로그·Google 되받기와 동일)
+        const d = hasTime ? new Date(due) : new Date(`${due}T00:00:00`);
         dueAt = d.toISOString();
       }
       await onSave(card.id, {

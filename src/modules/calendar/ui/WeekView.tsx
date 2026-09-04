@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { addDays } from "../format";
 import { expandOccurrences } from "../occurrences";
@@ -29,11 +30,9 @@ export function WeekView({
   onAdd,
 }: Props) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const byDay = expandOccurrences(
-    events,
-    weekStart,
-    addDays(weekStart, 7),
-    timezone,
+  const byDay = useMemo(
+    () => expandOccurrences(events, weekStart, addDays(weekStart, 7), timezone),
+    [events, weekStart, timezone],
   );
   return (
     <div className="overflow-x-auto px-3 pb-3 md:min-h-0 md:flex-1 md:overflow-x-hidden">

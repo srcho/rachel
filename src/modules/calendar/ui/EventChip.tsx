@@ -28,6 +28,7 @@ export function EventChip({
     "var(--primary)";
   const pending = event.sync_status !== "synced";
   const continuing = o.dayCount > 1 && !o.isStart;
+  const short = compact ? occurrenceShortLabel(o, timezone) : "";
   return (
     <button
       type="button"
@@ -51,9 +52,9 @@ export function EventChip({
           continuing && "text-muted-foreground",
         )}
       >
-        {compact && (
+        {compact && short && (
           <span className="mr-1 tabular-nums text-muted-foreground">
-            {occurrenceShortLabel(o, timezone)}
+            {short}
           </span>
         )}
         {event.title}

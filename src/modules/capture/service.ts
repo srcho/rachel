@@ -42,6 +42,15 @@ export function captureService(ctx: ServiceContext) {
     return data;
   }
 
+  /** 열린 캡처 개수(배지용) — 행을 가져오지 않는다 */
+  async function countOpen(): Promise<number> {
+    const { count, error } = await own(
+      ctx.db.from("captures").select("id", { count: "exact", head: true }),
+    ).in("status", ["inbox", "triaged"]);
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async function list(
     status: "inbox" | "triaged" | "resolved" | "dismissed" | "open" = "open",
     limit = 50,
@@ -180,5 +189,5 @@ export function captureService(ctx: ServiceContext) {
       .eq("user_id", ctx.userId);
   }
 
-  return { add, list, get, triage, resolve, dismiss };
+  return { add, list, countOpen, get, triage, resolve, dismiss };
 }

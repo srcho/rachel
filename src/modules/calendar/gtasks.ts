@@ -48,17 +48,17 @@ export function gtasksService(ctx: ServiceContext) {
   const repo = calendarRepository(ctx.db, ctx.userId);
 
   async function status(): Promise<GtasksStatus> {
-    const [integration, settings, links] = await Promise.all([
+    const [integration, settings, linked] = await Promise.all([
       repo.getIntegration(),
       getProfileSettings(ctx.db, ctx.userId),
-      repo.listTaskLinks(),
+      repo.countTaskLinks(),
     ]);
     return {
       connected: Boolean(integration && integration.status === "connected"),
       hasScope: Boolean(integration?.scopes?.includes(GTASKS_SCOPE)),
       enabled: settings.gtasks?.enabled ?? false,
       listId: settings.gtasks?.listId ?? null,
-      linked: links.length,
+      linked,
       pulledAt: settings.gtasks?.pulledAt ?? null,
     };
   }
@@ -151,7 +151,7 @@ export function gtasksService(ctx: ServiceContext) {
     const now = ctx.now.toISOString();
     if (link) {
       try {
-        await gtasks.patch(t, link.tasklist_id, link.gtask_id, {
+        const patched = await gtasks.patch(t, link.tasklist_id, link.gtask_id, {
           ...body,
           ...(card.dueAt ? {} : { due: null }),
         });
@@ -159,7 +159,8 @@ export function gtasksService(ctx: ServiceContext) {
           card_id: card.id,
           tasklist_id: link.tasklist_id,
           gtask_id: link.gtask_id,
-          last_pushed_at: now,
+          // 메아리 판정은 Google 의 updated 기준(잡 시작 시각이 아니라)
+          last_pushed_at: patched.updated ?? now,
         });
         return "updated";
       } catch (e) {
@@ -172,7 +173,7 @@ export function gtasksService(ctx: ServiceContext) {
       card_id: card.id,
       tasklist_id: listId,
       gtask_id: created.id,
-      last_pushed_at: now,
+      last_pushed_at: created.updated ?? now,
     });
     return "created";
   }

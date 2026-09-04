@@ -1,23 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/core/auth/session";
-import { createContext } from "@/core/context";
-import { createServerSupabase } from "@/core/db/server";
-import { getRegistry } from "@/core/registry/current";
+import { userContext } from "@/core/context";
 import type { Triage } from "./schema";
 import { captureService } from "./service";
 
 async function svc() {
-  const user = await requireUser();
-  const db = await createServerSupabase();
-  return captureService(
-    createContext({
-      db,
-      userId: user.id,
-      actor: "user",
-      registry: await getRegistry(),
-    }),
-  );
+  return captureService(await userContext());
 }
 
 export async function captureAction(

@@ -1,4 +1,5 @@
 import type { IndexChunk, Indexer } from "@/core/contracts";
+import { fmtDateTime } from "@/core/utils/date";
 import { fmtClock } from "./format";
 import { meetingsService } from "./service";
 
@@ -12,7 +13,7 @@ export const meetingsIndexer: Indexer = {
     const svc = meetingsService(ctx);
     const m = await svc.get(id);
     if (!m) return [];
-    const date = new Date(m.started_at).toLocaleDateString("ko-KR");
+    const date = fmtDateTime(m.started_at, ctx.timezone, "date");
     const meta = { title: m.title, href: `/meetings/${id}`, date };
     const out: IndexChunk[] = [];
     if (m.summary_md)

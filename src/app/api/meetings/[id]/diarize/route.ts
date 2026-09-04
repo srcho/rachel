@@ -98,9 +98,11 @@ export async function POST(
       const { mapping, turns: kept } = stitch(turns, OVERLAP_MS);
       // 겹침 중복 제거: 유지할 (chunk, turn) 만 남기고 삭제
       const keep = new Set(kept.map((t) => `${t.chunkIndex}:${t.turnId}`));
-      for (const s of rows)
-        if (!keep.has(`${s.chunk_index ?? 0}:${s.turn_id ?? 0}`))
-          await db.from("transcript_segments").delete().eq("id", s.id);
+      const drop = rows
+        .filter((s) => !keep.has(`${s.chunk_index ?? 0}:${s.turn_id ?? 0}`))
+        .map((s) => s.id);
+      if (drop.length)
+        await db.from("transcript_segments").delete().in("id", drop);
       await svc.repo.updateSpeakers(
         id,
         Object.entries(mapping).flatMap(([ci, m]) =>

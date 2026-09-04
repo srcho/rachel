@@ -40,13 +40,3 @@ export const gtasksPushJob: JobHandler<{ card: z.infer<typeof snapshot> }> = {
     await gtasksService(ctx).push(card);
   },
 };
-
-/** Google 쪽 변경 가져오기(수동 트리거용; 크론은 sync 잡 안에서) */
-export const gtasksPullJob: JobHandler<Record<string, never>> = {
-  schema: z.object({}),
-  timeoutSec: 120,
-  maxAttempts: 2,
-  run: async (_p, ctx) => {
-    await gtasksService(ctx).pull();
-  },
-};

@@ -136,6 +136,8 @@ flowchart LR
 4. 모듈이 만드는 테이블·이벤트·도구·잡 이름은 모듈 id를 접두어로 쓴다(`cards`는 예외적으로 tasks 모듈 소유 — 소유는 마이그레이션 파일명 접두어로 표시).
 5. UI는 코어가 제공하는 슬롯(nav, Today 위젯, Insights 위젯, 설정 섹션, ⌘K 명령)에 **선언으로** 끼운다.
 
+> 조립 헬퍼(2026-09-04): Server Action·서버 컴포넌트는 `userContext()`(`src/core/context.ts`) 로 로그인 사용자 + 서버 Supabase + 레지스트리를 한 번에 받는다. 코어가 모듈을 import 하는 것은 biome 이 막는다(`src/core/**` → `@/modules` 금지, 예외는 `registry/current.ts` 의 지연 조립). 앱 레이어 조립 컴포넌트는 `src/app/(app)/_ui/`(예: PaletteHost). `llm_usage.feature` 라벨은 `core/llm/features.ts` 한 곳.
+
 ### 3.2 계약 (`src/core/contracts/`)
 
 ```ts

@@ -37,7 +37,8 @@ export const gtasksPushHandler: EventHandler = {
     await ctx.enqueue({
       type: "calendar.gtasks_push",
       payload: { card },
-      dedupeKey: `gtasks_push:${card.id}:${card.updatedAt}:${event.type}`,
+      // moved+completed 처럼 같은 스냅샷을 내는 연속 이벤트는 잡 하나로(삭제만 구분)
+      dedupeKey: `gtasks_push:${card.id}:${card.updatedAt}:${event.type === "task.deleted" ? "del" : "up"}`,
     });
   },
 };

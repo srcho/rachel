@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-export const PRIORITIES = [0, 1, 2, 3] as const; // P0 긴급 … P3 낮음
 export const DEFAULT_COLUMNS = [
   { name: "Backlog", isDone: false },
   { name: "Todo", isDone: false },

@@ -3,6 +3,7 @@ import { History, Maximize2, Minimize2, Plus, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useIsDesktop } from "@/core/ui/useMediaQuery";
+import { DEFAULT_TZ, fmtDateTime } from "@/core/utils/date";
 import { cn } from "@/lib/utils";
 import { listThreadsAction, loadThreadAction } from "../actions";
 import type { RachelUIMessage } from "../agent";
@@ -139,13 +140,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
               >
                 <span className="block truncate">{t.title}</span>
                 <span className="text-[11px] text-muted-foreground">
-                  {new Date(t.lastMessageAt).toLocaleString("ko-KR", {
-                    month: "numeric",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  })}
+                  {fmtDateTime(t.lastMessageAt, DEFAULT_TZ)}
                 </span>
               </button>
             </li>

@@ -94,12 +94,17 @@ export function LiveScreen({
     return () => {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("beforeunload", onUnload);
+      // 화면을 벗어나면(클라이언트 라우팅·뒤로가기·StrictMode 재마운트) 마이크·WakeLock 을 반드시 놓는다
+      if (rec.current === r && r.state !== "done") void r.stop();
+      if (rec.current === r) rec.current = null;
     };
   }, [meetingId]);
 
+  // 새 문장이 붙을 때만 끝으로(레벨 미터·타이머 갱신에는 스크롤하지 않는다 — 이전 문장을 읽을 수 있게)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: lines.length 변화에만 반응
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  });
+  }, [lines.length]);
 
   /** 종료: 남은 세그먼트 업로드 → 서버에 종료 알림(요약 시작) → 상세로. 실패하면 화면에 남아 다시 시도 */
   async function end() {

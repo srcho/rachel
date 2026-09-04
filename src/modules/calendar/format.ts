@@ -1,29 +1,26 @@
-import type { EventRow } from "./repository";
-
 export const TZ = "Asia/Seoul";
 
+const timeFormatters = new Map<string, Intl.DateTimeFormat>();
 export function fmtTime(iso: string, tz = TZ): string {
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: tz,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(iso));
+  let f = timeFormatters.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat("ko-KR", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    timeFormatters.set(tz, f);
+  }
+  return f.format(new Date(iso));
 }
+const dayHeaderFormatter = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  weekday: "short",
+});
 export function fmtDayHeader(ymd: string): string {
-  const d = new Date(`${ymd}T00:00:00`);
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  }).format(d);
-}
-export function eventTimeLabel(
-  e: Pick<EventRow, "start_at" | "end_at" | "all_day">,
-  tz = TZ,
-): string {
-  if (e.all_day) return "종일";
-  return `${fmtTime(e.start_at, tz)}–${fmtTime(e.end_at, tz)}`;
+  return dayHeaderFormatter.format(new Date(`${ymd}T00:00:00`));
 }
 /** YYYY-MM-DD 를 n일 이동 */
 export function addDays(ymd: string, n: number): string {

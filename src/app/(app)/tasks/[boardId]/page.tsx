@@ -3,9 +3,14 @@ import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { Page } from "@/core/ui/Page";
-import { dayBounds } from "@/core/utils/date";
+import { dayBounds, localYmd } from "@/core/utils/date";
 import { registry } from "@/modules";
 import { eventService } from "@/modules/calendar/events";
+import { addDays } from "@/modules/calendar/format";
+import {
+  expandOccurrences,
+  occurrenceLabel,
+} from "@/modules/calendar/occurrences";
 import { tasksService } from "@/modules/tasks/service";
 import { Board } from "@/modules/tasks/ui/Board";
 
@@ -38,13 +43,19 @@ export default async function BoardPage({
   const linked = new Set(
     view.cards.map((c) => c.calendar_event_id).filter(Boolean),
   );
-  const todayEvents = events.map((e) => ({
-    id: e.id,
-    title: e.title,
-    startAt: e.start_at,
-    endAt: e.end_at,
-    allDay: e.all_day,
-    linked: linked.has(e.id),
+  // 오늘을 덮는 조각 기준(여러 날 일정은 "계속"/"→ 종료" 라벨, 드롭 시 마감은 오늘)
+  const todayYmd = localYmd(ctx.now, ctx.timezone);
+  const todayEvents = (
+    expandOccurrences(events, todayYmd, addDays(todayYmd, 1), ctx.timezone).get(
+      todayYmd,
+    ) ?? []
+  ).map((o) => ({
+    id: o.event.id,
+    title: o.event.title,
+    label: occurrenceLabel(o, ctx.timezone),
+    dueAt: o.isStart ? o.event.start_at : start,
+    dueHasTime: o.isStart && !o.event.all_day,
+    linked: linked.has(o.event.id),
   }));
   return (
     <Page width="full">

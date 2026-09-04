@@ -117,8 +117,8 @@ export const calendarTools: Record<string, AnyAgentTool> = {
         startAt: b.startAt,
         endAt: b.endAt,
         allDay: b.allDay,
-        location: b.location ?? undefined,
-        description: b.description ?? undefined,
+        location: b.location,
+        description: b.description,
       });
     },
   }),

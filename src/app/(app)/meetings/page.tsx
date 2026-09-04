@@ -6,6 +6,7 @@ import { createServerSupabase } from "@/core/db/server";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { Panel } from "@/core/ui/Panel";
+import { fmtDateTime } from "@/core/utils/date";
 import { registry } from "@/modules";
 import {
   FINAL_LABEL,
@@ -21,17 +22,9 @@ export const dynamic = "force-dynamic";
 export default async function MeetingsPage() {
   const user = await requireUser();
   const db = await createServerSupabase();
-  const svc = meetingsService(
-    createContext({ db, userId: user.id, actor: "user", registry }),
-  );
+  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const svc = meetingsService(ctx);
   const meetings = await svc.list(50);
-  const fmt = new Intl.DateTimeFormat("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
   return (
     <>
       <PageHeader
@@ -63,7 +56,7 @@ export default async function MeetingsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{m.title}</p>
                       <p className="text-xs tabular-nums text-muted-foreground">
-                        {fmt.format(new Date(m.started_at))}
+                        {fmtDateTime(m.started_at, ctx.timezone)}
                         {m.duration_sec
                           ? ` · ${fmtDuration(m.duration_sec)}`
                           : ""}

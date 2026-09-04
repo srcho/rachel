@@ -47,7 +47,3 @@ export function textModel(role: TextRole) {
 export function embeddingModel() {
   return openai().embeddingModel(MODEL_IDS.embed);
 }
-/** 원장 키: provider/model */
-export function modelKey(role: keyof typeof MODEL_IDS): string {
-  return `openai/${MODEL_IDS[role]}`;
-}

@@ -1,4 +1,5 @@
 import type { ContextProvider } from "@/core/contracts";
+import { fmtDateTime } from "@/core/utils/date";
 import { fmtClock } from "./format";
 import { meetingsService } from "./service";
 
@@ -26,7 +27,7 @@ export const meetingContextProvider: ContextProvider = {
         `[${fmtClock(s.start_ms)}] ${s.speaker ? `${speakerMap[s.speaker] ?? s.speaker}: ` : ""}${s.text}`,
     );
     return [
-      `[회의: ${meeting.title} ${new Date(meeting.started_at).toLocaleDateString("ko-KR")}]`,
+      `[회의: ${meeting.title} ${fmtDateTime(meeting.started_at, ctx.timezone, "date")}]`,
       meeting.summary_md ? `요약:\n${meeting.summary_md}` : "요약 없음",
       `전사 발췌:\n${lines.join("\n")}`,
     ].join("\n");

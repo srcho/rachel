@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { DateRange, ServiceContext } from "@/core/contracts";
 import { localYmd } from "@/core/utils/date";
 
@@ -26,7 +27,7 @@ function fill<T extends { week: string }>(
   );
 }
 
-export async function tasksWeekly(ctx: ServiceContext, range: DateRange) {
+async function tasksWeeklyRaw(ctx: ServiceContext, range: DateRange) {
   const weeks = weeksIn(range, ctx.timezone);
   const [a, b] = await Promise.all([
     ctx.db
@@ -56,7 +57,7 @@ export async function tasksWeekly(ctx: ServiceContext, range: DateRange) {
   return { weekly: fill(weeks, rows, { created: 0, completed: 0 }), cycle };
 }
 
-export async function meetingsWeekly(ctx: ServiceContext, range: DateRange) {
+async function meetingsWeeklyRaw(ctx: ServiceContext, range: DateRange) {
   const weeks = weeksIn(range, ctx.timezone);
   const { data } = await ctx.db
     .from("v_meetings_weekly")
@@ -75,7 +76,7 @@ export async function meetingsWeekly(ctx: ServiceContext, range: DateRange) {
   );
 }
 
-export async function calendarWeekly(ctx: ServiceContext, range: DateRange) {
+async function calendarWeeklyRaw(ctx: ServiceContext, range: DateRange) {
   const weeks = weeksIn(range, ctx.timezone);
   const { data } = await ctx.db
     .from("v_calendar_load_weekly")
@@ -94,7 +95,7 @@ export async function calendarWeekly(ctx: ServiceContext, range: DateRange) {
   );
 }
 
-export async function captureWeekly(ctx: ServiceContext, range: DateRange) {
+async function captureWeeklyRaw(ctx: ServiceContext, range: DateRange) {
   const weeks = weeksIn(range, ctx.timezone);
   const { data } = await ctx.db
     .from("v_capture_conversion")
@@ -115,7 +116,7 @@ export async function captureWeekly(ctx: ServiceContext, range: DateRange) {
 }
 
 /** 완료 스트릭(오늘 포함 연속 일수)과 최근 30일 완료 일수 */
-export async function streak(ctx: ServiceContext) {
+async function streakRaw(ctx: ServiceContext) {
   const { data } = await ctx.db
     .from("v_completion_days")
     .select("day, completed")
@@ -139,7 +140,7 @@ export async function streak(ctx: ServiceContext) {
   };
 }
 
-export async function overdueStats(ctx: ServiceContext) {
+async function overdueStatsRaw(ctx: ServiceContext) {
   const { data } = await ctx.db
     .from("cards")
     .select("labels, priority, due_at")
@@ -161,7 +162,7 @@ export async function overdueStats(ctx: ServiceContext) {
 }
 
 /** 회의·일정 시간대 히트맵(요일×시) — 최근 range */
-export async function slotHeat(ctx: ServiceContext, range: DateRange) {
+async function slotHeatRaw(ctx: ServiceContext, range: DateRange) {
   const { data } = await ctx.db
     .from("v_event_slots")
     .select("dow, hour, hours")
@@ -178,3 +179,12 @@ export async function slotHeat(ctx: ServiceContext, range: DateRange) {
   }
   return grid;
 }
+
+/** 요청 스코프 캐시 — 인사이트 페이지의 위젯 여럿(패턴 포함)이 같은 지표를 다시 계산하지 않게 */
+export const tasksWeekly = cache(tasksWeeklyRaw);
+export const meetingsWeekly = cache(meetingsWeeklyRaw);
+export const calendarWeekly = cache(calendarWeeklyRaw);
+export const captureWeekly = cache(captureWeeklyRaw);
+export const streak = cache(streakRaw);
+export const overdueStats = cache(overdueStatsRaw);
+export const slotHeat = cache(slotHeatRaw);

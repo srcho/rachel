@@ -6,11 +6,13 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FEATURE_LABEL } from "@/core/llm/features";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
+import { DEFAULT_TZ, fmtDateTime } from "@/core/utils/date";
+import { formatCost } from "@/core/utils/format";
 import { cn } from "@/lib/utils";
-import { formatCost } from "@/modules/agent/dock/CostChip";
 import { useDock } from "@/modules/agent/dock/store";
 import {
   deleteMeetingAction,
@@ -36,14 +38,6 @@ interface Props {
   }>;
   userId: string;
 }
-
-const COST_LABEL: Record<string, string> = {
-  transcribe_live: "라이브 전사",
-  transcribe_final: "화자 분리",
-  summarize: "요약",
-  extract: "기억 추출",
-  embed: "임베딩",
-};
 
 export function MeetingDetail({
   meeting,
@@ -137,13 +131,7 @@ export function MeetingDetail({
       />
       <Page width="narrow" className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span>
-            {new Intl.DateTimeFormat("ko-KR", {
-              dateStyle: "medium",
-              timeStyle: "short",
-              hour12: false,
-            }).format(new Date(meeting.started_at))}
-          </span>
+          <span>{fmtDateTime(meeting.started_at, DEFAULT_TZ, "short")}</span>
           {meeting.duration_sec ? (
             <span>{fmtDuration(meeting.duration_sec)}</span>
           ) : null}
@@ -162,7 +150,7 @@ export function MeetingDetail({
             <span
               className="tabular-nums"
               title={Object.entries(costs)
-                .map(([k, v]) => `${COST_LABEL[k] ?? k} ${formatCost(v)}`)
+                .map(([k, v]) => `${FEATURE_LABEL[k] ?? k} ${formatCost(v)}`)
                 .join(" · ")}
             >
               비용 {formatCost(totalCost)}
@@ -297,14 +285,11 @@ export function MeetingDetail({
             {speakers.length > 0 && (
               <div className="flex flex-wrap gap-1.5 text-xs">
                 {speakers.map((sp) => (
-                  <button
-                    key={sp}
-                    type="button"
-                    onClick={() => renameSpeaker(sp)}
-                    className="rounded-full border px-2 py-0.5 hover:bg-accent"
-                  >
-                    {speakerMap[sp] ?? `화자 ${sp.replace(/^S/, "")}`} ✎
-                  </button>
+                  <Badge key={sp} asChild variant="outline">
+                    <button type="button" onClick={() => renameSpeaker(sp)}>
+                      {speakerMap[sp] ?? `화자 ${sp.replace(/^S/, "")}`} ✎
+                    </button>
+                  </Badge>
                 ))}
               </div>
             )}

@@ -226,48 +226,37 @@ export function Board({
       const ev = active.data.current.event;
       void add(to, {
         title: ev.title,
-        dueAt: ev.startAt,
-        dueHasTime: !ev.allDay,
+        dueAt: ev.dueAt,
+        dueHasTime: ev.dueHasTime,
         calendarEventId: ev.id,
       });
       return;
     }
     const id = String(active.id);
+    // setState 업데이터는 순수해야 한다(StrictMode·rebase 에서 재실행) — 계산과 서버 호출은 밖에서
     const snapshot = byColumn;
-    setByColumn((prev) => {
-      const list = [...(prev[to] ?? [])];
-      const fromIndex = list.findIndex((c) => c.id === id);
-      let toIndex = list.findIndex((c) => c.id === over.id);
-      if (fromIndex < 0) return prev;
-      if (toIndex < 0 || over.id === to) toIndex = list.length - 1;
-      const [moved] = list.splice(fromIndex, 1);
-      if (!moved) return prev;
-      list.splice(toIndex, 0, moved);
-      const after = list[toIndex - 1];
-      const before = list[toIndex + 1];
-      void run(
-        "이동",
-        () =>
-          moveCardAction(id, {
-            columnId: to,
-            afterId: after?.id ?? null,
-            beforeId: before?.id ?? null,
-          }),
-        () => setByColumn(snapshot),
-        {
-          action: "tasks.move",
-          args: [
-            id,
-            {
-              columnId: to,
-              afterId: after?.id ?? null,
-              beforeId: before?.id ?? null,
-            },
-          ],
-        },
-      );
-      return { ...prev, [to]: list };
-    });
+    const list = [...(snapshot[to] ?? [])];
+    const fromIndex = list.findIndex((c) => c.id === id);
+    let toIndex = list.findIndex((c) => c.id === over.id);
+    if (fromIndex < 0) return;
+    if (toIndex < 0 || over.id === to) toIndex = list.length - 1;
+    const [moved] = list.splice(fromIndex, 1);
+    if (!moved) return;
+    list.splice(toIndex, 0, moved);
+    const after = list[toIndex - 1];
+    const before = list[toIndex + 1];
+    setByColumn({ ...snapshot, [to]: list });
+    const input = {
+      columnId: to,
+      afterId: after?.id ?? null,
+      beforeId: before?.id ?? null,
+    };
+    void run(
+      "이동",
+      () => moveCardAction(id, input),
+      () => setByColumn(snapshot),
+      { action: "tasks.move", args: [id, input] },
+    );
   }
 
   async function add(
@@ -366,7 +355,7 @@ export function Board({
         onDragCancel={() => setActive(null)}
       >
         <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col md:h-full">
-          <TodayStrip events={todayEvents} timezone={timezone} />
+          <TodayStrip events={todayEvents} />
           <div
             ref={stripRef}
             className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 py-3 md:snap-none"

@@ -2,7 +2,7 @@ import type { RachelModule } from "@/core/contracts";
 import { calendarContextProvider } from "./context";
 import { gtasksPushHandler } from "./gtasks-handlers";
 import { eventsIndexer } from "./indexer";
-import { gtasksPullJob, gtasksPushJob, syncJob } from "./jobs";
+import { gtasksPushJob, syncJob } from "./jobs";
 import { calendarTools } from "./tools";
 import { CalendarSettings } from "./ui/CalendarSettings";
 import { todayTimelineWidget } from "./widgets";
@@ -23,7 +23,6 @@ export const calendarModule: RachelModule = {
   jobs: {
     sync: syncJob,
     gtasks_push: gtasksPushJob,
-    gtasks_pull: gtasksPullJob,
   },
   eventHandlers: [gtasksPushHandler],
   commands: [

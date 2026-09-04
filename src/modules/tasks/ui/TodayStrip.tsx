@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils";
 export interface StripEvent {
   id: string;
   title: string;
-  startAt: string;
-  endAt: string;
-  allDay: boolean;
+  /** 오늘 조각의 라벨("10:00–11:00", "종일", "→ 11:00" 등) — 앱 레이어가 계산해 넘긴다 */
+  label: string;
+  /** 드롭해서 카드를 만들 때의 마감 */
+  dueAt: string;
+  dueHasTime: boolean;
   /** 이미 이 일정에서 만든 카드가 있음 */
   linked: boolean;
 }
@@ -17,31 +19,15 @@ export interface StripEvent {
  * 보드 상단 "오늘 일정" 스트립(읽기 전용). 캘린더 → 할 일 단방향.
  * 칩을 컬럼에 끌어다 놓으면 그때만 카드가 생기고 일정과 연결된다.
  */
-export function TodayStrip({
-  events,
-  timezone,
-}: {
-  events: StripEvent[];
-  timezone: string;
-}) {
+export function TodayStrip({ events }: { events: StripEvent[] }) {
   if (events.length === 0) return null;
-  const fmt = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
   return (
     <div className="flex shrink-0 items-center gap-2 overflow-x-auto px-4 pt-3 text-xs">
       <span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">
         <CalendarDays className="size-3.5" /> 오늘
       </span>
       {events.map((e) => (
-        <Chip
-          key={e.id}
-          event={e}
-          time={e.allDay ? "종일" : fmt.format(new Date(e.startAt))}
-        />
+        <Chip key={e.id} event={e} time={e.label} />
       ))}
       <span className="shrink-0 text-muted-foreground/70">
         컬럼에 끌어다 놓으면 카드가 돼요

@@ -1,5 +1,6 @@
 import type { ServiceContext } from "@/core/contracts";
 import type { Json } from "@/core/db/types.generated";
+import { tzOffsetMs } from "@/core/utils/date";
 import { eventService } from "./events";
 import { type GEvent, GoogleApiError, google } from "./google";
 import {
@@ -21,12 +22,12 @@ export function toRow(
   const start =
     e.start?.dateTime ??
     (e.start?.date
-      ? `${e.start.date}T00:00:00${offsetFor(e.start.timeZone)}`
+      ? `${e.start.date}T00:00:00${offsetFor(e.start.timeZone, e.start.date)}`
       : new Date().toISOString());
   const end =
     e.end?.dateTime ??
     (e.end?.date
-      ? `${e.end.date}T00:00:00${offsetFor(e.end.timeZone)}`
+      ? `${e.end.date}T00:00:00${offsetFor(e.end.timeZone, e.end.date)}`
       : start);
   return {
     calendar_id: calendar.id,
@@ -54,18 +55,15 @@ export function toRow(
   };
 }
 
-/** 종일 일정은 캘린더 타임존 자정. 타임존 정보가 없으면 서울. */
-function offsetFor(tz?: string): string {
+/** 종일 일정은 캘린더 타임존 자정. 그 날짜의 오프셋(DST 존 대비) — 타임존 정보가 없으면 서울. */
+function offsetFor(tz: string | undefined, ymd: string): string {
   const zone = tz ?? "Asia/Seoul";
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: zone,
-    timeZoneName: "longOffset",
-  }).formatToParts(now);
-  const raw =
-    parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+09:00";
-  const m = /GMT([+-]\d{2}:\d{2})?/.exec(raw);
-  return m?.[1] ?? "+09:00";
+  const ms = tzOffsetMs(zone, new Date(`${ymd}T12:00:00Z`));
+  const sign = ms >= 0 ? "+" : "-";
+  const abs = Math.abs(ms) / 60_000;
+  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm = String(abs % 60).padStart(2, "0");
+  return `${sign}${hh}:${mm}`;
 }
 
 export interface SyncResult {

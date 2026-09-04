@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { addDays, fmtDayHeader } from "../format";
 import { expandOccurrences } from "../occurrences";
@@ -29,11 +30,9 @@ export function AgendaView({
   onAdd,
 }: Props) {
   const list = Array.from({ length: days }, (_, i) => addDays(fromYmd, i));
-  const byDay = expandOccurrences(
-    events,
-    fromYmd,
-    addDays(fromYmd, days),
-    timezone,
+  const byDay = useMemo(
+    () => expandOccurrences(events, fromYmd, addDays(fromYmd, days), timezone),
+    [events, fromYmd, days, timezone],
   );
   const nowLabel = new Intl.DateTimeFormat("ko-KR", {
     timeZone: timezone,

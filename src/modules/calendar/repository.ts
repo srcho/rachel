@@ -28,6 +28,15 @@ export function calendarRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
+    async countTaskLinks(): Promise<number> {
+      const { count, error } = await own(
+        db
+          .from("google_task_links")
+          .select("id", { count: "exact", head: true }),
+      );
+      if (error) throw error;
+      return count ?? 0;
+    },
     async listTaskLinks(): Promise<TaskLinkRow[]> {
       const { data, error } = await own(
         db.from("google_task_links").select("*"),

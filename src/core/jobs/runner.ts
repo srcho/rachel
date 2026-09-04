@@ -14,6 +14,8 @@ export interface RunnerDeps {
   /** 잡의 user_id 로 서비스 컨텍스트를 만든다 */
   contextFor(job: JobRecord): ServiceContext;
   batch?: number;
+  /** 한 번의 실행에 쓸 수 있는 시간(ms). 넘으면 남은 잡은 pending 으로 되돌린다 */
+  budgetMs?: number;
   now?: () => Date;
 }
 
@@ -24,6 +26,7 @@ export interface RunStats {
   retried: number;
 }
 
+const DEFAULT_BUDGET_MS = 250_000;
 const DEFAULT_TIMEOUT_SEC = 240;
 
 export function backoffMinutes(attempts: number): number {
@@ -53,6 +56,7 @@ async function withTimeout<T>(
 export async function runJobs(deps: RunnerDeps): Promise<RunStats> {
   const now = deps.now ?? (() => new Date());
   const handlers = deps.registry.jobHandlers();
+  const startedAt = Date.now();
   const jobs = await deps.store.claim(deps.batch ?? 10);
   const stats: RunStats = {
     claimed: jobs.length,
@@ -70,8 +74,26 @@ export async function runJobs(deps: RunnerDeps): Promise<RunStats> {
       continue;
     }
     const maxAttempts = handler.maxAttempts ?? job.max_attempts;
+    // 함수 시간 한도(300초) 안에서만: 남은 잡은 다음 틱에(claim 의 10분 회수보다 빠르게 pending 으로)
+    if (Date.now() - startedAt > (deps.budgetMs ?? DEFAULT_BUDGET_MS)) {
+      await deps.store.fail(job.id, "시간 예산 초과로 미룸", now());
+      stats.retried++;
+      continue;
+    }
+    let payload: unknown;
     try {
-      const payload = handler.schema.parse(job.payload ?? {});
+      payload = handler.schema.parse(job.payload ?? {});
+    } catch (err) {
+      // 페이로드가 틀린 잡은 재시도해도 같다 — 바로 실패
+      await deps.store.fail(
+        job.id,
+        `payload 검증 실패: ${err instanceof Error ? err.message : String(err)}`,
+        null,
+      );
+      stats.failed++;
+      continue;
+    }
+    try {
       await withTimeout(
         handler.run(payload, deps.contextFor(job)),
         handler.timeoutSec ?? DEFAULT_TIMEOUT_SEC,

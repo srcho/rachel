@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/core/ui/Panel";
+import { DEFAULT_TZ, fmtDateTime } from "@/core/utils/date";
 import { generateWeeklyReviewAction } from "../actions";
 
 interface Review {
@@ -59,7 +60,7 @@ export function ReviewList({ reviews }: { reviews: Review[] }) {
                   {r.periodStart} ~ {r.periodEnd}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {new Date(r.createdAt).toLocaleDateString("ko-KR")}
+                  {fmtDateTime(r.createdAt, DEFAULT_TZ, "date")}
                 </span>
               </button>
               {open === r.id && (

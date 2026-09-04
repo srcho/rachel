@@ -4,7 +4,7 @@ import { createServerSupabase } from "@/core/db/server";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { registry } from "@/modules";
-import { MEMORY_KINDS, type MemoryKind } from "@/modules/memory/schema";
+import { MEMORY_KINDS, type MemoryKind } from "@/modules/memory/constants";
 import { memoryService } from "@/modules/memory/service";
 import { MemoryList } from "@/modules/memory/ui/MemoryList";
 import { MemorySearch } from "@/modules/memory/ui/MemorySearch";

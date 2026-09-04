@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { DashboardWidget } from "@/core/contracts";
-import { formatCost, formatTokens } from "@/modules/agent/dock/CostChip";
+import { FEATURE_LABEL } from "@/core/llm/features";
+import { formatCost, formatTokens } from "@/core/utils/format";
 import {
   calendarWeekly,
   captureWeekly,
@@ -176,19 +177,6 @@ interface CostData {
   daily: Array<{ day: string; cost: number }>;
   perMeeting: number | null;
 }
-const FEATURE_LABEL: Record<string, string> = {
-  chat: "채팅",
-  summarize: "회의 요약",
-  extract: "기억 추출",
-  brief: "브리핑",
-  review: "주간 리뷰",
-  triage: "캡처 분류",
-  embed: "임베딩",
-  transcribe_live: "전사(라이브)",
-  transcribe_final: "화자 분리",
-  voice_input: "음성 입력",
-};
-
 export const costWidget: DashboardWidget<CostData> = {
   id: "insights.cost",
   title: "AI 비용",

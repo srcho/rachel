@@ -1,7 +1,6 @@
 import type { EventHandler } from "@/core/contracts";
 import { dayBounds, localYmd } from "@/core/utils/date";
 import { tasksRepository } from "./repository";
-import { TASK_EVENTS } from "./schema";
 import { cardSnapshot, tasksService } from "./service";
 
 /** Google Tasks 에서 바뀐 것(완료·제목·마감)을 카드에 반영. origin: google 로 되밀기를 막는다 */
@@ -82,12 +81,13 @@ export const gtasksEnabledHandler: EventHandler = {
       includeCompleted: false,
       limit: 200,
     });
+    // task.updated 를 다시 내면 인덱서가 카드마다 재임베딩한다 — push 잡만 직접 건다
     for (const card of cards) {
       if (!card.due_at) continue;
-      await ctx.emit({
-        type: TASK_EVENTS.updated,
-        entity: { type: "card", id: card.id },
-        payload: { fields: ["gtasks"], card: cardSnapshot(card) },
+      await ctx.enqueue({
+        type: "calendar.gtasks_push",
+        payload: { card: cardSnapshot(card) },
+        dedupeKey: `gtasks_push:${card.id}:backfill`,
       });
     }
   },

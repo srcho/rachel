@@ -1,14 +1,6 @@
 import type { ContextProvider } from "@/core/contracts";
+import { KIND_LABEL, type MemoryKind } from "./constants";
 import { memoryService } from "./service";
-
-const KIND_LABEL: Record<string, string> = {
-  fact: "사실",
-  preference: "선호",
-  person: "사람",
-  decision: "결정",
-  goal: "목표",
-  routine: "루틴",
-};
 
 /** 질의와 관련된 기억 top-8 + 고정 기억. 사용된 기억은 use_count 를 올린다. */
 export const memoryContextProvider: ContextProvider = {
@@ -28,7 +20,9 @@ export const memoryContextProvider: ContextProvider = {
     ]) {
       if (seen.has(m.id)) continue;
       seen.add(m.id);
-      lines.push(`- (${KIND_LABEL[m.kind] ?? m.kind}) ${m.content}`);
+      lines.push(
+        `- (${KIND_LABEL[m.kind as MemoryKind] ?? m.kind}) ${m.content}`,
+      );
     }
     if (lines.length === 0) return null;
     void svc.touch([...seen]).catch(() => {});

@@ -14,6 +14,7 @@ export interface UploadedTurn {
 
 interface QueueItem {
   seg: Segment;
+  wav: Blob;
   attempts: number;
 }
 
@@ -42,14 +43,19 @@ export class Uploader {
 
   async enqueue(seg: Segment): Promise<void> {
     const wav = encodeWav(seg.pcm, this.sampleRate);
-    await audioStore.putPcm(
-      this.meetingId,
-      seg.seq,
-      seg.startMs,
-      seg.endMs,
-      wav,
-    );
-    this.queue.push({ seg, attempts: 0 });
+    try {
+      await audioStore.putPcm(
+        this.meetingId,
+        seg.seq,
+        seg.startMs,
+        seg.endMs,
+        wav,
+      );
+    } catch (e) {
+      // IndexedDB 실패(프라이빗 모드·용량)여도 전사는 계속한다 — 파이널 패스 오디오만 빠진다
+      console.warn("[uploader] PCM 저장 실패", seg.seq, e);
+    }
+    this.queue.push({ seg, wav, attempts: 0 });
     this.pump();
   }
 
@@ -90,11 +96,7 @@ export class Uploader {
     const { seg } = item;
     try {
       const form = new FormData();
-      form.append(
-        "audio",
-        encodeWav(seg.pcm, this.sampleRate),
-        `${seg.seq}.wav`,
-      );
+      form.append("audio", item.wav, `${seg.seq}.wav`);
       form.append("seq", String(seg.seq));
       form.append("startMs", String(seg.startMs));
       form.append("endMs", String(seg.endMs));

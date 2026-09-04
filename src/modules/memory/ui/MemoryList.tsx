@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/core/ui/Panel";
+import { DEFAULT_TZ, fmtDateTime } from "@/core/utils/date";
 import { cn } from "@/lib/utils";
 import {
   archiveMemoryAction,
@@ -13,18 +14,9 @@ import {
   rememberAction,
   updateMemoryAction,
 } from "../actions";
-import { MEMORY_KINDS, type MemoryKind } from "../constants";
+import { KIND_LABEL, MEMORY_KINDS, type MemoryKind } from "../constants";
 import type { MemoryRow } from "../repository";
 import type { MemorySource } from "../schema";
-
-export const KIND_LABEL: Record<MemoryKind, string> = {
-  fact: "사실",
-  preference: "선호",
-  person: "사람",
-  decision: "결정",
-  goal: "목표",
-  routine: "루틴",
-};
 
 function sourceHref(s: MemorySource): string | null {
   if (s.type === "meeting" && s.id) return `/meetings/${s.id}`;
@@ -197,9 +189,7 @@ export function MemoryList({
                   </div>
                   <div className="flex items-center gap-2 pl-1 text-[11px] text-muted-foreground">
                     <span title="중요도">{"★".repeat(m.importance)}</span>
-                    <span>
-                      {new Date(m.updated_at).toLocaleDateString("ko-KR")}
-                    </span>
+                    <span>{fmtDateTime(m.updated_at, DEFAULT_TZ, "date")}</span>
                     {m.use_count > 0 && <span>{m.use_count}회 사용</span>}
                     {sources.map((s, i) => {
                       const href = sourceHref(s);

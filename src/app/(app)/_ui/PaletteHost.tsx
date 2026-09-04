@@ -3,13 +3,13 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import type { Command } from "@/core/contracts";
+import type { PaletteHit } from "@/core/ui/CommandPalette";
 import { useDock } from "@/modules/agent/dock/store";
 import { startMeetingAction } from "@/modules/meetings/actions";
 import { searchAction } from "@/modules/memory/actions";
-import type { PaletteHit } from "./CommandPalette";
 
 const CommandPalette = dynamic(
-  () => import("./CommandPalette").then((m) => m.CommandPalette),
+  () => import("@/core/ui/CommandPalette").then((m) => m.CommandPalette),
   { ssr: false },
 );
 

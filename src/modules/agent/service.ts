@@ -29,8 +29,10 @@ export function agentService(ctx: ServiceContext) {
     threadId: string,
     messages: UiMessageLike[],
   ): Promise<void> {
+    // 턴마다 대화 전체를 다시 쓰지 않는다: 마지막 사용자·어시스턴트 메시지(새 것)만
+    const tail = messages.slice(-2);
     await repo.insertMessages(
-      messages.map((m) => ({
+      tail.map((m) => ({
         id: m.id,
         thread_id: threadId,
         role: m.role,

@@ -80,6 +80,27 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "src/core/**",
+        "!src/core/registry/current.ts",
+        "!src/core/**/__tests__/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@/modules": "코어는 모듈을 모릅니다(ARCHITECTURE §3.1). 조립은 src/app 에서 하세요."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

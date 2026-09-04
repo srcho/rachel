@@ -11,6 +11,7 @@ import { PageHeader } from "@/core/ui/PageHeader";
 import { cn } from "@/lib/utils";
 import { syncNowAction } from "../actions";
 import { addDays, addMonths, startOfWeek } from "../format";
+import { eventDays } from "../occurrences";
 import type { EventRow } from "../repository";
 import { AgendaView } from "./AgendaView";
 import { type EventDraft, EventSheet } from "./EventSheet";
@@ -94,13 +95,9 @@ export function CalendarScreen(props: CalendarScreenProps) {
       title: e.title,
       startAt: toLocalInput(e.start_at, e.all_day, timezone),
       // 종일의 end_at 은 배타적(다음날 자정) → 편집 창에는 마지막 날(포함)로. 저장 시 하루를 다시 더한다
-      endAt: toLocalInput(
-        e.all_day
-          ? new Date(new Date(e.end_at).getTime() - 1).toISOString()
-          : e.end_at,
-        e.all_day,
-        timezone,
-      ),
+      endAt: e.all_day
+        ? eventDays(e, timezone).last
+        : toLocalInput(e.end_at, false, timezone),
       allDay: e.all_day,
       location: e.location ?? "",
       description: e.description ?? "",

@@ -1,6 +1,6 @@
 import type { DashboardWidget } from "@/core/contracts";
 import { localYmd } from "@/core/utils/date";
-import { formatCost } from "@/modules/agent/dock/CostChip";
+import { formatCost } from "@/core/utils/format";
 import { insightsRepository } from "./repository";
 import { BriefActions, BriefCard } from "./ui/BriefCard";
 

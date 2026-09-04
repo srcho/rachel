@@ -41,25 +41,23 @@ export function expandOccurrences<E extends EventLike>(
   const byDay = new Map<string, Occurrence<E>[]>();
   for (const e of events) {
     const { first, last } = eventDays(e, tz);
-    let ymd = first;
-    let i = 0;
     const count = diffDays(first, last) + 1;
-    while (ymd <= last) {
-      if (ymd >= fromYmd && ymd < toYmd) {
-        const list = byDay.get(ymd) ?? [];
-        list.push({
-          event: e,
-          ymd,
-          isStart: ymd === first,
-          isEnd: ymd === last,
-          dayIndex: i + 1,
-          dayCount: count,
-        });
-        byDay.set(ymd, list);
-      }
+    // 창 밖은 걷지 않는다(오래전에 시작한 장기 일정도 창 길이만큼만 비용)
+    let ymd = first > fromYmd ? first : fromYmd;
+    let i = diffDays(first, ymd);
+    while (ymd <= last && ymd < toYmd) {
+      const list = byDay.get(ymd) ?? [];
+      list.push({
+        event: e,
+        ymd,
+        isStart: ymd === first,
+        isEnd: ymd === last,
+        dayIndex: i + 1,
+        dayCount: count,
+      });
+      byDay.set(ymd, list);
       ymd = addDays(ymd, 1);
       i++;
-      if (i > 366) break; // 방어: 비정상 길이
     }
   }
   for (const list of byDay.values()) list.sort(compareOccurrence);

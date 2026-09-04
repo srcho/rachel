@@ -1,22 +1,10 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/core/auth/session";
-import { createContext } from "@/core/context";
-import { createServerSupabase } from "@/core/db/server";
-import { getRegistry } from "@/core/registry/current";
+import { userContext } from "@/core/context";
 import { meetingsService } from "./service";
 
 async function svc() {
-  const user = await requireUser();
-  const db = await createServerSupabase();
-  return meetingsService(
-    createContext({
-      db,
-      userId: user.id,
-      actor: "user",
-      registry: await getRegistry(),
-    }),
-  );
+  return meetingsService(await userContext());
 }
 
 export async function startMeetingAction(input: {

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
 import { Panel } from "@/core/ui/Panel";
+import { DEFAULT_TZ, fmtDateTime } from "@/core/utils/date";
 import { cn } from "@/lib/utils";
 import {
   dismissCaptureAction,
@@ -25,9 +26,9 @@ const TYPE_LABEL: Record<string, string> = {
 
 function proposalText(t: Triage): string {
   if (t.type === "task" && t.task)
-    return `${t.task.title}${t.task.due ? ` · ${new Date(t.task.due).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}` : ""} · P${t.task.priority}`;
+    return `${t.task.title}${t.task.due ? ` · ${fmtDateTime(t.task.due, DEFAULT_TZ)}` : ""} · P${t.task.priority}`;
   if (t.type === "event" && t.event)
-    return `${t.event.title} · ${new Date(t.event.startAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}`;
+    return `${t.event.title} · ${fmtDateTime(t.event.startAt, DEFAULT_TZ)}`;
   if (t.type === "memory" && t.memory) return t.memory.content;
   return "메모로 보관";
 }
@@ -120,14 +121,7 @@ export function Inbox({
                 : c.origin === "share"
                   ? "공유"
                   : "입력"}{" "}
-              ·{" "}
-              {new Date(c.created_at).toLocaleString("ko-KR", {
-                month: "numeric",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-              })}
+              · {fmtDateTime(c.created_at, DEFAULT_TZ)}
             </p>
           </li>
         );

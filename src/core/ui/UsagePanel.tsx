@@ -1,26 +1,12 @@
 import type { Db } from "@/core/contracts";
 import { budgetStatus } from "@/core/llm/budget";
-import { formatCost, formatTokens } from "@/modules/agent/dock/CostChip";
-
-const FEATURE_LABEL: Record<string, string> = {
-  chat: "채팅",
-  summarize: "회의 요약",
-  extract: "기억 추출",
-  brief: "브리핑",
-  review: "주간 리뷰",
-  triage: "캡처 분류",
-  embed: "임베딩",
-  transcribe_live: "전사(라이브)",
-  transcribe_final: "전사(파이널)",
-  voice_input: "음성 입력",
-};
+import { FEATURE_LABEL } from "@/core/llm/features";
+import { monthStartIso } from "@/core/utils/date";
+import { formatCost, formatTokens } from "@/core/utils/format";
 
 /** 이번 달 AI 사용량·비용. 전부 SQL 뷰(LLM 호출 0). */
 export async function UsagePanel({ db, userId }: { db: Db; userId: string }) {
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-  const since = monthStart.toISOString();
+  const since = monthStartIso();
   const [budget, byFeature, daily] = await Promise.all([
     budgetStatus(db, userId),
     db

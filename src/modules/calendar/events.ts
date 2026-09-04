@@ -111,15 +111,40 @@ export function eventService(ctx: ServiceContext) {
     return rows;
   }
 
+  /**
+   * 시작/종료 정규화. 종료가 없으면 +1시간(종일은 다음날), 종일은 타임존 자정에 스냅(에이전트가 10:30 을 넘겨도 날짜만),
+   * 종료 ≤ 시작이면 거부(생성·수정 공통 — 편집 창이 종료일을 포함일로 보여 주므로 여기서 잡아야 한다).
+   */
+  function normalizeRange(
+    startIso: string,
+    endIso: string | null,
+    allDay: boolean,
+  ): { startAt: string; endAt: string } {
+    let startAt = startIso;
+    let endAt =
+      endIso ??
+      new Date(
+        new Date(startIso).getTime() + (allDay ? 24 : 1) * 3_600_000,
+      ).toISOString();
+    if (allDay) {
+      startAt = dayBounds(new Date(startAt), ctx.timezone).start;
+      endAt = dayBounds(
+        new Date(new Date(endAt).getTime() - 1),
+        ctx.timezone,
+      ).end;
+    }
+    if (new Date(endAt) <= new Date(startAt))
+      throw new Error("종료가 시작보다 빨라요");
+    return { startAt, endAt };
+  }
+
   async function createEvent(raw: CreateEventInput): Promise<EventRow> {
     const input = createEventSchema.parse(raw);
-    const endAt =
-      input.endAt ??
-      new Date(
-        new Date(input.startAt).getTime() + (input.allDay ? 24 : 1) * 3_600_000,
-      ).toISOString();
-    if (new Date(endAt) <= new Date(input.startAt))
-      throw new Error("종료가 시작보다 빨라요");
+    const { startAt, endAt } = normalizeRange(
+      input.startAt,
+      input.endAt ?? null,
+      input.allDay,
+    );
     const cal = await writableCalendar(input.calendarId);
     let row = await repo.insertEvent({
       calendar_id: cal.id,
@@ -127,7 +152,7 @@ export function eventService(ctx: ServiceContext) {
       title: input.title,
       description: input.description ?? null,
       location: input.location ?? null,
-      start_at: input.startAt,
+      start_at: startAt,
       end_at: endAt,
       all_day: input.allDay,
       timezone: ctx.timezone,
@@ -151,15 +176,23 @@ export function eventService(ctx: ServiceContext) {
     if (!before) throw new Error("일정을 찾을 수 없어요");
     const cal = await repo.getCalendar(before.calendar_id);
     if (!cal?.writable) throw new Error("읽기 전용 캘린더의 일정이에요");
+    const allDay = patch.allDay ?? before.all_day;
+    const { startAt, endAt } = normalizeRange(
+      patch.startAt ?? before.start_at,
+      patch.endAt ?? before.end_at,
+      allDay,
+    );
     let row = await repo.updateEvent(id, {
       ...(patch.title !== undefined && { title: patch.title }),
       ...(patch.description !== undefined && {
-        description: patch.description,
+        description: patch.description ?? null,
       }),
-      ...(patch.location !== undefined && { location: patch.location }),
-      ...(patch.startAt !== undefined && { start_at: patch.startAt }),
-      ...(patch.endAt != null && { end_at: patch.endAt }),
-      ...(patch.allDay !== undefined && { all_day: patch.allDay }),
+      ...(patch.location !== undefined && {
+        location: patch.location ?? null,
+      }),
+      start_at: startAt,
+      end_at: endAt,
+      all_day: allDay,
       sync_status: "pending_push",
     });
     row = await pushOne(row, cal);

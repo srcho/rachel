@@ -8,3 +8,11 @@ export const MEMORY_KINDS = [
   "routine",
 ] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
+export const KIND_LABEL: Record<MemoryKind, string> = {
+  fact: "사실",
+  preference: "선호",
+  person: "사람",
+  decision: "결정",
+  goal: "목표",
+  routine: "루틴",
+};

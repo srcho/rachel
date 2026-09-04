@@ -49,6 +49,7 @@ export function CommandPalette({ commands, search, onAction }: Props) {
   const [hits, setHits] = useState<PaletteHit[]>([]);
   const [loading, setLoading] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const searchSeq = useRef(0);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -73,14 +74,22 @@ export function CommandPalette({ commands, search, onAction }: Props) {
       setHits([]);
       return;
     }
+    const seq = ++searchSeq.current;
     timer.current = setTimeout(async () => {
       setLoading(true);
       try {
-        setHits(await search(term));
+        const hits = await search(term);
+        if (seq === searchSeq.current) setHits(hits); // 늦게 온 이전 검색은 버린다
+      } catch (e) {
+        console.warn("[palette] 검색 실패", e);
+        if (seq === searchSeq.current) setHits([]);
       } finally {
-        setLoading(false);
+        if (seq === searchSeq.current) setLoading(false);
       }
     }, 250);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, [q, search]);
 
   function run(c: Command) {

@@ -1,6 +1,7 @@
 import type { Db } from "@/core/contracts";
 import { env } from "@/core/env";
 import { getProfileSettings } from "@/core/settings/profile";
+import { monthStartIso } from "@/core/utils/date";
 
 export interface BudgetStatus {
   budgetUsd: number | null;
@@ -14,15 +15,15 @@ export async function budgetStatus(
   db: Db,
   userId: string,
 ): Promise<BudgetStatus> {
-  const budget = env().LLM_MONTHLY_BUDGET_USD ?? null;
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
+  // 설정 화면의 월 예산이 우선, 없으면 env
+  const settings = await getProfileSettings(db, userId);
+  const budget =
+    settings.monthlyBudgetUsd ?? env().LLM_MONTHLY_BUDGET_USD ?? null;
   const { data } = await db
     .from("v_llm_usage_monthly")
     .select("cost_usd")
     .eq("user_id", userId)
-    .gte("month", monthStart.toISOString())
+    .gte("month", monthStartIso())
     .maybeSingle();
   const spent = Number(data?.cost_usd ?? 0);
   if (!budget)
