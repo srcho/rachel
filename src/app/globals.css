@@ -150,3 +150,8 @@
     }
   }
 }
+
+/* lieflat 계열 SVG 차트: 숫자 표 정렬, 축 글자 자간 */
+.lf text {
+  font-variant-numeric: tabular-nums;
+}

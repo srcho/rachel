@@ -684,6 +684,9 @@ Google이 진실 원천이다. 오프라인에서는 pending_push가 쌓이고 �
 
 ## 9. 인사이트 파이프라인
 
+> 화면(2026-09-04 리디자인): 그림은 lieflat-charts(https://github.com/larashero3-dotcom/lieflat-charts, PolyForm Noncommercial)의 Basics 갤러리를 React SVG 로 옮긴 `core/ui/charts/lieflat/`. npm 패키지가 아니라 HTML 템플릿 스킬이라 import 하지 않고 기하·규칙(mono-tokens: 명도 = 데이터, 실심, 발스트로크, 1칸 = 셀 수 있는 단위, 결정적 지터, 결론 제목 + 부제 + 그림 + 대문자 출처행)을 재구현했다. 색은 테마 변수라 다크 자동. 선택은 데이터 형태로: 주별 2계열 → F6 Paired Rungs(할 일 흐름), 주별 단일 시계열 → F2 Hairline Line(완료 소요 시간), 요일×시간 → F10 Dot Heat(몰리는 시간), 주별 구성 → F7 Stacked Rungs(회의 비중), 단일 비율 → F11 Tick Gauge(캡처 전환), 항목별 개수 → F5 Tick Rows(지연 라벨). 제목은 그림에서 읽히는 결론 문장(위젯이 계산). 데이터가 성길 때 칸 간격(5.4–9px)과 뷰박스 높이를 내용에 맞춰 빈 공간을 남기지 않는다. AI 비용은 인사이트에서 빼고 설정에서 같은 문법(F2 30일 + F5 기능별, 최대 비용 $1 미만이면 0.1센트 tick)으로 보여 준다.
+
+
 ```
 지표(실시간, LLM 0)   SQL 뷰(v_*) ← domain_events · cards · meetings · calendar_events
 위젯                  registry.widgets('today' | 'insights') → 서버에서 load() 병렬 실행 → 컴포넌트 렌더

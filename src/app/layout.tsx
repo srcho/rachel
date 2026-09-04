@@ -33,7 +33,13 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-        {children}
+        {/* 테마(class) · 서비스 워커 등록 · 토스트. 스캐폴드부터 import 만 되고 마운트가 빠져 있었다(2026-09-04 발견) */}
+        <ThemeProvider>
+          <PwaProvider>
+            {children}
+            <Toaster />
+          </PwaProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -3,15 +3,16 @@ import { briefJob, weeklyJob } from "./jobs";
 import { insightsTools } from "./tools";
 import { briefWidget } from "./widgets";
 import {
-  calendarLoadWidget,
   captureConversionWidget,
-  costWidget,
-  meetingsHoursWidget,
+  cycleWidget,
+  meetingShareWidget,
+  overdueWidget,
   patternsWidget,
+  slotWidget,
   throughputWidget,
 } from "./widgets-metrics";
 
-/** insights 모듈: 브리핑·지표 위젯·AI 비용·주간 리뷰 */
+/** insights 모듈: 브리핑·지표 위젯(lieflat 스타일)·주간 리뷰. AI 비용은 설정 화면 */
 export const insightsModule: RachelModule = {
   manifest: {
     id: "insights",
@@ -25,10 +26,11 @@ export const insightsModule: RachelModule = {
     briefWidget,
     patternsWidget,
     throughputWidget,
-    meetingsHoursWidget,
-    calendarLoadWidget,
+    cycleWidget,
+    slotWidget,
+    meetingShareWidget,
     captureConversionWidget,
-    costWidget,
+    overdueWidget,
   ],
   jobs: { brief: briefJob, weekly: weeklyJob },
   commands: [

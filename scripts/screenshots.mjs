@@ -56,7 +56,10 @@ async function shoot(ctx, name, path, fn) {
   await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
   if (fn) await fn(page);
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${out}/${name}.png` });
+  await page.screenshot({
+    path: `${out}/${name}.png`,
+    fullPage: /insights|settings/.test(name),
+  });
   await page.close();
 }
 // ensure default board via /tasks, then seed
@@ -128,6 +131,12 @@ sql(`insert into meetings (user_id, title, status, final_pass_status, started_at
  ('${uid}','제품 로드맵 싱크','ready','done','${d(-1, 14)}','${d(-1, 15)}',3480),
  ('${uid}','Muse 전사 품질 리뷰','ready','done','${d(-3, 10)}','${d(-3, 11)}',2700),
  ('${uid}','온보딩 인터뷰','ready','running','${d(-6, 16)}','${d(-6, 17)}',1980)`);
+sql(
+  `insert into llm_usage (user_id, feature, provider, model, input_tokens, output_tokens, cost_usd, created_at) select '${uid}', f, 'openai', 'gpt-5.6-luna', 1200, 300, c, now() - (d || ' days')::interval from (values ('chat',0.012,1),('brief',0.004,1),('summarize',0.03,2),('chat',0.02,3),('extract',0.002,5),('chat',0.015,8),('review',0.009,12),('chat',0.011,20)) as t(f,c,d)`,
+);
+sql(
+  `update cards set completed_at = now() - interval '2 days', created_at = now() - interval '5 days' where user_id='${uid}' and title='캘린더 증분 동기화'`,
+);
 sql(`insert into memories (user_id, kind, content, importance, source, status) values
  ('${uid}','preference','아침 9시 전 회의는 피한다',4,'{"type":"thread"}','active'),
  ('${uid}','person','지수는 디자인 리드, 금요일 오후는 비어 있다',3,'{"type":"meeting"}','active'),

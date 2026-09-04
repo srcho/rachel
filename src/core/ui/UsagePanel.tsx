@@ -1,6 +1,8 @@
 import type { Db } from "@/core/contracts";
 import { budgetStatus } from "@/core/llm/budget";
 import { FEATURE_LABEL } from "@/core/llm/features";
+import { ChartCard } from "@/core/ui/charts/lieflat/Card";
+import { HairlineLine, TickRows } from "@/core/ui/charts/lieflat/charts";
 import { monthStartIso } from "@/core/utils/date";
 import { formatCost, formatTokens } from "@/core/utils/format";
 
@@ -20,14 +22,13 @@ export async function UsagePanel({ db, userId }: { db: Db; userId: string }) {
       .select("*")
       .eq("user_id", userId)
       .order("day", { ascending: false })
-      .limit(14),
+      .limit(30),
   ]);
   const rows = byFeature.data ?? [];
+  // 최대 비용이 $1 미만이면 0.1센트 단위로 tick 을 그린다(작은 항목이 0칸이 되지 않게)
+  const costUnit =
+    Math.max(0, ...rows.map((r) => Number(r.cost_usd ?? 0))) < 1 ? 1000 : 100;
   const totalCalls = rows.reduce((a, r) => a + Number(r.calls ?? 0), 0);
-  const maxDaily = Math.max(
-    0.0001,
-    ...(daily.data ?? []).map((d) => Number(d.cost_usd ?? 0)),
-  );
 
   return (
     <div className="space-y-3 text-sm">
@@ -100,20 +101,38 @@ export async function UsagePanel({ db, userId }: { db: Db; userId: string }) {
         </table>
       )}
       {(daily.data?.length ?? 0) > 0 && (
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">최근 14일</p>
-          <div className="flex h-12 items-end gap-0.5">
-            {[...(daily.data ?? [])].reverse().map((d) => (
-              <div
-                key={String(d.day)}
-                className="flex-1 rounded-sm bg-primary/70"
-                style={{
-                  height: `${Math.max(4, (Number(d.cost_usd ?? 0) / maxDaily) * 100)}%`,
-                }}
-                title={`${d.day}: ${formatCost(Number(d.cost_usd ?? 0))} · ${d.calls}회`}
+        <div className="grid gap-4 border-t pt-3 md:grid-cols-2">
+          <ChartCard
+            title={`최근 30일 하루 최대 ${formatCost(Math.max(...(daily.data ?? []).map((d) => Number(d.cost_usd ?? 0))))}`}
+            sub="하루 AI 비용 · 큰 점 = 가장 비쌌던 이틀"
+            source="one dot = one day · usd"
+          >
+            <HairlineLine
+              label="최근 30일 하루 AI 비용"
+              format={(v) => formatCost(v)}
+              data={[...(daily.data ?? [])].reverse().map((d) => ({
+                name: String(d.day).slice(5).replace("-", "/"),
+                value: Number(d.cost_usd ?? 0),
+              }))}
+            />
+          </ChartCard>
+          {rows.length > 0 && (
+            <ChartCard
+              title={`이번 달은 ${FEATURE_LABEL[rows[0]?.feature ?? ""] ?? rows[0]?.feature}에 가장 많이 썼어요`}
+              sub={`기능별 이번 달 비용 · 1 tick = ${costUnit === 1000 ? "0.1센트" : "1센트"}`}
+              source={`one tick = $${costUnit === 1000 ? "0.001" : "0.01"} · rows = features`}
+            >
+              <TickRows
+                label="기능별 이번 달 비용"
+                unitName={costUnit === 1000 ? "×$0.001" : "¢"}
+                format={(v) => formatCost(v / costUnit)}
+                data={rows.slice(0, 6).map((r) => ({
+                  name: FEATURE_LABEL[r.feature ?? ""] ?? String(r.feature),
+                  value: Math.round(Number(r.cost_usd ?? 0) * costUnit),
+                }))}
               />
-            ))}
-          </div>
+            </ChartCard>
+          )}
         </div>
       )}
       {rows.length === 0 && (
