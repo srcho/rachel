@@ -93,7 +93,14 @@ export function CalendarScreen(props: CalendarScreenProps) {
       id: e.id,
       title: e.title,
       startAt: toLocalInput(e.start_at, e.all_day, timezone),
-      endAt: toLocalInput(e.end_at, e.all_day, timezone),
+      // 종일의 end_at 은 배타적(다음날 자정) → 편집 창에는 마지막 날(포함)로. 저장 시 하루를 다시 더한다
+      endAt: toLocalInput(
+        e.all_day
+          ? new Date(new Date(e.end_at).getTime() - 1).toISOString()
+          : e.end_at,
+        e.all_day,
+        timezone,
+      ),
       allDay: e.all_day,
       location: e.location ?? "",
       description: e.description ?? "",

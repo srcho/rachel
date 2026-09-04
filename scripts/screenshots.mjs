@@ -103,6 +103,8 @@ const calId = sql(
   `insert into calendars (user_id, integration_id, external_id, name, color, is_primary, selected, writable) values ('${uid}','${intId}','primary','내 캘린더','#4f46e5',true,true,true) returning id`,
 );
 const ev = [
+  ["워크숍(사흘)", 1, 0, 0, true],
+  ["야간 배포", 2, 23, 25],
   ["팀 스탠드업", 0, 9, 9.5],
   ["PRD 리뷰", 0, 14, 15],
   ["1:1 디자인", 1, 11, 12],
@@ -111,15 +113,15 @@ const ev = [
   ["주간 계획", 7, 10, 11],
   ["런치 미팅", -1, 12, 13],
 ];
-for (const [t, dd, h1, h2] of ev) {
+for (const [t, dd, h1, h2, allDay] of ev) {
   const s = new Date(now);
   s.setDate(s.getDate() + dd);
   s.setHours(Math.floor(h1), (h1 % 1) * 60, 0, 0);
   const e = new Date(now);
-  e.setDate(e.getDate() + dd);
+  e.setDate(e.getDate() + dd + (allDay ? 3 : 0));
   e.setHours(Math.floor(h2), (h2 % 1) * 60, 0, 0);
   sql(
-    `insert into calendar_events (user_id, calendar_id, external_id, title, start_at, end_at, all_day, sync_status) values ('${uid}','${calId}','ev-${t}-${dd}','${t}','${s.toISOString()}','${e.toISOString()}',false,'synced')`,
+    `insert into calendar_events (user_id, calendar_id, external_id, title, start_at, end_at, all_day, sync_status) values ('${uid}','${calId}','ev-${t}-${dd}','${t}','${s.toISOString()}','${e.toISOString()}',${allDay ? "true" : "false"},'synced')`,
   );
 }
 sql(`insert into meetings (user_id, title, status, final_pass_status, started_at, ended_at, duration_sec) values

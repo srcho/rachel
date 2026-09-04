@@ -1,7 +1,7 @@
 "use client";
-import { localYmd } from "@/core/utils/date";
 import { cn } from "@/lib/utils";
 import { addDays } from "../format";
+import { expandOccurrences } from "../occurrences";
 import type { EventRow } from "../repository";
 import type { CalendarInfo } from "./CalendarScreen";
 import { EventChip } from "./EventChip";
@@ -29,20 +29,17 @@ export function WeekView({
   onAdd,
 }: Props) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const byDay = new Map<string, EventRow[]>();
-  for (const e of events) {
-    const ymd = localYmd(new Date(e.start_at), timezone);
-    byDay.set(ymd, [...(byDay.get(ymd) ?? []), e]);
-  }
+  const byDay = expandOccurrences(
+    events,
+    weekStart,
+    addDays(weekStart, 7),
+    timezone,
+  );
   return (
     <div className="overflow-x-auto px-3 pb-3 md:min-h-0 md:flex-1 md:overflow-x-hidden">
       <div className="grid min-w-[840px] grid-cols-7 gap-1.5 md:h-full md:min-w-0">
         {days.map((ymd, i) => {
-          const items = (byDay.get(ymd) ?? []).sort(
-            (a, b) =>
-              Number(b.all_day) - Number(a.all_day) ||
-              a.start_at.localeCompare(b.start_at),
-          );
+          const items = byDay.get(ymd) ?? [];
           const isToday = ymd === today;
           return (
             <div
@@ -66,10 +63,10 @@ export function WeekView({
                 </span>
               </button>
               <div className="min-h-0 flex-1 space-y-1 md:overflow-y-auto">
-                {items.map((e) => (
+                {items.map((o) => (
                   <EventChip
-                    key={e.id}
-                    event={e}
+                    key={`${o.event.id}:${o.dayIndex}`}
+                    occurrence={o}
                     calendars={calendars}
                     timezone={timezone}
                     compact

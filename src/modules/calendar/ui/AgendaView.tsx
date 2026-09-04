@@ -1,7 +1,7 @@
 "use client";
-import { localYmd } from "@/core/utils/date";
 import { cn } from "@/lib/utils";
 import { addDays, fmtDayHeader } from "../format";
+import { expandOccurrences } from "../occurrences";
 import type { EventRow } from "../repository";
 import type { CalendarInfo } from "./CalendarScreen";
 import { EventChip } from "./EventChip";
@@ -28,12 +28,13 @@ export function AgendaView({
   onOpen,
   onAdd,
 }: Props) {
-  const byDay = new Map<string, EventRow[]>();
-  for (const e of events) {
-    const ymd = localYmd(new Date(e.start_at), timezone);
-    byDay.set(ymd, [...(byDay.get(ymd) ?? []), e]);
-  }
   const list = Array.from({ length: days }, (_, i) => addDays(fromYmd, i));
+  const byDay = expandOccurrences(
+    events,
+    fromYmd,
+    addDays(fromYmd, days),
+    timezone,
+  );
   const nowLabel = new Intl.DateTimeFormat("ko-KR", {
     timeZone: timezone,
     hour: "2-digit",
@@ -44,11 +45,7 @@ export function AgendaView({
     <div className="px-4 pb-6 md:min-h-0 md:flex-1 md:overflow-y-auto">
       <div className="mx-auto max-w-3xl xl:max-w-6xl xl:columns-2 xl:gap-8">
         {list.map((ymd) => {
-          const items = (byDay.get(ymd) ?? []).sort(
-            (a, b) =>
-              Number(b.all_day) - Number(a.all_day) ||
-              a.start_at.localeCompare(b.start_at),
-          );
+          const items = byDay.get(ymd) ?? [];
           const isToday = ymd === today;
           return (
             <section key={ymd} className="pt-3 xl:break-inside-avoid">
@@ -80,10 +77,10 @@ export function AgendaView({
                 </p>
               ) : (
                 <div className="space-y-1 py-1">
-                  {items.map((e) => (
+                  {items.map((o) => (
                     <EventChip
-                      key={e.id}
-                      event={e}
+                      key={`${o.event.id}:${o.dayIndex}`}
+                      occurrence={o}
                       calendars={calendars}
                       timezone={timezone}
                       onOpen={onOpen}

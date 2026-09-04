@@ -1,7 +1,7 @@
 "use client";
-import { localYmd } from "@/core/utils/date";
 import { cn } from "@/lib/utils";
 import { addDays, startOfMonth, startOfWeek } from "../format";
+import { expandOccurrences, occurrenceShortLabel } from "../occurrences";
 import type { EventRow } from "../repository";
 import type { CalendarInfo } from "./CalendarScreen";
 
@@ -31,11 +31,13 @@ export function MonthView({
   const gridStart = startOfWeek(first);
   const month = monthDate.slice(0, 7);
   const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
-  const byDay = new Map<string, EventRow[]>();
-  for (const e of events) {
-    const ymd = localYmd(new Date(e.start_at), timezone);
-    byDay.set(ymd, [...(byDay.get(ymd) ?? []), e]);
-  }
+  // 여러 날에 걸친 일정은 덮는 날마다 조각으로(첫날·중간·마지막 표시)
+  const byDay = expandOccurrences(
+    events,
+    gridStart,
+    addDays(gridStart, 42),
+    timezone,
+  );
   return (
     <div className="flex flex-col px-3 pb-3 md:min-h-0 md:flex-1">
       <div className="grid shrink-0 grid-cols-7 text-center text-[11px] text-muted-foreground">
@@ -47,11 +49,7 @@ export function MonthView({
       </div>
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border bg-border md:min-h-0 md:flex-1 md:grid-rows-6">
         {cells.map((ymd) => {
-          const items = (byDay.get(ymd) ?? []).sort(
-            (a, b) =>
-              Number(b.all_day) - Number(a.all_day) ||
-              a.start_at.localeCompare(b.start_at),
-          );
+          const items = byDay.get(ymd) ?? [];
           const inMonth = ymd.startsWith(month);
           const isToday = ymd === today;
           return (
@@ -73,19 +71,47 @@ export function MonthView({
                 {Number(ymd.slice(8))}
               </button>
               <div className="min-h-0 flex-1 space-y-px overflow-hidden">
-                {items.slice(0, MAX_PER_CELL).map((e) => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    onClick={() => onOpen(e)}
-                    className="block w-full truncate rounded px-1 text-left text-[11px] leading-[18px] hover:bg-accent"
-                    style={{
-                      background: `${calendars.find((c) => c.id === e.calendar_id)?.color ?? "#888"}22`,
-                    }}
-                  >
-                    {e.title}
-                  </button>
-                ))}
+                {items.slice(0, MAX_PER_CELL).map((o) => {
+                  const e = o.event;
+                  const short = occurrenceShortLabel(o, timezone);
+                  const spans = o.dayCount > 1;
+                  return (
+                    <button
+                      key={`${e.id}:${o.dayIndex}`}
+                      type="button"
+                      onClick={() => onOpen(e)}
+                      title={e.title}
+                      className={cn(
+                        "block w-full truncate px-1 text-left text-[11px] leading-[18px] hover:bg-accent",
+                        // 여러 날: 첫날만 왼쪽 라운드, 마지막날만 오른쪽 라운드 → 이어진 띠처럼
+                        spans
+                          ? cn(
+                              "-mx-1 w-[calc(100%+0.5rem)] px-2",
+                              o.isStart &&
+                                "ml-0 w-[calc(100%+0.25rem)] rounded-l pl-1",
+                              o.isEnd &&
+                                "mr-0 w-[calc(100%+0.25rem)] rounded-r",
+                              o.isStart && o.isEnd && "mx-0 w-full rounded",
+                            )
+                          : "rounded",
+                      )}
+                      style={{
+                        background: `${calendars.find((c) => c.id === e.calendar_id)?.color ?? "#888"}${spans ? "33" : "22"}`,
+                      }}
+                    >
+                      {short && (
+                        <span className="mr-1 tabular-nums text-muted-foreground">
+                          {short}
+                        </span>
+                      )}
+                      {spans && !o.isStart ? (
+                        <span className="text-muted-foreground">{e.title}</span>
+                      ) : (
+                        e.title
+                      )}
+                    </button>
+                  );
+                })}
                 {items.length > MAX_PER_CELL && (
                   <p className="px-1 text-[10px] text-muted-foreground">
                     +{items.length - MAX_PER_CELL}

@@ -1,7 +1,8 @@
 import type { ContextProvider } from "@/core/contracts";
-import { dayBounds } from "@/core/utils/date";
+import { dayBounds, localYmd } from "@/core/utils/date";
 import { eventService } from "./events";
-import { eventTimeLabel } from "./format";
+import { addDays } from "./format";
+import { expandOccurrences, occurrenceLabel } from "./occurrences";
 
 /** 오늘·내일 일정 ≤ 10 */
 export const calendarContextProvider: ContextProvider = {
@@ -25,12 +26,24 @@ export const calendarContextProvider: ContextProvider = {
       .join(", ");
     if (events.length === 0)
       return `[일정] Google 캘린더 연결됨(쓰기 가능: ${names}). 오늘·내일 일정 없음`;
-    const label = (iso: string) => (iso >= tomorrow.start ? "내일" : "오늘");
-    return `[일정] 연결됨(쓰기 가능: ${names})\n${events
-      .slice(0, 10)
+    const todayYmd = localYmd(ctx.now, ctx.timezone);
+    const byDay = expandOccurrences(
+      events,
+      todayYmd,
+      addDays(todayYmd, 2),
+      ctx.timezone,
+    );
+    const lines = [
+      ...(byDay.get(todayYmd) ?? []).map((o) => ({ day: "오늘", o })),
+      ...(byDay.get(addDays(todayYmd, 1)) ?? []).map((o) => ({
+        day: "내일",
+        o,
+      })),
+    ].slice(0, 10);
+    return `[일정] 연결됨(쓰기 가능: ${names})\n${lines
       .map(
-        (e) =>
-          `- ${label(e.start_at)} ${eventTimeLabel(e, ctx.timezone)} ${e.title}${e.location ? ` @${e.location}` : ""} (id ${e.id.slice(0, 8)}…)`,
+        ({ day, o }) =>
+          `- ${day} ${occurrenceLabel(o, ctx.timezone)} ${o.event.title}${o.event.location ? ` @${o.event.location}` : ""} (id ${o.event.id.slice(0, 8)}…)`,
       )
       .join("\n")}`;
   },
