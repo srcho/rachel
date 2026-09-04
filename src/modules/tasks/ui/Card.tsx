@@ -21,7 +21,7 @@ export function CardBody({
   return (
     <div
       className={cn(
-        "rounded-md border bg-card px-2.5 py-2 text-sm shadow-xs transition-[border-color,box-shadow]",
+        "rounded-md border bg-card px-2 py-1.5 text-[13px] shadow-xs transition-[border-color,box-shadow] md:px-2.5 md:py-2 md:text-sm",
         dragging
           ? "cursor-grabbing shadow-lg ring-1 ring-ring/40"
           : "hover:border-foreground/25 hover:shadow-sm",

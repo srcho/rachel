@@ -19,8 +19,9 @@ export function Page({
     <div
       className={cn(
         "mx-auto w-full",
-        width === "content" && "max-w-[1440px] p-4",
-        width === "narrow" && "max-w-3xl p-4",
+        // 모바일은 우하단 FAB 이 마지막 컨트롤을 가리지 않게 아래를 더 비운다
+        width === "content" && "max-w-[1440px] p-4 pb-24 md:pb-4",
+        width === "narrow" && "max-w-3xl p-4 pb-24 md:pb-4",
         width === "full" && "md:h-[calc(100dvh-3rem)] md:min-h-0",
         className,
       )}

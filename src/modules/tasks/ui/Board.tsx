@@ -91,17 +91,6 @@ export function Board({
   const [activeWidth, setActiveWidth] = useState<number | undefined>();
   const [open, setOpen] = useState<CardRow | null>(null);
   const [adding, setAdding] = useState(false);
-  const stripRef = useRef<HTMLDivElement>(null);
-
-  // 모바일: 첫 진입은 Todo 컬럼부터(Backlog 는 왼쪽으로 스와이프)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 마운트 시 1회
-  useEffect(() => {
-    if (window.innerWidth >= 768) return;
-    const el = stripRef.current?.querySelector<HTMLElement>(
-      'section[aria-label="Todo"]',
-    );
-    if (el) stripRef.current?.scrollTo({ left: el.offsetLeft - 16 });
-  }, []);
 
   // N: 카드 추가(입력 중이 아닐 때)
   useEffect(() => {
@@ -354,12 +343,10 @@ export function Board({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActive(null)}
       >
-        <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col md:h-full">
+        <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden md:h-full">
           <TodayStrip events={todayEvents} />
-          <div
-            ref={stripRef}
-            className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 py-3 md:snap-none"
-          >
+          {/* 모바일: 고정 2×2 그리드 — 화면은 움직이지 않고 섹션 안에서만 스크롤. 데스크톱: 가로 4열 */}
+          <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2 px-3 py-2 md:flex md:gap-3 md:overflow-x-auto md:overflow-y-hidden md:px-4 md:py-3">
             {columns.map((col) => (
               <Column
                 key={col.id}

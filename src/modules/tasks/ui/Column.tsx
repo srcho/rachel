@@ -29,11 +29,11 @@ export function Column({
     <section
       aria-label={column.name}
       className={cn(
-        "flex h-full min-h-0 w-[78vw] shrink-0 snap-start flex-col rounded-lg border bg-muted/40 transition-colors md:w-auto md:min-w-64 md:max-w-sm md:flex-1 md:shrink",
+        "flex h-full min-h-0 min-w-0 flex-col rounded-lg border bg-muted/40 transition-colors md:min-w-64 md:max-w-sm md:flex-1 md:shrink",
         isOver && "border-foreground/30 bg-muted/70",
       )}
     >
-      <header className="flex h-10 shrink-0 items-center gap-1.5 px-3">
+      <header className="flex h-9 shrink-0 items-center gap-1.5 px-2.5 md:h-10 md:px-3">
         <h2 className="truncate text-[13px] font-medium">{column.name}</h2>
         <span
           className={cn(
@@ -47,7 +47,7 @@ export function Column({
       </header>
       <div
         ref={setNodeRef}
-        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2"
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1.5 md:px-2"
       >
         <SortableContext
           items={cards.map((c) => c.id)}

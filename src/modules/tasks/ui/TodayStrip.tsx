@@ -22,7 +22,7 @@ export interface StripEvent {
 export function TodayStrip({ events }: { events: StripEvent[] }) {
   if (events.length === 0) return null;
   return (
-    <div className="flex shrink-0 items-center gap-2 overflow-x-auto px-4 pt-3 text-xs">
+    <div className="flex shrink-0 items-center gap-2 overflow-x-auto px-3 pt-2 text-xs md:px-4 md:pt-3">
       <span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">
         <CalendarDays className="size-3.5" /> 오늘
       </span>

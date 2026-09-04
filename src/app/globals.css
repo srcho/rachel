@@ -141,4 +141,12 @@
     word-break: keep-all;
     overflow-wrap: anywhere;
   }
+  /* 터치 기기: 입력 글자가 16px 미만이면 iOS 가 포커스 때 확대한다 → 모든 폼 컨트롤을 16px 로 */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: max(16px, 1em);
+    }
+  }
 }
