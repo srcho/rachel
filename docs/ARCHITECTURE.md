@@ -576,6 +576,8 @@ Safari(iOS)는 `AudioContext` sampleRate 옵션을 무시할 수 있다 → 워�
 
 호출당 수 초. Fluid Compute에서 동시 처리. 실패한 세그먼트는 `status='failed'` 행으로 남겨 화면에 "재시도" 표시(클라이언트가 IndexedDB의 WAV로 재전송).
 
+> 메모리(2026-09-04): 클라이언트 러너는 세그먼트 메타(바이트 수 → 샘플 수)만으로 청크를 계획하고, 청크마다 필요한 세그먼트만 IndexedDB 에서 읽어 조립한다. 피크 메모리는 청크 1개(≈18MB) + WAV 사본. 회의 길이와 무관.
+
 ### 7.3 파이널 패스 (`modules/meetings/finalpass/` + `POST /api/meetings/[id]/diarize`)
 
 ```

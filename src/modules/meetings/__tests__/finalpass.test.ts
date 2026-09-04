@@ -3,6 +3,7 @@ import {
   chunkToMeetingMs,
   DEFAULT_CHUNK,
   planChunks,
+  samplesInWav,
 } from "../finalpass/chunker";
 import { stitch } from "../stitch";
 
@@ -129,5 +130,13 @@ describe("stitch", () => {
       "b2",
       "c1",
     ]);
+  });
+});
+
+describe("samplesInWav", () => {
+  it("헤더 44바이트를 빼고 16비트 샘플 수를 돌려준다", () => {
+    expect(samplesInWav(44)).toBe(0);
+    expect(samplesInWav(44 + 32_000)).toBe(16_000);
+    expect(samplesInWav(10)).toBe(0);
   });
 });

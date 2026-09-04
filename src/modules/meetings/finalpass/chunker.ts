@@ -110,3 +110,8 @@ export function chunkToMeetingMs(
   if (!row) return chunkMs;
   return row.meetingMs + (chunkMs - row.chunkMs);
 }
+
+/** WAV(16-bit mono, 44바이트 헤더) 바이트 수 → 샘플 수. 계획 단계에서 blob 을 읽지 않기 위해 */
+export function samplesInWav(bytes: number): number {
+  return Math.max(0, Math.floor((bytes - 44) / 2));
+}

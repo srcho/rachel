@@ -70,6 +70,13 @@ export const audioStore = {
     const range = IDBKeyRange.bound(`${meetingId}:`, `${meetingId}:￿`);
     return (await d.getAll("pcm", range)).sort((a, b) => a.seq - b.seq);
   },
+  /** 세그먼트 하나(파이널 패스가 청크마다 필요한 것만 읽는다) */
+  async getPcm(meetingId: string, seq: number) {
+    return (await db()).get(
+      "pcm",
+      `${meetingId}:${String(seq).padStart(6, "0")}`,
+    );
+  },
   async deletePcm(meetingId: string) {
     const d = await db();
     const range = IDBKeyRange.bound(`${meetingId}:`, `${meetingId}:￿`);

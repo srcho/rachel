@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { encodeWav } from "@/core/transcription/wav";
 import { audioStore } from "../recorder/audio-store";
 import type { MeetingRow } from "../repository";
-import { DEFAULT_CHUNK, type PcmPiece, planChunks } from "./chunker";
+import {
+  DEFAULT_CHUNK,
+  type PcmPiece,
+  planChunks,
+  samplesInWav,
+} from "./chunker";
 
 const RATE = DEFAULT_CHUNK.sampleRate;
 /** 인스턴스당 동시 실행 방지 */
@@ -32,29 +37,28 @@ export function useFinalPass(meeting: MeetingRow) {
       const pcms = await audioStore.listPcm(meeting.id);
       if (pcms.length === 0) return; // 다른 기기에서 녹음됨
       setStatus("running");
-      const pieces: PcmPiece[] = [];
-      const buffers = new Map<number, Int16Array>();
-      for (const p of pcms) {
-        const buf = await p.blob.arrayBuffer();
-        const pcm = new Int16Array(buf, 44, (buf.byteLength - 44) / 2);
-        buffers.set(p.seq, pcm);
-        pieces.push({
-          seq: p.seq,
-          startMs: p.startMs,
-          endMs: p.endMs,
-          samples: pcm.length,
-        });
-      }
+      // 계획은 메타(바이트 수)만으로 세운다 — 회의 전체 PCM(시간당 ≈115MB)을 메모리에 올리지 않는다
+      const pieces: PcmPiece[] = pcms.map((p) => ({
+        seq: p.seq,
+        startMs: p.startMs,
+        endMs: p.endMs,
+        samples: samplesInWav(p.blob.size),
+      }));
       const plans = planChunks(pieces);
       setProgress({ done: 0, total: plans.length });
       for (const plan of plans) {
+        // 청크에 필요한 세그먼트만 IndexedDB 에서 읽어 조립하고, 업로드 뒤 버린다(최대 ≈ 청크 1개 + WAV 사본)
         const out = new Int16Array(plan.totalSamples);
         let o = 0;
         for (const pc of plan.pieces) {
-          const src = buffers.get(pc.seq);
-          if (!src) continue;
-          out.set(src.subarray(pc.sliceStart, pc.sliceEnd), o);
-          o += pc.sliceEnd - pc.sliceStart;
+          const rec = await audioStore.getPcm(meeting.id, pc.seq);
+          if (!rec) continue;
+          const buf = await rec.blob.arrayBuffer();
+          const src = new Int16Array(buf, 44, samplesInWav(buf.byteLength));
+          const len = Math.min(pc.sliceEnd, src.length) - pc.sliceStart;
+          if (len > 0)
+            out.set(src.subarray(pc.sliceStart, pc.sliceStart + len), o);
+          o += Math.max(0, len);
         }
         const form = new FormData();
         form.append(
