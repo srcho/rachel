@@ -1,5 +1,6 @@
 "use client";
 import {
+  type CollisionDetection,
   closestCorners,
   DndContext,
   type DragEndEvent,
@@ -8,6 +9,7 @@ import {
   type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  pointerWithin,
   TouchSensor,
   useSensor,
   useSensors,
@@ -38,6 +40,20 @@ import { NewCardDialog, type NewCardInput } from "./NewCardDialog";
 import { ChipGhost, type StripEvent, TodayStrip } from "./TodayStrip";
 
 type ByColumn = Record<string, CardRow[]>;
+
+/**
+ * 충돌 판정: 포인터가 들어가 있는 섹션(과 그 안의 카드) 중에서만 고른다.
+ * closestCorners 만 쓰면 빈 자리에 놓을 때 이웃 섹션 카드의 모서리가 더 가까워 엉뚱한 컬럼으로 판정된다(2×2 그리드에서 특히).
+ */
+const collisionDetection: CollisionDetection = (args) => {
+  const within = pointerWithin(args);
+  if (within.length === 0) return closestCorners(args);
+  const ids = new Set(within.map((c) => c.id));
+  return closestCorners({
+    ...args,
+    droppableContainers: args.droppableContainers.filter((c) => ids.has(c.id)),
+  });
+};
 
 registerOutboxHandler("tasks.create", (input) =>
   createCardAction(input as Parameters<typeof createCardAction>[0]),
@@ -337,7 +353,7 @@ export function Board({
       />
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetection}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}

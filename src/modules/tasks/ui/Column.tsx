@@ -27,6 +27,7 @@ export function Column({
   const over = column.wip_limit !== null && cards.length > column.wip_limit;
   return (
     <section
+      ref={setNodeRef}
       aria-label={column.name}
       className={cn(
         "flex h-full min-h-0 min-w-0 flex-col rounded-lg border bg-muted/40 transition-colors md:min-w-64 md:max-w-sm md:flex-1 md:shrink",
@@ -45,10 +46,8 @@ export function Column({
           {column.wip_limit !== null && `/${column.wip_limit}`}
         </span>
       </header>
-      <div
-        ref={setNodeRef}
-        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1.5 md:px-2"
-      >
+      {/* 드롭 영역은 섹션 전체(헤더·바닥 포함) — 목록 안 빈 자리뿐 아니라 어디에 놓아도 이 컬럼 */}
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1.5 md:px-2">
         <SortableContext
           items={cards.map((c) => c.id)}
           strategy={verticalListSortingStrategy}
