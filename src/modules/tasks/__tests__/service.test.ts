@@ -161,4 +161,23 @@ describe.skipIf(!available)("tasksService (local Supabase)", () => {
       .select("*");
     expect(data).toEqual([]);
   });
+
+  it("각 컬럼 첫 카드끼리(position 이 같음) 다른 컬럼 첫 카드 앞으로 옮길 수 있다", async () => {
+    const svc = tasksService(ctx);
+    const view = await svc.getBoardView();
+    const todo = view.columns.find((c) => c.name === "Todo");
+    const doing = view.columns.find((c) => c.name === "Doing");
+    if (!todo || !doing) throw new Error("columns");
+    const a = await svc.createCard({ title: "A(Todo 첫)", columnId: todo.id });
+    const c = await svc.createCard({
+      title: "C(Doing 첫)",
+      columnId: doing.id,
+    });
+    const { card } = await svc.moveCard(a.id, {
+      columnId: doing.id,
+      beforeId: c.id,
+    });
+    expect(card.column_id).toBe(doing.id);
+    expect(card.position < c.position).toBe(true);
+  });
 });

@@ -41,6 +41,41 @@ import { ChipGhost, type StripEvent, TodayStrip } from "./TodayStrip";
 
 type ByColumn = Record<string, CardRow[]>;
 
+/** 화면에 보이는 고스트(DragOverlay)의 세로 중심 — 사용자가 "놓는 자리" 그 자체 */
+function ghostCenterY(): number | undefined {
+  const el = document.querySelector<HTMLElement>("[data-drag-ghost]");
+  if (!el) return undefined;
+  const r = el.getBoundingClientRect();
+  return r.top + r.height / 2;
+}
+
+/**
+ * 컬럼 자체 위에 놓았을 때(카드 위가 아닐 때)의 삽입 위치: 드래그 중인 카드의 세로 중심보다 아래에 있는 첫 카드 앞.
+ * 예전엔 무조건 맨 끝이라, 긴 컬럼의 위쪽에 놓아도 아래로 갔다.
+ */
+function insertIndexByY(
+  columnId: string,
+  activeId: string,
+  centerY: number | undefined,
+  list: CardRow[],
+): number {
+  if (centerY === undefined) return list.length;
+  const section = document.querySelector<HTMLElement>(
+    `section[aria-label][data-column-id="${columnId}"]`,
+  );
+  if (!section) return list.length;
+  const rects = [...section.querySelectorAll<HTMLElement>("[data-card-id]")]
+    .map((el) => ({
+      id: el.dataset.cardId ?? "",
+      r: el.getBoundingClientRect(),
+    }))
+    .filter((x) => x.id !== activeId);
+  const first = rects.find((x) => x.r.top + x.r.height / 2 > centerY);
+  if (!first) return list.length;
+  const i = list.findIndex((c) => c.id === first.id);
+  return i < 0 ? list.length : i;
+}
+
 /**
  * 충돌 판정: 포인터가 들어가 있는 섹션(과 그 안의 카드) 중에서만 고른다.
  * closestCorners 만 쓰면 빈 자리에 놓을 때 이웃 섹션 카드의 모서리가 더 가까워 엉뚱한 컬럼으로 판정된다(2×2 그리드에서 특히).
@@ -103,6 +138,8 @@ export function Board({
   );
   const [active, setActive] = useState<CardRow | null>(null);
   const [activeEvent, setActiveEvent] = useState<StripEvent | null>(null);
+  /** 드래그 시작 컬럼(하이라이트는 다른 컬럼 위에서만) */
+  const [dragFrom, setDragFrom] = useState<string | null>(null);
   /** 드래그 고스트를 원래 카드와 같은 폭으로 그린다 */
   const [activeWidth, setActiveWidth] = useState<number | undefined>();
   const [open, setOpen] = useState<CardRow | null>(null);
@@ -197,6 +234,7 @@ export function Board({
     }
     setActive(find(String(e.active.id)) ?? null);
     setActiveWidth(e.active.rect.current.initial?.width);
+    setDragFrom(columnOf(String(e.active.id)) ?? null);
   }
 
   function onDragOver(e: DragOverEvent) {
@@ -205,16 +243,18 @@ export function Board({
     const from = columnOf(String(active.id));
     const to = columnOf(String(over.id));
     if (!from || !to || from === to) return;
+    const centerY = ghostCenterY();
     setByColumn((prev) => {
       const card = prev[from]?.find((c) => c.id === active.id);
       if (!card) return prev;
       const fromList = (prev[from] ?? []).filter((c) => c.id !== active.id);
       const toList = [...(prev[to] ?? [])];
       const overIndex = toList.findIndex((c) => c.id === over.id);
-      toList.splice(overIndex >= 0 ? overIndex : toList.length, 0, {
-        ...card,
-        column_id: to,
-      });
+      const at =
+        overIndex >= 0
+          ? overIndex
+          : insertIndexByY(to, String(active.id), centerY, toList);
+      toList.splice(at, 0, { ...card, column_id: to });
       return { ...prev, [from]: fromList, [to]: toList };
     });
   }
@@ -223,6 +263,7 @@ export function Board({
     const { active, over } = e;
     setActive(null);
     setActiveEvent(null);
+    setDragFrom(null);
     if (!over) return;
     const to = columnOf(String(over.id));
     if (!to) return;
@@ -244,7 +285,14 @@ export function Board({
     const fromIndex = list.findIndex((c) => c.id === id);
     let toIndex = list.findIndex((c) => c.id === over.id);
     if (fromIndex < 0) return;
-    if (toIndex < 0 || over.id === to) toIndex = list.length - 1;
+    if (toIndex < 0 || over.id === to) {
+      // 컬럼 자체에 놓음: 포인터 높이로 위치를 정한다(같은 컬럼 안에서 위쪽에 놓아도 위로)
+      const centerY = ghostCenterY();
+      const without = list.filter((c) => c.id !== id);
+      const at = insertIndexByY(to, id, centerY, without);
+      toIndex = Math.min(at, list.length - 1);
+      if (at >= without.length) toIndex = list.length - 1;
+    }
     const [moved] = list.splice(fromIndex, 1);
     if (!moved) return;
     list.splice(toIndex, 0, moved);
@@ -357,7 +405,10 @@ export function Board({
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
-        onDragCancel={() => setActive(null)}
+        onDragCancel={() => {
+          setActive(null);
+          setDragFrom(null);
+        }}
       >
         <div className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden md:h-full">
           <TodayStrip events={todayEvents} />
@@ -368,6 +419,7 @@ export function Board({
                 key={col.id}
                 column={col}
                 cards={byColumn[col.id] ?? []}
+                dragFrom={dragFrom}
                 onOpen={setOpen}
                 footer={
                   col.is_done ? (
@@ -390,7 +442,7 @@ export function Board({
         </div>
         <DragOverlay dropAnimation={null}>
           {active ? (
-            <div style={{ width: activeWidth }}>
+            <div data-drag-ghost style={{ width: activeWidth }}>
               <CardBody card={active} dragging />
             </div>
           ) : activeEvent ? (

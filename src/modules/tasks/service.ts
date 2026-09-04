@@ -216,14 +216,16 @@ export function tasksService(ctx: ServiceContext) {
 
     let afterPos: string | null = null;
     let beforePos: string | null = null;
-    if (input.afterId)
-      afterPos = (await repo.getCard(input.afterId))?.position ?? null;
-    if (input.beforeId)
-      beforePos = (await repo.getCard(input.beforeId))?.position ?? null;
-    if (!input.afterId && !input.beforeId)
-      afterPos = (await repo.lastCardInColumn(target.id))?.position ?? null;
-    if (afterPos === before.position) afterPos = null; // 자기 자신 뒤로는 무의미
-    if (beforePos === before.position) beforePos = null;
+    // 자기 자신을 기준으로 삼는 건 무의미 — id 로 걸러낸다.
+    // (position 문자열로 비교하면 각 컬럼의 첫 카드가 똑같이 'a0' 이라 다른 컬럼 첫 카드 앞에 놓기가 무시됐다)
+    const afterId = input.afterId === id ? null : input.afterId;
+    const beforeId = input.beforeId === id ? null : input.beforeId;
+    if (afterId) afterPos = (await repo.getCard(afterId))?.position ?? null;
+    if (beforeId) beforePos = (await repo.getCard(beforeId))?.position ?? null;
+    if (!afterId && !beforeId) {
+      const last = await repo.lastCardInColumn(target.id);
+      afterPos = last && last.id !== id ? last.position : null;
+    }
     const position = generateKeyBetween(afterPos, beforePos);
 
     const wasDone = before.completed_at !== null;

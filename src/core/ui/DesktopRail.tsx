@@ -1,4 +1,5 @@
 "use client";
+import { Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -52,13 +53,26 @@ export function DesktopRail({
         R
       </Link>
       <nav aria-label="주 메뉴" className="flex flex-col gap-1">
-        {items
-          .filter((i) => i.id !== "today")
-          .map((item) => (
-            <Item key={item.id} item={item} pathname={pathname} />
-          ))}
+        {items.map((item) => (
+          <Item key={item.id} item={item} pathname={pathname} />
+        ))}
       </nav>
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event("rachel:palette"))}
+              className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+              aria-label="검색 (⌘K)"
+            >
+              <Search className="size-[18px]" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            검색 <kbd className="ml-1 opacity-70">⌘K</kbd>
+          </TooltipContent>
+        </Tooltip>
         {footer && <Item item={footer} pathname={pathname} />}
       </div>
     </aside>
