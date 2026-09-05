@@ -4,11 +4,13 @@ export const NOTIFICATION_KINDS = [
   "daily_brief",
   "weekly_review",
   "due_soon",
+  "event_soon",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 export const KIND_LABEL: Record<NotificationKind, string> = {
   meeting_ready: "회의 정리 완료",
   daily_brief: "아침 브리핑",
   weekly_review: "주간 리뷰",
-  due_soon: "마감 임박",
+  due_soon: "할 일 마감·아침 묶음",
+  event_soon: "일정 시작 전",
 };

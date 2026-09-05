@@ -1,13 +1,14 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/core/auth/session";
-import { createContext } from "@/core/context";
+import { createContext, userContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { getRegistry } from "@/core/registry/current";
 import {
   getProfileSettings,
   updateProfileSettings,
 } from "@/core/settings/profile";
+import { reminderSettingsSchema, scheduleReminders } from "./reminders";
 import type { NotificationKind } from "./schema";
 import { notifyService } from "./service";
 
@@ -59,4 +60,25 @@ export async function sendTestPushAction() {
     body: "푸시가 잘 도착했어요.",
     url: "/settings",
   });
+}
+
+export async function setReminderSettingsAction(input: {
+  quietStart: number;
+  quietEnd: number;
+  morningHour: number;
+  calendarAlongsideGoogle: boolean;
+}) {
+  const ctx = await userContext();
+  await updateProfileSettings(ctx.db, ctx.userId, {
+    reminders: reminderSettingsSchema.parse(input),
+  });
+  const cancelled = await ctx.db
+    .from("jobs")
+    .delete()
+    .eq("user_id", ctx.userId)
+    .eq("type", "notify.reminder")
+    .eq("status", "pending");
+  if (cancelled.error) throw cancelled.error;
+  await scheduleReminders(ctx);
+  revalidatePath("/settings");
 }

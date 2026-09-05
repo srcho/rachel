@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   sendTestPushAction,
   setNotificationPrefAction,
+  setReminderSettingsAction,
   unsubscribePushAction,
 } from "../actions";
 import {
@@ -24,13 +25,21 @@ function b64ToUint8(b64: string): Uint8Array<ArrayBuffer> {
 
 export function NotifyControls({
   subscriptions,
+  reminders,
   prefs,
   vapidPublicKey,
 }: {
   subscriptions: number;
+  reminders: {
+    quietStart: number;
+    quietEnd: number;
+    morningHour: number;
+    calendarAlongsideGoogle: boolean;
+  };
   prefs: Record<NotificationKind, boolean>;
   vapidPublicKey: string;
 }) {
+  const [r, setR] = useState(reminders);
   const [pending, start] = useTransition();
   const [supported, setSupported] = useState<boolean | null>(null);
   const [thisDevice, setThisDevice] = useState<PushSubscription | null>(null);
@@ -79,7 +88,7 @@ export function NotifyControls({
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p>
             {supported === false
@@ -94,7 +103,7 @@ export function NotifyControls({
         </div>
         {supported &&
           (thisDevice ? (
-            <div className="flex gap-1">
+            <div className="flex shrink-0 flex-wrap gap-1">
               <Button
                 size="sm"
                 variant="outline"
@@ -118,6 +127,70 @@ export function NotifyControls({
             </Button>
           ))}
       </div>
+      <p className="text-xs text-muted-foreground">
+        시각 있는 마감과 일정은 10분 전, 날짜만 있는 할 일은 아침에 모아 알려요.
+        Google 알림이 설정된 일정은 기본적으로 Google에서만 받아요.
+      </p>
+      <details className="rounded-md border p-3">
+        <summary className="cursor-pointer text-xs">
+          조용한 시간·중복 알림 설정
+        </summary>
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["quietStart", "조용한 시간 시작"],
+                ["quietEnd", "조용한 시간 종료"],
+                ["morningHour", "아침 알림"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="text-xs">
+                {label}
+                <select
+                  aria-label={label}
+                  className="ml-1 rounded border bg-background p-2"
+                  value={r[key]}
+                  onChange={(e) =>
+                    setR({ ...r, [key]: Number(e.target.value) })
+                  }
+                >
+                  {Array.from({ length: 24 }, (_, h) => h).map((h) => (
+                    <option key={h} value={h}>
+                      {h}시
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          <label className="flex min-h-11 items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={r.calendarAlongsideGoogle}
+              onChange={(e) =>
+                setR({ ...r, calendarAlongsideGoogle: e.target.checked })
+              }
+            />
+            Google 알림이 있어도 레이첼 알림 함께 받기
+          </label>
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                try {
+                  await setReminderSettingsAction(r);
+                  toast.success("알림 설정을 저장했어요");
+                } catch {
+                  toast.error("알림 설정을 저장하지 못했어요");
+                }
+              })
+            }
+          >
+            저장
+          </Button>
+        </div>
+      </details>
       <ul className="divide-y">
         {NOTIFICATION_KINDS.map((k) => (
           <li key={k} className="flex items-center justify-between py-1.5">

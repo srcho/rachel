@@ -46,24 +46,58 @@ self.addEventListener("push", (event) => {
         body?: string;
         url?: string;
         tag?: string;
+        taskId?: string;
       };
     } catch {
       return { title: "Rachel", body: event.data?.text() ?? "" };
     }
   })();
   event.waitUntil(
-    self.registration.showNotification(data.title ?? "Rachel", {
-      body: data.body ?? "",
-      tag: data.tag,
+    self.registration.showNotification(data?.title ?? "Rachel", {
+      body: data?.body ?? "",
+      tag: data?.tag,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
-      data: { url: data.url ?? "/today" },
+      data: { url: data?.url ?? "/today", taskId: data?.taskId },
+      ...(data?.taskId
+        ? {
+            actions: [
+              { action: "complete", title: "완료" },
+              { action: "snooze", title: "15분 뒤 알림" },
+            ],
+          }
+        : {}),
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const taskId = (event.notification.data as { taskId?: string } | undefined)
+    ?.taskId;
+  if (taskId && (event.action === "complete" || event.action === "snooze")) {
+    event.waitUntil(
+      fetch("/api/push/action", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ taskId, action: event.action }),
+      })
+        .then(async (res) => {
+          if (!res.ok)
+            await self.registration.showNotification("처리하지 못했어요", {
+              body: "앱을 열어 다시 시도해 주세요.",
+              data: { url: event.notification.data.url },
+            });
+        })
+        .catch(() =>
+          self.registration.showNotification("연결 후 다시 시도해 주세요", {
+            body: "할 일은 변경하지 않았어요.",
+            data: { url: event.notification.data.url },
+          }),
+        ),
+    );
+    return;
+  }
   const url =
     (event.notification.data as { url?: string } | undefined)?.url ?? "/today";
   event.waitUntil(

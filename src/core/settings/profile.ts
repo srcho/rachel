@@ -7,6 +7,14 @@ export const profileSettingsSchema = z.object({
   honorific: z.string().trim().min(1).max(20).optional(),
   monthlyBudgetUsd: z.number().positive().max(10_000).nullable().optional(),
   dictionary: z.array(z.string()).max(200).optional(),
+  reminders: z
+    .object({
+      quietStart: z.number().int().min(0).max(23),
+      quietEnd: z.number().int().min(0).max(23),
+      morningHour: z.number().int().min(0).max(23),
+      calendarAlongsideGoogle: z.boolean(),
+    })
+    .optional(),
   notifications: z.record(z.string(), z.boolean()).optional(),
   /** 마감 있는 카드를 Google Tasks("Rachel" 목록)에 비추기 */
   gtasks: z
@@ -23,11 +31,12 @@ export async function getProfileSettings(
   db: Db,
   userId: string,
 ): Promise<ProfileSettings & Record<string, unknown>> {
-  const { data } = await db
+  const { data, error } = await db
     .from("profiles")
     .select("settings")
     .eq("id", userId)
     .maybeSingle();
+  if (error) throw error;
   return ((data?.settings as Record<string, unknown>) ??
     {}) as ProfileSettings & Record<string, unknown>;
 }

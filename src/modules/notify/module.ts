@@ -1,5 +1,6 @@
 import type { EventHandler, RachelModule } from "@/core/contracts";
 import { sendJob } from "./jobs";
+import { reminderJob, scheduleReminders } from "./reminders";
 import type { PushPayload } from "./schema";
 import { NotifySettings } from "./ui/NotifySettings";
 
@@ -16,7 +17,7 @@ const enqueuePush =
 /** notify 모듈: 이벤트 → 푸시. 알림 종류별 on/off 는 profiles.settings.notifications */
 export const notifyModule: RachelModule = {
   manifest: { id: "notify", name: "알림", icon: "bell", schemaVersion: 13 },
-  jobs: { send: sendJob },
+  jobs: { send: sendJob, reminder: reminderJob },
   settings: {
     id: "notify",
     title: "알림",
@@ -24,6 +25,22 @@ export const notifyModule: RachelModule = {
     Component: NotifySettings,
   },
   eventHandlers: [
+    ...[
+      "task.created",
+      "task.updated",
+      "task.reopened",
+      "calendar_event.created",
+      "calendar_event.updated",
+      "calendar.synced",
+    ].map((on) => ({
+      on,
+      handle: async (
+        _e: unknown,
+        ctx: import("@/core/contracts").ServiceContext,
+      ) => {
+        await scheduleReminders(ctx);
+      },
+    })),
     {
       on: "meeting.summarized",
       handle: async (e, ctx) => {
@@ -35,8 +52,8 @@ export const notifyModule: RachelModule = {
         if (p.empty) return;
         const body =
           p.pass === "final"
-            ? `화자 분리까지 끝났어요. 액션 아이템 ${p.actionItems ?? 0}개`
-            : `요약이 준비됐어요. 액션 아이템 ${p.actionItems ?? 0}개`;
+            ? `화자 분리까지 끝났어요. 후속 할 일 ${p.actionItems ?? 0}개`
+            : `요약이 준비됐어요. 후속 할 일 ${p.actionItems ?? 0}개`;
         await enqueuePush({
           kind: "meeting_ready",
           title: "회의 정리 완료",

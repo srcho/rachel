@@ -3,6 +3,7 @@ import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { getRegistry } from "@/core/registry/current";
 import { getProfileSettings } from "@/core/settings/profile";
+import { DEFAULT_REMINDERS, reminderSettingsSchema } from "../reminders";
 import { NOTIFICATION_KINDS, type NotificationKind } from "../schema";
 import { notifyService } from "../service";
 import { NotifyControls } from "./NotifyControls";
@@ -27,6 +28,10 @@ export async function NotifySettings() {
       .notifications ?? {};
   return (
     <NotifyControls
+      reminders={{
+        ...DEFAULT_REMINDERS,
+        ...reminderSettingsSchema.partial().parse(settings.reminders ?? {}),
+      }}
       subscriptions={count}
       prefs={
         Object.fromEntries(

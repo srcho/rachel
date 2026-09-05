@@ -33,6 +33,7 @@ export function notifyService(ctx: ServiceContext) {
           "daily_brief",
           "weekly_review",
           "due_soon",
+          "event_soon",
         ] as NotificationKind[]
       ).filter((k) => prefs[k] !== false),
     );
@@ -46,10 +47,12 @@ export function notifyService(ctx: ServiceContext) {
     if (!configured()) return { sent: 0, removed: 0 };
     if (!(await enabledKinds()).has(payload.kind))
       return { sent: 0, removed: 0 };
-    const { data: subs } = await ctx.db
+    const { data: subs, error } = await ctx.db
       .from("push_subscriptions")
       .select("*")
       .eq("user_id", ctx.userId);
+    if (error) throw error;
+    let failed = 0;
     let sent = 0;
     let removed = 0;
     for (const s of subs ?? []) {
@@ -77,6 +80,7 @@ export function notifyService(ctx: ServiceContext) {
             .from("push_subscriptions")
             .update({ failures: s.failures + 1 })
             .eq("id", s.id);
+          failed++;
           console.warn(
             "[push] 전송 실패",
             status,
@@ -85,6 +89,7 @@ export function notifyService(ctx: ServiceContext) {
         }
       }
     }
+    if (failed && !sent) throw new Error("알림 전송을 다시 시도해야 해요");
     return { sent, removed };
   }
 
