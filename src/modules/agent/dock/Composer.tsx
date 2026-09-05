@@ -7,6 +7,7 @@ export function Composer({
   onSend,
   onStop,
   busy,
+  disabled = false,
   autoFocus,
   text,
   onTextChange,
@@ -14,6 +15,7 @@ export function Composer({
   onSend: (text: string) => void;
   onStop: () => void;
   busy: boolean;
+  disabled?: boolean;
   autoFocus?: boolean;
   text: string;
   onTextChange: (text: string) => void;
@@ -21,14 +23,14 @@ export function Composer({
   const ref = useRef<HTMLTextAreaElement>(null);
   function submit() {
     const t = text.trim();
-    if (!t || busy) return;
+    if (!t || busy || disabled) return;
     onSend(t);
     onTextChange("");
     ref.current?.focus();
   }
   return (
     <form
-      className="flex items-end gap-2 border-t bg-background p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="flex w-full min-w-0 shrink-0 items-end gap-2 border-t bg-background p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       onSubmit={(e) => {
         e.preventDefault();
         submit();
@@ -49,7 +51,7 @@ export function Composer({
         rows={1}
         placeholder="레이첼에게 말하기"
         aria-label="메시지"
-        className="max-h-32 min-h-9 flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/50"
+        className="max-h-32 min-h-9 w-0 min-w-0 flex-1 resize-none rounded-md border bg-background px-3 py-2 text-[16px] outline-none focus:ring-2 focus:ring-ring/50 md:text-sm"
       />
       {busy ? (
         <Button
@@ -65,7 +67,7 @@ export function Composer({
         <Button
           type="submit"
           size="icon"
-          disabled={!text.trim()}
+          disabled={!text.trim() || disabled}
           aria-label="보내기"
         >
           <ArrowUp className="size-4" />

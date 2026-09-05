@@ -1,18 +1,16 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithApprovalResponses,
-} from "ai";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { loadThreadAction } from "../actions";
 import type { RachelUIMessage } from "../agent";
 import { Composer } from "./Composer";
+import { getChatSession } from "./chat-session";
 import { ExecutionRecords } from "./ExecutionRecords";
 import { MessageList } from "./MessageList";
 import { useDock } from "./store";
+import { useChatRecovery } from "./useChatRecovery";
 
 /** 스레드 하나의 대화. threadId 가 바뀌면 key 로 다시 마운트한다. */
 export function Chat({
@@ -32,24 +30,7 @@ export function Chat({
   const cached = useRef(initialMessages.length ? initialMessages : saved);
   const [hasOlder, setHasOlder] = useState(initialMessages.length >= 200);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const ui = useDock((s) => s.ui);
-  const useUi = useDock((s) => s.useUi);
-  const uiRef = useRef({ ui, useUi });
-  uiRef.current = { ui, useUi };
-
-  const transportRef = useRef(
-    new DefaultChatTransport({
-      api: "/api/chat",
-      prepareSendMessagesRequest: ({ id, messages, trigger }) => ({
-        body: {
-          id,
-          messages: messages.slice(-200),
-          retry: trigger === "regenerate-message",
-          ui: uiRef.current.useUi ? (uiRef.current.ui ?? undefined) : undefined,
-        },
-      }),
-    }),
-  );
+  const [session] = useState(() => getChatSession(threadId, cached.current));
 
   const {
     messages,
@@ -61,11 +42,9 @@ export function Chat({
     setMessages: replaceMessages,
     addToolApprovalResponse,
   } = useChat<RachelUIMessage>({
-    id: threadId,
-    messages: cached.current,
-    transport: transportRef.current,
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+    chat: session,
   });
+  const recovery = useChatRecovery(session, messages);
 
   useEffect(() => {
     setMessages(threadId, messages);
@@ -99,6 +78,16 @@ export function Chat({
   }, [busy, messages, removeThread, threadId]);
   return (
     <>
+      {recovery.notice && (
+        <output className="shrink-0 border-b px-3 py-2 text-sm">
+          {recovery.notice}
+          {!recovery.checking && (
+            <Button size="sm" variant="ghost" onClick={recovery.refresh}>
+              다시 확인
+            </Button>
+          )}
+        </output>
+      )}
       {hasOlder && (
         <Button
           variant="ghost"
@@ -177,6 +166,7 @@ export function Chat({
         onSend={(text) => void sendMessage({ text })}
         onStop={stop}
         busy={busy}
+        disabled={!recovery.online || recovery.checking}
         autoFocus={autoFocus}
       />
     </>

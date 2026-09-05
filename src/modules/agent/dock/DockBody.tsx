@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { listThreadsAction, loadThreadAction } from "../actions";
 import type { RachelUIMessage } from "../agent";
 import { Chat } from "./Chat";
+import { peekChatSession } from "./chat-session";
 import { useDock } from "./store";
 
 type ThreadItem = { id: string; title: string; lastMessageAt: string };
@@ -30,24 +31,41 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
   } | null>(null);
   const [threads, setThreads] = useState<ThreadItem[] | null>(null);
   const [showThreads, setShowThreads] = useState(false);
+  const [threadsError, setThreadsError] = useState(false);
+  const [threadsRetry, setThreadsRetry] = useState(0);
 
   const [loadError, setLoadError] = useState(false);
   const [retry, setRetry] = useState(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: 재시도는 같은 조회를 다시 실행한다
   useEffect(() => {
     let active = true;
-    setInitial(null);
     setLoadError(false);
-    void loadThreadAction(threadId)
+    const cached =
+      peekChatSession(threadId)?.messages ??
+      useDock.getState().conversations[threadId];
+    if (cached) {
+      setInitial({ threadId, messages: cached });
+      return;
+    }
+    setInitial(null);
+    let timeout: ReturnType<typeof setTimeout>;
+    void Promise.race([
+      loadThreadAction(threadId),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("timeout")), 10_000);
+      }),
+    ])
       .then((messages) => {
         if (active)
           setInitial({ threadId, messages: messages as RachelUIMessage[] });
       })
       .catch(() => {
         if (active) setLoadError(true);
-      });
+      })
+      .finally(() => clearTimeout(timeout));
     return () => {
       active = false;
+      clearTimeout(timeout);
     };
   }, [threadId, retry]);
   function switchThread(id: string) {
@@ -55,10 +73,40 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
     setShowThreads(false);
   }
 
-  async function openThreads() {
-    setShowThreads((v) => !v);
-    setThreads(await listThreadsAction());
-  }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: explicit retry reloads the visible list.
+  useEffect(() => {
+    if (!showThreads) return;
+    let active = true;
+    let timeout: ReturnType<typeof setTimeout>;
+    setThreadsError(false);
+    void Promise.race([
+      listThreadsAction(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("timeout")), 10_000);
+      }),
+    ])
+      .then((rows) => {
+        if (active) setThreads(rows);
+      })
+      .catch(() => {
+        if (active) setThreadsError(true);
+      })
+      .finally(() => clearTimeout(timeout));
+    const resume = () => {
+      if (document.visibilityState === "visible" && navigator.onLine)
+        setThreadsRetry((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("pageshow", resume);
+    window.addEventListener("online", resume);
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("pageshow", resume);
+      window.removeEventListener("online", resume);
+    };
+  }, [showThreads, threadsRetry]);
 
   const contextLabel =
     ui?.label ??
@@ -71,7 +119,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
         : null);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <header className="flex h-11 shrink-0 items-center gap-1 border-b px-2">
         <span className="px-1 text-sm font-semibold">레이첼</span>
         {contextLabel && (
@@ -94,7 +142,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
             size="icon"
             variant="ghost"
             className="size-8"
-            onClick={openThreads}
+            onClick={() => setShowThreads((value) => !value)}
             aria-label="대화 목록"
           >
             <History className="size-4" />
@@ -140,7 +188,19 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
       </header>
       {showThreads ? (
         <ul className="flex-1 overflow-y-auto p-2 text-sm">
-          {threads === null && (
+          {threadsError && (
+            <li role="alert" className="p-2">
+              대화 목록을 불러오지 못했어요.
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setThreadsRetry((n) => n + 1)}
+              >
+                다시 불러오기
+              </Button>
+            </li>
+          )}
+          {threads === null && !threadsError && (
             <li className="p-2 text-muted-foreground">불러오는 중…</li>
           )}
           {threads?.length === 0 && (
@@ -184,7 +244,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
           key={threadId}
           threadId={threadId}
           initialMessages={initial.messages}
-          autoFocus
+          autoFocus={isDesktop}
         />
       )}
     </div>

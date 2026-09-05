@@ -31,6 +31,12 @@ export function useTableChanges(
       if (timer) clearTimeout(timer);
       timer = setTimeout(onChange, debounceMs);
     };
+    const resume = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) fire();
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("pageshow", resume);
+    window.addEventListener("online", resume);
     void import("@/core/db/browser").then(async ({ createBrowserSupabase }) => {
       if (cancelled) return;
       const supabase = createBrowserSupabase();
@@ -61,6 +67,9 @@ export function useTableChanges(
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("pageshow", resume);
+      window.removeEventListener("online", resume);
       cleanup?.();
     };
   }, [key, userId, onChange, debounceMs]);

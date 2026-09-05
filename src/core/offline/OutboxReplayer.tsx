@@ -28,13 +28,22 @@ export function OutboxReplayer({ userId }: { userId: string }) {
       void replay();
     };
     const onOffline = () => setOnline(false);
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      if (navigator.onLine) onOnline();
+      else onOffline();
+    };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
+    window.addEventListener("pageshow", onResume);
+    document.addEventListener("visibilitychange", onResume);
     void replay();
     return () => {
       off();
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      window.removeEventListener("pageshow", onResume);
+      document.removeEventListener("visibilitychange", onResume);
     };
   }, [router, userId]);
   if (online && count === 0) return null;

@@ -60,3 +60,49 @@ export const useDock = create<DockState>((set) => ({
   setUi: (ui) => set({ ui }),
   setUseUi: (useUi) => set({ useUi }),
 }));
+
+/** Restore this user's active conversation after a PWA page/process reload. */
+export function restoreDockSession(userId: string) {
+  if (useDock.getState().userId === userId) return;
+  let saved: { threadId?: string; draft?: string; open?: boolean } = {};
+  try {
+    saved = JSON.parse(sessionStorage.getItem(`rachel-dock:${userId}`) ?? "{}");
+  } catch {
+    // Storage can be unavailable in private mode; the live conversation still works.
+  }
+  const id =
+    typeof saved?.threadId === "string" &&
+    /^[0-9a-f-]{36}$/i.test(saved.threadId)
+      ? saved.threadId
+      : crypto.randomUUID();
+  useDock.setState({
+    userId,
+    threadId: id,
+    drafts: typeof saved?.draft === "string" ? { [id]: saved.draft } : {},
+    conversations: {},
+    open: saved?.open === true,
+  });
+}
+
+useDock.subscribe((state, previous) => {
+  if (!state.userId || typeof sessionStorage === "undefined") return;
+  if (
+    state.userId === previous.userId &&
+    state.threadId === previous.threadId &&
+    state.open === previous.open &&
+    state.drafts === previous.drafts
+  )
+    return;
+  try {
+    sessionStorage.setItem(
+      `rachel-dock:${state.userId}`,
+      JSON.stringify({
+        threadId: state.threadId,
+        draft: state.drafts[state.threadId] ?? "",
+        open: state.open,
+      }),
+    );
+  } catch {
+    // Do not drop input when the browser refuses session storage.
+  }
+});

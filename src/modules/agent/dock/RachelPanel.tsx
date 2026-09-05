@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/drawer";
 import { useIsDesktop } from "@/core/ui/useMediaQuery";
 import { cn } from "@/lib/utils";
-import { useDock } from "./store";
+import { restoreDockSession, useDock } from "./store";
+import { useKeyboardViewport } from "./useKeyboardViewport";
 
 /** Dock 본문(AI SDK·채팅)은 처음 열 때 로드한다 — 모든 라우트의 첫 JS 를 줄인다 */
 const DockBody = dynamic(() => import("./DockBody"), {
@@ -54,16 +55,10 @@ export function RachelPanel({ userId }: { userId: string }) {
   const isDesktop = useIsDesktop();
   const { open, setOpen, toggle, expanded } = useDock();
   const panelRef = useRef<HTMLDivElement>(null);
+  useKeyboardViewport(panelRef, open && !isDesktop);
   useUiContextSync();
   useEffect(() => {
-    if (useDock.getState().userId !== userId)
-      useDock.setState({
-        userId,
-        drafts: {},
-        conversations: {},
-        threadId: crypto.randomUUID(),
-        open: false,
-      });
+    restoreDockSession(userId);
   }, [userId]);
 
   useEffect(() => {
@@ -116,8 +111,11 @@ export function RachelPanel({ userId }: { userId: string }) {
     );
   }
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerContent className="h-[88dvh]">
+    <Drawer open={open} onOpenChange={setOpen} repositionInputs={false}>
+      <DrawerContent
+        ref={panelRef}
+        className="h-[88dvh] min-w-0 overflow-hidden data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none"
+      >
         <DrawerHeader className="sr-only">
           <DrawerTitle>레이첼</DrawerTitle>
         </DrawerHeader>

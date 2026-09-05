@@ -34,7 +34,7 @@ export function ExecutionRecords({
     }
   }
   return (
-    <div className="border-t px-3 py-1.5 text-sm">
+    <div className="max-h-[30%] shrink-0 overflow-y-auto border-t px-3 py-1.5 text-sm">
       <Button
         variant="ghost"
         size="sm"

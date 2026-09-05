@@ -246,7 +246,10 @@ test("A07 newest persisted messages survive and older pages load", async ({
       1,
     );
     await page.reload();
-    await openThread(page, "긴 대화 E2E");
+    // A PWA reload restores the open conversation without reopening the dock.
+    await expect(
+      page.getByRole("dialog", { name: "레이첼", exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("E2E 기록 204", { exact: true })).toBeVisible();
     await screenshot(page, `history-${test.info().project.name}`);
   } finally {
@@ -453,7 +456,9 @@ for (const { approved, deletingCurrent } of [
       ).toBeEnabled();
       // Reload an unresolved request; both persisted message and bound proposal must survive.
       await page.reload();
-      await openThread(page, "승인 대기 E2E");
+      await expect(
+        page.getByRole("dialog", { name: "레이첼", exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "변경 실행", exact: true }),
       ).toBeEnabled();
@@ -551,7 +556,9 @@ for (const { approved, deletingCurrent } of [
       expect(receipts).toHaveLength(approved ? 1 : 0);
       if (approved) expect(receipts[0]?.status).toBe("done");
       await page.reload();
-      await openThread(page, "승인 대기 E2E");
+      await expect(
+        page.getByRole("dialog", { name: "레이첼", exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByText("브라우저 검증 응답입니다.", { exact: true }),
       ).toBeVisible();

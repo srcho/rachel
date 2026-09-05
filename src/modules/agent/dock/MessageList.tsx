@@ -24,7 +24,7 @@ export function MessageList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center text-sm text-muted-foreground">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 overflow-y-auto px-6 text-center text-sm text-muted-foreground">
         <p className="font-medium text-foreground">무엇을 도와드릴까요?</p>
         <p className="max-w-[28ch]">
           “오늘 마감인 것 보여줘”, “내일 3시 PRD 검토 카드 만들어줘”, “Doing에서
@@ -35,7 +35,7 @@ export function MessageList({
   }
   return (
     <div
-      className="relative flex-1 space-y-3 overflow-y-auto px-3 py-3"
+      className="relative min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3"
       onScroll={(e) => {
         const el = e.currentTarget;
         following.current =
@@ -64,7 +64,7 @@ export function MessageList({
                 return part.text ? (
                   <p
                     key={`${m.id}-${i}`}
-                    className="whitespace-pre-wrap leading-relaxed"
+                    className="wrap-anywhere whitespace-pre-wrap leading-relaxed"
                   >
                     {part.text}
                   </p>
