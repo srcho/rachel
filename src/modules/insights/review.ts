@@ -3,6 +3,7 @@ import type { Json } from "@/core/db/types.generated";
 import { llmGenerate } from "@/core/llm/client";
 import { MODEL_IDS } from "@/core/llm/models";
 import { weeklyReviewPrompt } from "@/core/llm/prompts/weekly-review";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { getProfileSettings } from "@/core/settings/profile";
 import { localYmd } from "@/core/utils/date";
 import { detectPatterns } from "./patterns";
@@ -13,6 +14,7 @@ export async function getOrCreateWeeklyReview(
   ctx: ServiceContext,
   opts: { force?: boolean } = {},
 ): Promise<InsightRow> {
+  ctx = { ...ctx, timezone: await getUserTimezone(ctx.db, ctx.userId) };
   const repo = insightsRepository(ctx.db, ctx.userId);
   const todayYmd = localYmd(ctx.now, ctx.timezone);
   const d = new Date(`${todayYmd}T00:00:00Z`);
@@ -24,7 +26,7 @@ export async function getOrCreateWeeklyReview(
   }
   const range = {
     from: new Date(ctx.now.getTime() - 28 * 86_400_000),
-    to: new Date(ctx.now.getTime() + 86_400_000),
+    to: new Date(ctx.now.getTime() + 1),
   };
   const { patterns, facts } = await detectPatterns(ctx, range);
   const settings = await getProfileSettings(ctx.db, ctx.userId);

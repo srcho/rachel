@@ -79,29 +79,67 @@ export type Database = {
       agent_tool_runs: {
         Row: {
           created_at: string;
+          error_message: string | null;
           id: string;
+          input: Json | null;
           output: Json | null;
+          reconciled_at: string | null;
           request_key: string;
+          resource_deleted_at: string | null;
+          resource_id: string | null;
+          resource_tracking: boolean;
           status: string;
+          thread_id: string | null;
+          tool_name: string | null;
+          turn_key: string | null;
+          updated_at: string;
           user_id: string;
         };
         Insert: {
           created_at?: string;
+          error_message?: string | null;
           id?: string;
+          input?: Json | null;
           output?: Json | null;
+          reconciled_at?: string | null;
           request_key: string;
+          resource_deleted_at?: string | null;
+          resource_id?: string | null;
+          resource_tracking?: boolean;
           status?: string;
+          thread_id?: string | null;
+          tool_name?: string | null;
+          turn_key?: string | null;
+          updated_at?: string;
           user_id?: string;
         };
         Update: {
           created_at?: string;
+          error_message?: string | null;
           id?: string;
+          input?: Json | null;
           output?: Json | null;
+          reconciled_at?: string | null;
           request_key?: string;
+          resource_deleted_at?: string | null;
+          resource_id?: string | null;
+          resource_tracking?: boolean;
           status?: string;
+          thread_id?: string | null;
+          tool_name?: string | null;
+          turn_key?: string | null;
+          updated_at?: string;
           user_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "agent_tool_runs_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_threads";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       assistant_preference_corrections: {
         Row: {
@@ -551,6 +589,7 @@ export type Database = {
         Row: {
           created_at: string;
           id: string;
+          message_seq: number;
           metadata: Json | null;
           parts: Json;
           role: string;
@@ -561,6 +600,7 @@ export type Database = {
         Insert: {
           created_at?: string;
           id: string;
+          message_seq?: never;
           metadata?: Json | null;
           parts?: Json;
           role: string;
@@ -571,6 +611,7 @@ export type Database = {
         Update: {
           created_at?: string;
           id?: string;
+          message_seq?: never;
           metadata?: Json | null;
           parts?: Json;
           role?: string;
@@ -1515,6 +1556,32 @@ export type Database = {
         Args: { p_rows: Json; p_user_id: string };
         Returns: number;
       };
+      replace_final_transcript_chunk: {
+        Args: { p_chunk_index: number; p_meeting_id: string; p_turns: Json };
+        Returns: {
+          chunk_index: number | null;
+          created_at: string;
+          end_ms: number;
+          id: string;
+          meeting_id: string;
+          pass: string;
+          raw: Json | null;
+          raw_speaker: string | null;
+          seq: number;
+          speaker: string | null;
+          start_ms: number;
+          status: string;
+          text: string;
+          turn_id: number | null;
+          user_id: string;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "transcript_segments";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       resolve_memory_review: {
         Args: { p_choice: string; p_id: string };
         Returns: undefined;
@@ -1527,6 +1594,13 @@ export type Database = {
           p_version: string;
         };
         Returns: Json;
+      };
+      search_chat_threads: {
+        Args: { p_limit?: number; p_offset?: number; p_query?: string };
+        Returns: {
+          thread: Json;
+          total_count: number;
+        }[];
       };
       search_chunks_hybrid: {
         Args: {
@@ -1548,6 +1622,10 @@ export type Database = {
       };
       set_meeting_transcript_edit: {
         Args: { p_key: string; p_meeting_id: string; p_text: string };
+        Returns: undefined;
+      };
+      set_notification_suggestion_kind: {
+        Args: { p_enabled: boolean; p_kind: string; p_user_id: string };
         Returns: undefined;
       };
       write_calendar_event: {

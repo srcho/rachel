@@ -19,8 +19,8 @@ export async function NotifySettings() {
       registry: await getRegistry(),
     }),
   );
-  const [count, settings] = await Promise.all([
-    svc.count(),
+  const [status, settings] = await Promise.all([
+    svc.status(),
     getProfileSettings(db, user.id),
   ]);
   const prefs =
@@ -32,7 +32,9 @@ export async function NotifySettings() {
         ...DEFAULT_REMINDERS,
         ...reminderSettingsSchema.partial().parse(settings.reminders ?? {}),
       }}
-      subscriptions={count}
+      subscriptions={status.subscriptions}
+      snoozedUntil={status.snoozedUntil}
+      disabledSuggestionKinds={status.disabledSuggestionKinds}
       prefs={
         Object.fromEntries(
           NOTIFICATION_KINDS.map((k) => [k, prefs[k] !== false]),

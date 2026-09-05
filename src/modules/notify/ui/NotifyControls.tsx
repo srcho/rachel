@@ -7,6 +7,8 @@ import {
   sendTestPushAction,
   setNotificationPrefAction,
   setReminderSettingsAction,
+  setSuggestionKindAction,
+  snoozeNotificationsAction,
   unsubscribePushAction,
 } from "../actions";
 import {
@@ -25,11 +27,15 @@ function b64ToUint8(b64: string): Uint8Array<ArrayBuffer> {
 
 export function NotifyControls({
   subscriptions,
+  snoozedUntil,
+  disabledSuggestionKinds,
   reminders,
   prefs,
   vapidPublicKey,
 }: {
   subscriptions: number;
+  snoozedUntil: string | null;
+  disabledSuggestionKinds: string[];
   reminders: {
     quietStart: number;
     quietEnd: number;
@@ -190,6 +196,78 @@ export function NotifyControls({
             저장
           </Button>
         </div>
+      </details>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          {snoozedUntil && Date.parse(snoozedUntil) > Date.now()
+            ? `알림 일시 중지: ${new Date(snoozedUntil).toLocaleString()}`
+            : "알림 수신 중"}
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              try {
+                await snoozeNotificationsAction(
+                  new Date(Date.now() + 3600000).toISOString(),
+                );
+              } catch {
+                toast.error("알림을 미루지 못했어요");
+              }
+            })
+          }
+        >
+          1시간 동안 알림 중지
+        </Button>
+        {snoozedUntil && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                await snoozeNotificationsAction(null);
+              })
+            }
+          >
+            중지 해제
+          </Button>
+        )}
+      </div>
+      <details className="rounded-md border p-3">
+        <summary className="cursor-pointer text-xs">선제 제안 종류</summary>
+        <ul className="mt-2 divide-y">
+          {(
+            [
+              ["time_conflict", "시간 충돌"],
+              ["capacity_risk", "마감·가용 시간"],
+              ["meeting_followup", "내 회의 후속 항목"],
+              ["waiting_followup", "받을 답 확인"],
+              ["changed_evidence", "변경된 기억 근거"],
+              ["preference", "반복 교정에서 배운 선호"],
+            ] as const
+          ).map(([kind, label]) => (
+            <li key={kind} className="flex items-center justify-between py-2">
+              <span>{label}</span>
+              <Switch
+                checked={!disabledSuggestionKinds.includes(kind)}
+                disabled={pending}
+                aria-label={label}
+                onCheckedChange={(enabled) =>
+                  start(async () => {
+                    try {
+                      await setSuggestionKindAction(kind, enabled);
+                    } catch {
+                      toast.error("제안 설정을 변경하지 못했어요");
+                    }
+                  })
+                }
+              />
+            </li>
+          ))}
+        </ul>
       </details>
       <ul className="divide-y">
         {NOTIFICATION_KINDS.map((k) => (

@@ -1,7 +1,13 @@
 import type { EventHandler, RachelModule } from "@/core/contracts";
+import { proactiveService } from "@/modules/insights/proactive";
+import {
+  proactiveEventHandler,
+  proactiveJob,
+} from "@/modules/insights/proactive-jobs";
 import { sendJob } from "./jobs";
 import { reminderJob, scheduleReminders } from "./reminders";
 import type { PushPayload } from "./schema";
+import { notifyTools } from "./tools";
 import { NotifySettings } from "./ui/NotifySettings";
 
 const enqueuePush =
@@ -10,14 +16,15 @@ const enqueuePush =
     await ctx.enqueue({
       type: "notify.send",
       payload,
-      dedupeKey: `notify:${payload.kind}:${payload.tag ?? ""}:${Date.now()}`,
+      dedupeKey: `notify:${payload.kind}:${payload.tag ?? ""}`,
     });
   };
 
 /** notify 모듈: 이벤트 → 푸시. 알림 종류별 on/off 는 profiles.settings.notifications */
 export const notifyModule: RachelModule = {
   manifest: { id: "notify", name: "알림", icon: "bell", schemaVersion: 13 },
-  jobs: { send: sendJob, reminder: reminderJob },
+  jobs: { send: sendJob, reminder: reminderJob, proactive: proactiveJob },
+  tools: notifyTools,
   settings: {
     id: "notify",
     title: "알림",
@@ -25,6 +32,7 @@ export const notifyModule: RachelModule = {
     Component: NotifySettings,
   },
   eventHandlers: [
+    proactiveEventHandler,
     ...[
       "task.created",
       "task.updated",
@@ -50,8 +58,16 @@ export const notifyModule: RachelModule = {
           actionItems?: number;
         };
         if (p.empty) return;
-        const body =
-          p.pass === "final"
+        const suggestions = proactiveService(ctx);
+        await suggestions.refresh();
+        const own = (await suggestions.list(true)).items.find(
+          (item) =>
+            item.kind === "meeting_followup" &&
+            (item.evidence as { meetingId?: string }).meetingId === e.entity.id,
+        );
+        const body = own
+          ? own.body
+          : p.pass === "final"
             ? `화자 분리까지 끝났어요. 후속 할 일 ${p.actionItems ?? 0}개`
             : `요약이 준비됐어요. 후속 할 일 ${p.actionItems ?? 0}개`;
         await enqueuePush({
@@ -59,7 +75,7 @@ export const notifyModule: RachelModule = {
           title: "회의 정리 완료",
           body,
           url: `/meetings/${e.entity.id}`,
-          tag: `meeting:${e.entity.id}:${p.pass}`,
+          tag: `meeting:${e.entity.id}`,
         })(e, ctx);
       },
     },

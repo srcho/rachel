@@ -1,7 +1,8 @@
 import type { RachelModule } from "@/core/contracts";
 import { briefJob, weeklyJob } from "./jobs";
+import { proactiveWidget } from "./proactive-widget";
 import { insightsTools } from "./tools";
-import { briefWidget } from "./widgets";
+import { briefWidget, dayCloseWidget } from "./widgets";
 import {
   captureConversionWidget,
   cycleWidget,
@@ -23,7 +24,9 @@ export const insightsModule: RachelModule = {
   },
   tools: insightsTools,
   widgets: [
+    proactiveWidget,
     briefWidget,
+    dayCloseWidget,
     patternsWidget,
     throughputWidget,
     cycleWidget,

@@ -50,13 +50,23 @@ export async function getProfileSettings(
 export async function updateProfileSettings(
   db: Db,
   userId: string,
-  patch: Partial<ProfileSettings>,
+  patch: Omit<Partial<ProfileSettings>, "reminders"> & {
+    reminders?: Partial<NonNullable<ProfileSettings["reminders"]>>;
+  },
   options: {
     timezone?: string;
     resetPreferredHours?: Array<"preferredStartHour" | "preferredEndHour">;
   } = {},
 ): Promise<void> {
-  const parsed = profileSettingsSchema.partial().parse(patch);
+  const parsed = profileSettingsSchema
+    .partial()
+    .extend({
+      reminders: profileSettingsSchema.shape.reminders
+        .unwrap()
+        .partial()
+        .optional(),
+    })
+    .parse(patch);
   const timezone =
     options.timezone === undefined
       ? undefined
@@ -71,6 +81,13 @@ export async function updateProfileSettings(
     const settings = (current.settings ?? {}) as ProfileSettings &
       Record<string, unknown>;
     const next = { ...settings, ...parsed };
+    if (parsed.notifications)
+      next.notifications = {
+        ...settings.notifications,
+        ...parsed.notifications,
+      };
+    if (parsed.reminders)
+      next.reminders = { ...settings.reminders, ...parsed.reminders };
     if (parsed.assistant) {
       next.assistant = {
         ...settings.assistant,

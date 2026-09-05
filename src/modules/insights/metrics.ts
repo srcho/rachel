@@ -1,16 +1,20 @@
 import { cache } from "react";
 import type { DateRange, ServiceContext } from "@/core/contracts";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { localYmd } from "@/core/utils/date";
 
 /** 범위 안의 월요일 목록(빈 주도 0 으로 채우기 위해) */
 export function weeksIn(range: DateRange, timeZone: string): string[] {
+  if (range.to <= range.from) return [];
   const out: string[] = [];
   const startYmd = localYmd(range.from, timeZone);
   const d = new Date(`${startYmd}T00:00:00Z`);
   const dow = (d.getUTCDay() + 6) % 7;
   d.setUTCDate(d.getUTCDate() - dow);
-  const end = new Date(`${localYmd(range.to, timeZone)}T00:00:00Z`);
-  while (d < end) {
+  const end = new Date(
+    `${localYmd(new Date(range.to.getTime() - 1), timeZone)}T00:00:00Z`,
+  );
+  while (d <= end) {
     out.push(d.toISOString().slice(0, 10));
     d.setUTCDate(d.getUTCDate() + 7);
   }
@@ -28,7 +32,7 @@ function fill<T extends { week: string }>(
 }
 
 async function tasksWeeklyRaw(ctx: ServiceContext, range: DateRange) {
-  const weeks = weeksIn(range, ctx.timezone);
+  const weeks = weeksIn(range, await getUserTimezone(ctx.db, ctx.userId));
   const [a, b] = await Promise.all([
     ctx.db
       .from("v_tasks_weekly")
@@ -43,6 +47,8 @@ async function tasksWeeklyRaw(ctx: ServiceContext, range: DateRange) {
       .gte("week", weeks[0] ?? "1970-01-01")
       .lte("week", weeks.at(-1) ?? "2100-01-01"),
   ]);
+  if (a.error) throw new Error(`작업 주간 지표 조회 실패: ${a.error.message}`);
+  if (b.error) throw new Error(`작업 완료 시간 조회 실패: ${b.error.message}`);
   const rows = (a.data ?? []).map((r) => ({
     week: String(r.week),
     created: Number(r.created ?? 0),
@@ -58,13 +64,14 @@ async function tasksWeeklyRaw(ctx: ServiceContext, range: DateRange) {
 }
 
 async function meetingsWeeklyRaw(ctx: ServiceContext, range: DateRange) {
-  const weeks = weeksIn(range, ctx.timezone);
-  const { data } = await ctx.db
+  const weeks = weeksIn(range, await getUserTimezone(ctx.db, ctx.userId));
+  const { data, error } = await ctx.db
     .from("v_meetings_weekly")
     .select("week, meetings, minutes")
     .eq("user_id", ctx.userId)
     .gte("week", weeks[0] ?? "1970-01-01")
     .lte("week", weeks.at(-1) ?? "2100-01-01");
+  if (error) throw new Error(`주간 지표 조회 실패: ${error.message}`);
   return fill(
     weeks,
     (data ?? []).map((r) => ({
@@ -77,13 +84,14 @@ async function meetingsWeeklyRaw(ctx: ServiceContext, range: DateRange) {
 }
 
 async function calendarWeeklyRaw(ctx: ServiceContext, range: DateRange) {
-  const weeks = weeksIn(range, ctx.timezone);
-  const { data } = await ctx.db
+  const weeks = weeksIn(range, await getUserTimezone(ctx.db, ctx.userId));
+  const { data, error } = await ctx.db
     .from("v_calendar_load_weekly")
     .select("week, events, hours")
     .eq("user_id", ctx.userId)
     .gte("week", weeks[0] ?? "1970-01-01")
     .lte("week", weeks.at(-1) ?? "2100-01-01");
+  if (error) throw new Error(`주간 지표 조회 실패: ${error.message}`);
   return fill(
     weeks,
     (data ?? []).map((r) => ({
@@ -96,13 +104,14 @@ async function calendarWeeklyRaw(ctx: ServiceContext, range: DateRange) {
 }
 
 async function captureWeeklyRaw(ctx: ServiceContext, range: DateRange) {
-  const weeks = weeksIn(range, ctx.timezone);
-  const { data } = await ctx.db
+  const weeks = weeksIn(range, await getUserTimezone(ctx.db, ctx.userId));
+  const { data, error } = await ctx.db
     .from("v_capture_conversion")
     .select("week, captured, resolved, dismissed")
     .eq("user_id", ctx.userId)
     .gte("week", weeks[0] ?? "1970-01-01")
     .lte("week", weeks.at(-1) ?? "2100-01-01");
+  if (error) throw new Error(`주간 지표 조회 실패: ${error.message}`);
   return fill(
     weeks,
     (data ?? []).map((r) => ({
@@ -117,23 +126,25 @@ async function captureWeeklyRaw(ctx: ServiceContext, range: DateRange) {
 
 /** 완료 스트릭(오늘 포함 연속 일수)과 최근 30일 완료 일수 */
 async function streakRaw(ctx: ServiceContext) {
-  const { data } = await ctx.db
+  const { data, error } = await ctx.db
     .from("v_completion_days")
     .select("day, completed")
     .eq("user_id", ctx.userId)
     .order("day", { ascending: false })
     .limit(60);
+  if (error) throw new Error(`완료 일수 조회 실패: ${error.message}`);
+  const timezone = await getUserTimezone(ctx.db, ctx.userId);
   const days = new Set((data ?? []).map((r) => String(r.day)));
   let n = 0;
-  const d = new Date(`${localYmd(ctx.now, ctx.timezone)}T00:00:00Z`);
+  const d = new Date(`${localYmd(ctx.now, timezone)}T00:00:00Z`);
   if (!days.has(d.toISOString().slice(0, 10))) d.setUTCDate(d.getUTCDate() - 1); // 오늘 아직 없으면 어제부터
   while (days.has(d.toISOString().slice(0, 10))) {
     n++;
     d.setUTCDate(d.getUTCDate() - 1);
   }
-  const cutoff = new Date(ctx.now.getTime() - 30 * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
+  const cutoffDay = new Date(`${localYmd(ctx.now, timezone)}T00:00:00Z`);
+  cutoffDay.setUTCDate(cutoffDay.getUTCDate() - 29);
+  const cutoff = cutoffDay.toISOString().slice(0, 10);
   return {
     current: n,
     activeDays30: [...days].filter((x) => x >= cutoff).length,
@@ -141,13 +152,14 @@ async function streakRaw(ctx: ServiceContext) {
 }
 
 async function overdueStatsRaw(ctx: ServiceContext) {
-  const { data } = await ctx.db
+  const { data, error } = await ctx.db
     .from("cards")
     .select("labels, priority, due_at")
     .eq("user_id", ctx.userId)
     .is("completed_at", null)
     .is("archived_at", null)
     .lt("due_at", ctx.now.toISOString());
+  if (error) throw new Error(`지연 작업 조회 실패: ${error.message}`);
   const byLabel = new Map<string, number>();
   const byPriority = [0, 0, 0, 0];
   for (const c of data ?? []) {
@@ -163,12 +175,13 @@ async function overdueStatsRaw(ctx: ServiceContext) {
 
 /** 회의·일정 시간대 히트맵(요일×시) — 최근 range */
 async function slotHeatRaw(ctx: ServiceContext, range: DateRange) {
-  const { data } = await ctx.db
+  const { data, error } = await ctx.db
     .from("v_event_slots")
     .select("dow, hour, hours")
     .eq("user_id", ctx.userId)
     .gte("start_at", range.from.toISOString())
     .lt("start_at", range.to.toISOString());
+  if (error) throw new Error(`일정 시간대 조회 실패: ${error.message}`);
   const grid: number[][] = Array.from({ length: 7 }, () =>
     new Array(24).fill(0),
   );

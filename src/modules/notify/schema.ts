@@ -14,6 +14,7 @@ export const pushPayloadSchema = z.object({
   url: z.string().default("/today"),
   tag: z.string().optional(),
   taskId: z.string().uuid().optional(),
+  suggestionId: z.string().uuid().optional(),
 });
 export type PushPayload = z.infer<typeof pushPayloadSchema>;
 

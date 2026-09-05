@@ -70,4 +70,27 @@ describe.skipIf(!available)("scheduled reminders", () => {
     await reminderJob.run({ target: "morning", date: "2026-09-04" }, ctx);
     expect(send).not.toHaveBeenCalled();
   });
+  it("does not reissue running or completed originals but retries failed scheduling", async () => {
+    const key = "reminder:morning:2026-09-06:";
+    const { data, error } = await user.db
+      .from("jobs")
+      .insert({
+        user_id: user.id,
+        type: "notify.reminder",
+        dedupe_key: key,
+        status: "running",
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw error ?? new Error("missing job");
+    queued.length = 0;
+    await scheduleReminders(ctx);
+    expect(queued).toEqual([]);
+    await user.db.from("jobs").update({ status: "done" }).eq("id", data.id);
+    await scheduleReminders(ctx);
+    expect(queued).toEqual([]);
+    await user.db.from("jobs").update({ status: "failed" }).eq("id", data.id);
+    await scheduleReminders(ctx);
+    expect(queued).toHaveLength(1);
+  });
 });

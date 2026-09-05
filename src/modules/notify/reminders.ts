@@ -1,58 +1,40 @@
 import { z } from "zod";
 import type { JobHandler, ServiceContext } from "@/core/contracts";
 import { getProfileSettings } from "@/core/settings/profile";
-import { dayBounds, localYmd, tzOffsetMs } from "@/core/utils/date";
+import { dayBounds, localYmd } from "@/core/utils/date";
 import { notifyService } from "./service";
-export const reminderSettingsSchema = z.object({
-  quietStart: z.number().int().min(0).max(23),
-  quietEnd: z.number().int().min(0).max(23),
-  morningHour: z.number().int().min(0).max(23),
-  calendarAlongsideGoogle: z.boolean(),
-});
-export const DEFAULT_REMINDERS = {
-  quietStart: 22,
-  quietEnd: 8,
-  morningHour: 9,
-  calendarAlongsideGoogle: false,
-};
-export function afterQuietHours(
-  at: Date,
-  timezone: string,
-  start: number,
-  end: number,
-) {
-  if (start === end) return at;
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: timezone,
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(at),
-  );
-  const quiet =
-    start < end ? hour >= start && hour < end : hour >= start || hour < end;
-  if (!quiet) return at;
-  const day = new Date(`${localYmd(at, timezone)}T12:00:00Z`);
-  if (start > end && hour >= start) day.setUTCDate(day.getUTCDate() + 1);
 
-  return wallClock(day.toISOString().slice(0, 10), end, timezone);
-}
-function wallClock(date: string, hour: number, timezone: string) {
-  const raw = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00Z`);
-  const first = new Date(raw.getTime() - tzOffsetMs(timezone, raw));
-  return new Date(raw.getTime() - tzOffsetMs(timezone, first));
-}
+export {
+  afterQuietHours,
+  DEFAULT_REMINDERS,
+  reminderSettingsSchema,
+} from "./policy";
+
+import {
+  afterQuietHours,
+  DEFAULT_REMINDERS,
+  reminderSettingsSchema,
+  wallClock,
+} from "./policy";
+
 async function preferences(ctx: ServiceContext) {
-  const [settings, profile] = await Promise.all([
+  const [settings, profile, controls] = await Promise.all([
     getProfileSettings(ctx.db, ctx.userId),
     ctx.db
       .from("profiles")
       .select("timezone")
       .eq("id", ctx.userId)
       .maybeSingle(),
+    ctx.db
+      .from("notification_controls")
+      .select("snoozed_until")
+      .eq("user_id", ctx.userId)
+      .maybeSingle(),
   ]);
   if (profile.error) throw profile.error;
+  if (controls.error) throw controls.error;
   return {
+    snoozedUntil: controls.data?.snoozed_until,
     timezone: profile.data?.timezone ?? ctx.timezone,
     ...DEFAULT_REMINDERS,
     ...reminderSettingsSchema.partial().parse(settings.reminders ?? {}),
@@ -76,7 +58,7 @@ async function enqueue(
     .select("id")
     .eq("user_id", ctx.userId)
     .eq("dedupe_key", key)
-    .eq("status", "done")
+    .in("status", ["running", "done"])
     .limit(1);
   if (error) throw error;
   if (data.length) return;
@@ -213,12 +195,17 @@ export const reminderJob: JobHandler<ReminderPayload> = {
   run: async (payload, ctx) => {
     const prefs = await preferences(ctx);
     ctx = { ...ctx, timezone: prefs.timezone };
-    const permittedAt = afterQuietHours(
+    let permittedAt = afterQuietHours(
       ctx.now,
       ctx.timezone,
       prefs.quietStart,
       prefs.quietEnd,
     );
+    if (
+      prefs.snoozedUntil &&
+      Date.parse(prefs.snoozedUntil) > permittedAt.getTime()
+    )
+      permittedAt = new Date(prefs.snoozedUntil);
     if (permittedAt > ctx.now) {
       await ctx.enqueue({
         type: "notify.reminder",

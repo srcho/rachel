@@ -5,6 +5,7 @@ export const NOTIFICATION_KINDS = [
   "weekly_review",
   "due_soon",
   "event_soon",
+  "proactive",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 export const KIND_LABEL: Record<NotificationKind, string> = {
@@ -13,4 +14,5 @@ export const KIND_LABEL: Record<NotificationKind, string> = {
   weekly_review: "주간 리뷰",
   due_soon: "할 일 마감·아침 묶음",
   event_soon: "일정 시작 전",
+  proactive: "중요한 누락·충돌 제안",
 };

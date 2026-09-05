@@ -25,7 +25,8 @@ export async function budgetStatus(
     .eq("user_id", userId)
     .gte("month", monthStartIso())
     .maybeSingle();
-  if (error) throw new Error("사용량을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.");
+  if (error)
+    throw new Error("사용량을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.");
   const spent = Number(data?.cost_usd ?? 0);
   if (!budget)
     return { budgetUsd: null, spentUsd: spent, ratio: null, level: "ok" };
