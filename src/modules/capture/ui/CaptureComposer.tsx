@@ -185,7 +185,8 @@ export function CaptureComposer({
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        먼저 원문을 보관하고, 할 일·일정·기억으로 옮길지는 나중에 결정해요.
+        원문을 저장하면 AI가 할 일·일정·기억·참고 메모로 분류를 제안해요. 제안을
+        확정하면 미처리 목록에서 빠져요.
       </p>
       {error && (
         <p role="alert" className="text-sm text-destructive">

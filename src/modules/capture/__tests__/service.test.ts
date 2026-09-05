@@ -423,4 +423,43 @@ describe.skipIf(!available)("captureService", () => {
     });
     expect(reviewed.status).toBe("resolved");
   });
+
+  it("resumes a memory confirmation interrupted before insert and removes it from the open inbox exactly once", async () => {
+    const registry = createRegistry(() => [tasksModule, memoryModule]);
+    const svc = captureService({ ...ctx, registry });
+    const c = await svc.add({ text: "복구 검수: 금요일에는 산책한다" });
+    // The production insert failed after persisting the user's selected plan.
+    const { error } = await user.db
+      .from("captures")
+      .update({
+        status: "resolving",
+        triage: {
+          type: "memory",
+          reason: "직접 확인한 내용",
+          memory: { kind: "routine", content: c.raw_text },
+        },
+      })
+      .eq("id", c.id);
+    if (error) throw error;
+    const first = await svc.resolve(c.id);
+    const retry = await svc.resolve(c.id);
+    expect(first.status).toBe("resolved");
+    expect(retry.changed).toBe(false);
+    expect(retry.ref.id).toBe(first.ref.id);
+    expect((await svc.list("open")).some((item) => item.id === c.id)).toBe(
+      false,
+    );
+    expect((await svc.get(c.id))?.raw_text).toBe(c.raw_text);
+    const { data: memories, error: readError } = await user.db
+      .from("memories")
+      .select("id,status,invalidated_at,confirmed_at")
+      .eq("creation_key", `capture:${c.id}`);
+    if (readError) throw readError;
+    expect(memories).toHaveLength(1);
+    expect(memories?.[0]).toMatchObject({
+      status: "active",
+      invalidated_at: null,
+    });
+    expect(memories?.[0]?.confirmed_at).toBeTruthy();
+  });
 });

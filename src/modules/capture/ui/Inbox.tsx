@@ -108,7 +108,9 @@ export function Inbox({
                 </>
               ) : t ? (
                 <>
-                  <Badge variant="secondary">{TYPE_LABEL[t.type]}</Badge>
+                  <Badge variant="secondary">
+                    {TYPE_LABEL[t.type]} · {frozen ? "저장 확인 필요" : "제안"}
+                  </Badge>
                   <span
                     className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
                     title={t.reason}
@@ -121,7 +123,13 @@ export function Inbox({
                     onClick={() =>
                       start(async () => {
                         try {
-                          const r = await resolveCaptureAction(c.id);
+                          const response = await resolveCaptureAction(c.id);
+                          if (!response.ok) {
+                            toast.error(response.error);
+                            refresh();
+                            return;
+                          }
+                          const r = response.result;
                           toast.success(
                             r.changed
                               ? `${TYPE_LABEL[r.type]}로 확정했어요`
@@ -139,19 +147,26 @@ export function Inbox({
                     }
                   >
                     <Check className="size-4" />{" "}
-                    {c.status === "resolving" ? "다시 확정" : "확정"}
+                    {c.status === "resolving"
+                      ? "다시 확정"
+                      : t.type === "memory"
+                        ? "기억으로 저장"
+                        : t.type === "note"
+                          ? "메모로 보관"
+                          : `${TYPE_LABEL[t.type]}로 추가`}
                   </Button>
                 </>
               ) : (
                 <span className="flex-1 text-xs text-muted-foreground">
-                  저장됨 · AI 분류 대기. 직접 정리할 수도 있어요.
+                  원문 저장됨 · 아직 분류 제안이 없어요. AI 분류를 다시
+                  요청하거나 직접 정리해 주세요.
                 </span>
               )}
               {!closed && !c.resolved_ref && (
                 <CaptureReview capture={c} onDone={refresh} />
               )}
               <Button
-                size="icon-sm"
+                size={t ? "icon-sm" : "sm"}
                 variant="ghost"
                 disabled={
                   pending || closed || frozen || Boolean(c.resolved_ref)
@@ -160,7 +175,11 @@ export function Inbox({
                 onClick={() =>
                   start(async () => {
                     try {
-                      await retriageAction(c.id);
+                      const response = await retriageAction(c.id);
+                      if (!response.ok) {
+                        toast.error(response.error);
+                        return;
+                      }
                       refresh();
                     } catch (e) {
                       toast.error(
@@ -173,6 +192,7 @@ export function Inbox({
                 }
               >
                 <RefreshCw className="size-4" />
+                {!t && "AI 분류"}
               </Button>
               <Button
                 size="icon-sm"
@@ -197,6 +217,13 @@ export function Inbox({
                 <X className="size-4" />
               </Button>
             </div>
+            {!closed && t && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {frozen
+                  ? "저장이 끝났는지 확인이 필요해요. 다시 확정하면 중복 생성 없이 이어서 처리해요."
+                  : "아직 제안 상태예요. 위 버튼으로 확정하면 미처리 목록에서 빠지고 원문은 처리 완료에 남아요."}
+              </p>
+            )}
             <p className="mt-1 text-[11px] text-muted-foreground">
               {c.origin === "voice"
                 ? "음성"

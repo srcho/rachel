@@ -30,9 +30,24 @@ export async function resolveCaptureAction(
   id: string,
   override?: Partial<Triage>,
 ) {
-  const r = await (await svc()).resolve(id, override);
+  const service = await svc();
+  let r: Awaited<ReturnType<typeof service.resolve>>;
+  try {
+    r = await service.resolve(id, override);
+  } catch (error) {
+    console.error("[capture.resolve]", { id, error });
+    return {
+      ok: false as const,
+      error:
+        "정리를 완료하지 못했어요. 원문은 보관되어 있어요. 같은 메모에서 다시 확정해 주세요.",
+    };
+  }
   revalidatePath("/capture", "layout");
-  return r;
+  revalidatePath("/today");
+  revalidatePath("/memory");
+  revalidatePath("/tasks", "layout");
+  revalidatePath("/calendar");
+  return { ok: true as const, result: r };
 }
 export async function dismissCaptureAction(id: string) {
   const result = await (await svc()).dismiss(id);
@@ -40,8 +55,19 @@ export async function dismissCaptureAction(id: string) {
   return result;
 }
 export async function retriageAction(id: string) {
-  await (await svc()).triage(id);
+  const service = await svc();
+  try {
+    await service.triage(id);
+  } catch (error) {
+    console.error("[capture.triage]", { id, error });
+    return {
+      ok: false as const,
+      error:
+        "AI 분류를 완료하지 못했어요. 원문은 저장되어 있어요. 다시 시도하거나 직접 정리해 주세요.",
+    };
+  }
   revalidatePath("/capture", "layout");
+  return { ok: true as const };
 }
 
 export async function quickTaskAction(text: string, creationKey: string) {

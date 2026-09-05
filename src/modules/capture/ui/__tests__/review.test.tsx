@@ -6,7 +6,9 @@ import type { Triage } from "../../schema";
 import type { CaptureRow } from "../../service";
 import { CaptureReview } from "../CaptureReview";
 
-const resolve = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+const resolve = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ ok: true, result: {} }),
+);
 vi.mock("../../actions", () => ({ resolveCaptureAction: resolve }));
 vi.mock("@/core/ui/FormDialog", () => ({
   FormDialog: ({ open, children }: { open: boolean; children: ReactNode }) =>
@@ -83,4 +85,21 @@ it("preserves all-day dates and location when editing only the title", async () 
     "capture",
     expect.objectContaining({ event: { ...event, title: "수정 제목" } }),
   );
+});
+
+it("keeps the confirmation form and content when the server returns a recoverable failure", async () => {
+  resolve.mockResolvedValueOnce({
+    ok: false,
+    error: "정리를 완료하지 못했어요. 원문은 보관되어 있어요.",
+  });
+  await editTitle({
+    type: "memory",
+    reason: "",
+    memory: { kind: "fact", content: "기억할 내용" },
+  });
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "원문은 보관되어 있어요",
+  );
+  expect(container.querySelector("textarea")?.value).toBe("수정 제목");
+  expect(container.querySelector("form")).not.toBeNull();
 });

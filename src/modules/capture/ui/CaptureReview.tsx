@@ -82,7 +82,11 @@ export function CaptureReview({
           kind: original?.memory?.kind ?? "fact",
           content: title.trim(),
         };
-      await resolveCaptureAction(capture.id, override);
+      const result = await resolveCaptureAction(capture.id, override);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       setOpen(false);
       onDone();
     } catch (e) {
