@@ -69,7 +69,10 @@ export default async function BoardPage({
     linked: linked.has(o.event.id),
   }));
   return (
-    <Page width="full">
+    <Page
+      width="full"
+      className="flex h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))] min-h-0 flex-col overflow-hidden md:h-dvh [&>header]:shrink-0"
+    >
       <Board
         initial={view}
         userId={user.id}
