@@ -2,13 +2,16 @@ import type { DashboardWidget } from "@/core/contracts";
 import { localYmd } from "@/core/utils/date";
 import { formatCost } from "@/core/utils/format";
 import { insightsRepository } from "./repository";
+import { getTodayPlan, type TodayPlanData } from "./today-plan";
 import { BriefActions, BriefCard } from "./ui/BriefCard";
+import { DayClose, TodayPlan } from "./ui/TodayPlan";
 
 export interface BriefData {
   contentMd: string | null;
   generatedAt: string | null;
   costUsd: number | null;
   today: string;
+  plan: TodayPlanData;
 }
 
 /** 브리핑 카드. 캐시가 없으면 카드가 클라이언트에서 생성을 요청한다(첫 접속 1회). */
@@ -16,7 +19,7 @@ export const briefWidget: DashboardWidget<BriefData> = {
   id: "insights.brief",
   title: "브리핑",
   surface: "today",
-  size: "md",
+  size: "lg",
   rows: 2,
   order: 0,
   load: async (ctx) => {
@@ -42,17 +45,32 @@ export const briefWidget: DashboardWidget<BriefData> = {
       generatedAt: row?.updated_at ?? null,
       costUsd,
       today,
+      plan: await getTodayPlan(ctx),
     };
   },
   Component: ({ data }) => (
-    <BriefCard
-      data={data}
-      costLabel={data.costUsd !== null ? formatCost(data.costUsd) : null}
-    />
+    <>
+      <BriefCard
+        data={data}
+        costLabel={data.costUsd !== null ? formatCost(data.costUsd) : null}
+      />
+      <TodayPlan data={data.plan} />
+    </>
   ),
   HeaderAction: ({ data }) => (
     <BriefActions
       costLabel={data.costUsd !== null ? formatCost(data.costUsd) : null}
     />
   ),
+};
+
+export const dayCloseWidget: DashboardWidget<TodayPlanData> = {
+  id: "insights.day-close",
+  title: "하루 정리",
+  surface: "today",
+  size: "lg",
+  rows: 1,
+  order: 100,
+  load: (ctx) => getTodayPlan(ctx),
+  Component: ({ data }) => <DayClose data={data} />,
 };

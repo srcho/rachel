@@ -12,9 +12,11 @@ import {
 export function ScheduleTask({
   id,
   linkedId,
+  onChange,
 }: {
   id: string;
   linkedId: string | null;
+  onChange?: () => void;
 }) {
   const [duration, setDuration] = useState<30 | 60 | 90>(60);
   const [slots, setSlots] = useState<Array<{
@@ -60,6 +62,7 @@ export function ScheduleTask({
                   await unscheduleTaskAction(id);
                   setEventId(null);
                   setSlots(null);
+                  onChange?.();
                 });
               })
             }
@@ -122,6 +125,7 @@ export function ScheduleTask({
                     });
                     setEventId(event.id);
                     setSlots(null);
+                    onChange?.();
                   })
                 }
               >

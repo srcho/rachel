@@ -1,6 +1,4 @@
-import { requireUser } from "@/core/auth/session";
-import { createContext } from "@/core/context";
-import { createServerSupabase } from "@/core/db/server";
+import { userContext } from "@/core/context";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { WidgetGrid } from "@/core/ui/WidgetGrid";
@@ -11,9 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** Today: 하루의 시작점. 캡처 한 줄 → 브리핑·일정·할 일·회의 2×2. 카드는 내용 높이(같은 줄끼리만 맞춤). */
 export default async function TodayPage() {
-  const user = await requireUser();
-  const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = await userContext();
   const now = ctx.now;
   const bounds = dayBounds(now, ctx.timezone);
   const range = { from: new Date(bounds.start), to: new Date(bounds.end) };
