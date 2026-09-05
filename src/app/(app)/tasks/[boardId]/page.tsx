@@ -69,7 +69,7 @@ export default async function BoardPage({
     linked: linked.has(o.event.id),
   }));
   return (
-    <Page width="full" className="max-w-[1440px] pb-24 md:h-auto">
+    <Page width="full" className="max-w-[1440px] pb-24">
       <Board
         initial={view}
         userId={user.id}

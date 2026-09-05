@@ -158,7 +158,13 @@ export function CalendarScreen(props: CalendarScreenProps) {
   }, [props.selectedEvent, openEvent]);
 
   return (
-    <>
+    <div
+      className={cn(
+        "flex min-h-0 flex-col pb-16 md:h-dvh",
+        view === "week" &&
+          "h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))]",
+      )}
+    >
       <PageHeader
         splitActions
         title={title}
@@ -249,15 +255,15 @@ export function CalendarScreen(props: CalendarScreenProps) {
         }
       />
       {connected && (
-        <p className="px-4 py-1 text-xs text-muted-foreground">
+        <p className="shrink-0 px-4 py-1 text-xs text-muted-foreground">
           {props.lastSyncedAt
             ? `Google 최근 반영 · ${new Intl.DateTimeFormat("ko-KR", { timeZone: timezone, month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(props.lastSyncedAt))}`
             : "Google 첫 동기화 대기"}
         </p>
       )}
-      <Page width="full" className="flex flex-col">
+      <Page width="full" className="flex min-h-0 flex-1 flex-col">
         {!connected && (
-          <div className="p-6 text-center text-sm text-muted-foreground">
+          <div className="shrink-0 p-6 text-center text-sm text-muted-foreground">
             <p>Google 캘린더가 연결되지 않았어요.</p>
             <Button asChild size="sm" className="mt-3">
               <Link
@@ -309,7 +315,7 @@ export function CalendarScreen(props: CalendarScreenProps) {
         onClose={() => setDraft(null)}
         onSaved={refresh}
       />
-    </>
+    </div>
   );
 }
 

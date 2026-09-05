@@ -14,7 +14,7 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-30 shrink-0 border-b bg-background/95 backdrop-blur">
       <div
         className={`flex min-h-12 items-center gap-x-3 px-4 ${splitActions ? "flex-wrap md:flex-nowrap" : ""}`}
       >

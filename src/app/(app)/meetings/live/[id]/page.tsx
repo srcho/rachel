@@ -23,9 +23,9 @@ export default async function LiveMeetingPage({
   if (!m) notFound();
   if (m.status !== "recording") redirect(`/meetings/${id}`);
   return (
-    <>
+    <div className="flex h-dvh min-h-0 flex-col">
       <PageHeader title="녹음" />
       <LiveScreen meetingId={id} title={m.title} />
-    </>
+    </div>
   );
 }

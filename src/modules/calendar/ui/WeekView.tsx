@@ -44,7 +44,7 @@ export function WeekView({
   );
   return (
     <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">
-      <div className="min-w-[760px]">
+      <div className="min-w-[44rem]">
         <div className="sticky top-0 z-20 grid grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] border-b bg-background">
           <span className="pt-3 text-xs text-muted-foreground">종일</span>
           {days.map((date, i) => (
@@ -81,7 +81,7 @@ export function WeekView({
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="h-14 pt-1 text-xs tabular-nums text-muted-foreground"
+                className="h-[56px] pt-1 text-xs tabular-nums text-muted-foreground"
               >
                 {String(hour).padStart(2, "0")}:00
               </div>
@@ -101,7 +101,7 @@ export function WeekView({
                 <button
                   type="button"
                   key={hour}
-                  className="block h-14 w-full border-b border-border/60 hover:bg-muted/50"
+                  className="block h-[56px] w-full border-b border-border/60 hover:bg-muted/50"
                   aria-label={`${date} ${hour}시 일정 추가`}
                   onClick={() => onAdd(date, hour)}
                 />
