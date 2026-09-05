@@ -4,6 +4,7 @@ import { createServerSupabase } from "@/core/db/server";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { WidgetGrid } from "@/core/ui/WidgetGrid";
+import { dayBounds } from "@/core/utils/date";
 import { registry } from "@/modules";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +15,8 @@ export default async function TodayPage() {
   const db = await createServerSupabase();
   const ctx = createContext({ db, userId: user.id, actor: "user", registry });
   const now = ctx.now;
-  const range = {
-    from: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-    to: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
-  };
+  const bounds = dayBounds(now, ctx.timezone);
+  const range = { from: new Date(bounds.start), to: new Date(bounds.end) };
   const widgets = registry.widgets("today");
   const loaded = await Promise.all(
     widgets.map(async (w) => {
@@ -28,6 +27,7 @@ export default async function TodayPage() {
           error: null as string | null,
         };
       } catch (e) {
+        console.error("[today] widget load failed", w.id, e);
         return {
           widget: w,
           data: null,
@@ -44,7 +44,7 @@ export default async function TodayPage() {
   }).format(now);
   return (
     <>
-      <PageHeader title="Today" meta={dateLabel} />
+      <PageHeader title="오늘" meta={dateLabel} />
       <Page width="content">
         <WidgetGrid items={loaded} range={range} rowsMode="auto" />
       </Page>

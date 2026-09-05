@@ -35,11 +35,11 @@ export default async function SettingsPage() {
             </form>
           }
         >
-          <p className="text-sm">{user.email ?? user.id}</p>
+          <p className="break-all text-sm">{user.email ?? user.id}</p>
         </Panel>
         <Panel title="레이첼">
           <form action={saveHonorificAction} className="flex items-end gap-2">
-            <label className="flex-1 space-y-1 text-sm">
+            <label className="min-w-0 flex-1 space-y-1 text-sm">
               <span className="text-xs text-muted-foreground">
                 레이첼이 부르는 호칭
               </span>
@@ -61,7 +61,7 @@ export default async function SettingsPage() {
             action={saveBudgetAction}
             className="mt-3 flex items-end gap-2 border-t pt-3"
           >
-            <label className="flex-1 space-y-1 text-sm">
+            <label className="min-w-0 flex-1 space-y-1 text-sm">
               <span className="text-xs text-muted-foreground">
                 월 예산 (USD, 비우면 표시만)
               </span>

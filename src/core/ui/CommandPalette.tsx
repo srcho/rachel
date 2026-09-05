@@ -47,6 +47,8 @@ export function CommandPalette({ commands, search, onAction }: Props) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<PaletteHit[]>([]);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [loading, setLoading] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const searchSeq = useRef(0);
@@ -67,14 +69,17 @@ export function CommandPalette({ commands, search, onAction }: Props) {
     };
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 재시도는 같은 조회를 다시 실행한다
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
+    const seq = ++searchSeq.current;
+    setError(false);
     const term = q.trim();
     if (term.length < 2) {
       setHits([]);
+      setLoading(false);
       return;
     }
-    const seq = ++searchSeq.current;
     timer.current = setTimeout(async () => {
       setLoading(true);
       try {
@@ -82,7 +87,10 @@ export function CommandPalette({ commands, search, onAction }: Props) {
         if (seq === searchSeq.current) setHits(hits); // 늦게 온 이전 검색은 버린다
       } catch (e) {
         console.warn("[palette] 검색 실패", e);
-        if (seq === searchSeq.current) setHits([]);
+        if (seq === searchSeq.current) {
+          setHits([]);
+          setError(true);
+        }
       } finally {
         if (seq === searchSeq.current) setLoading(false);
       }
@@ -90,7 +98,7 @@ export function CommandPalette({ commands, search, onAction }: Props) {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [q, search]);
+  }, [q, search, retry]);
 
   function run(c: Command) {
     setOpen(false);
@@ -112,12 +120,26 @@ export function CommandPalette({ commands, search, onAction }: Props) {
           onValueChange={setQ}
         />
         <CommandList>
+          {error && (
+            <div className="p-3 text-sm text-destructive">
+              검색하지 못했어요.{" "}
+              <button
+                type="button"
+                className="min-h-9 underline"
+                onClick={() => setRetry((n) => n + 1)}
+              >
+                다시 검색
+              </button>
+            </div>
+          )}
           <CommandEmpty>
             {loading
               ? "검색 중…"
-              : q.trim().length >= 2
-                ? "결과가 없어요"
-                : "명령을 고르거나 검색어를 입력하세요"}
+              : error
+                ? ""
+                : q.trim().length >= 2
+                  ? "결과가 없어요"
+                  : "명령을 고르거나 검색어를 입력하세요"}
           </CommandEmpty>
           {hits.length > 0 && (
             <CommandGroup heading="검색 결과">

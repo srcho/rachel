@@ -16,7 +16,7 @@ import {
 export const insightsModule: RachelModule = {
   manifest: {
     id: "insights",
-    name: "인사이트",
+    name: "리뷰",
     icon: "chart-no-axes-combined",
     nav: { href: "/insights", order: 50, mobileTab: false },
     schemaVersion: 7,
@@ -36,7 +36,7 @@ export const insightsModule: RachelModule = {
   commands: [
     {
       id: "insights.open",
-      label: "인사이트 보기",
+      label: "리뷰 보기",
       keywords: ["dashboard", "지표"],
       href: "/insights",
     },

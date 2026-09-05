@@ -2,6 +2,7 @@
 import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { generateBriefAction } from "../actions";
@@ -18,14 +19,17 @@ export function BriefCard({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const requested = useRef(false);
+  const [error, setError] = useState(false);
 
   async function generate(force: boolean) {
     setLoading(true);
+    setError(false);
     try {
       await generateBriefAction(force);
       router.refresh();
     } catch (e) {
       console.warn("[brief] 생성 실패", e instanceof Error ? e.message : e);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -54,9 +58,28 @@ export function BriefCard({
       ))}
     </div>
   ) : (
-    <p className="flex h-full min-h-10 items-center text-sm text-muted-foreground">
-      {loading ? "오늘 브리핑을 준비하고 있어요…" : "브리핑이 아직 없어요."}
-    </p>
+    <div
+      className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground"
+      role={error ? "alert" : undefined}
+    >
+      <p>
+        {loading
+          ? "오늘 브리핑을 준비하고 있어요…"
+          : error
+            ? "브리핑을 준비하지 못했어요."
+            : "브리핑이 아직 없어요."}
+      </p>
+      {error && (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={loading}
+          onClick={() => void generate(false)}
+        >
+          다시 시도
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -77,6 +100,8 @@ export function BriefActions({ costLabel }: { costLabel: string | null }) {
           try {
             await generateBriefAction(true);
             router.refresh();
+          } catch {
+            toast.error("브리핑을 생성하지 못했어요. 다시 시도해 주세요.");
           } finally {
             setLoading(false);
           }

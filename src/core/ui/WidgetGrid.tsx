@@ -1,6 +1,7 @@
 import type { DashboardWidget, DateRange } from "@/core/contracts";
 import { cn } from "@/lib/utils";
 import { Panel, PanelLink } from "./Panel";
+import { RetryButton } from "./RetryButton";
 
 export interface LoadedWidget {
   // biome-ignore lint/suspicious/noExplicitAny: 위젯 데이터 타입은 위젯마다 다르다
@@ -54,7 +55,7 @@ export function WidgetGrid({
       {top.map(({ widget, data, error }) => (
         <section key={widget.id} aria-label={widget.title}>
           {error ? (
-            <ErrorBox title={widget.title} error={error} />
+            <ErrorBox title={widget.title} />
           ) : (
             <widget.Component data={data} range={range} />
           )}
@@ -77,7 +78,7 @@ export function WidgetGrid({
             )}
           >
             {error ? (
-              <ErrorBox title={widget.title} error={error} />
+              <ErrorBox title={widget.title} />
             ) : (
               <Panel
                 title={widget.title}
@@ -106,10 +107,10 @@ export function WidgetGrid({
   );
 }
 
-function ErrorBox({ title, error }: { title: string; error: string }) {
+function ErrorBox({ title }: { title: string }) {
   return (
     <div className="h-full rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
-      {title}: {error}
+      {title}을 불러오지 못했어요. <RetryButton />
     </div>
   );
 }

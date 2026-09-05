@@ -59,7 +59,7 @@ export default async function InsightsPage({
   return (
     <>
       <PageHeader
-        title="인사이트"
+        title="리뷰"
         actions={
           <div className="flex rounded-lg border p-0.5 text-xs">
             {(Object.keys(RANGES) as RangeKey[]).map((k) => (

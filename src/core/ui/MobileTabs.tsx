@@ -9,7 +9,14 @@ import type { NavItem } from "./nav-types";
 export function MobileTabs({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   if (pathname.startsWith("/meetings/live/")) return null;
-  const tabs = items.filter((i) => i.mobileTab).slice(0, 5);
+  const tabs = items
+    .filter((i) => i.mobileTab)
+    .slice(0, 5)
+    .map((item) =>
+      item.id === "settings"
+        ? { ...item, id: "more", name: "더보기", href: "/more" }
+        : item,
+    );
   return (
     <nav
       aria-label="주 메뉴"
@@ -18,7 +25,12 @@ export function MobileTabs({ items }: { items: NavItem[] }) {
       <div className="mx-auto flex max-w-lg items-center">
         {tabs.map((item) => {
           const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+            pathname === item.href ||
+            pathname.startsWith(`${item.href}/`) ||
+            (item.id === "more" &&
+              ["/settings", "/memory", "/capture", "/insights"].some((path) =>
+                pathname.startsWith(path),
+              ));
           return (
             <Link
               key={item.id}
