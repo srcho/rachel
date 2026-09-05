@@ -19,12 +19,13 @@ export async function budgetStatus(
   const settings = await getProfileSettings(db, userId);
   const budget =
     settings.monthlyBudgetUsd ?? env().LLM_MONTHLY_BUDGET_USD ?? null;
-  const { data } = await db
+  const { data, error } = await db
     .from("v_llm_usage_monthly")
     .select("cost_usd")
     .eq("user_id", userId)
     .gte("month", monthStartIso())
     .maybeSingle();
+  if (error) throw new Error("사용량을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.");
   const spent = Number(data?.cost_usd ?? 0);
   if (!budget)
     return { budgetUsd: null, spentUsd: spent, ratio: null, level: "ok" };

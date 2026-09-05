@@ -8,6 +8,7 @@ import type {
 import { createEmitter } from "@/core/events/bus";
 import { enqueueJob } from "@/core/jobs/queue";
 import type { Registry } from "@/core/registry/registry";
+import { getUserTimezone } from "@/core/settings/assistant";
 
 export interface CreateContextInput {
   db: Db;
@@ -64,5 +65,6 @@ export async function userContext(
     userId: user.id,
     actor,
     registry: await getRegistry(),
+    timezone: await getUserTimezone(db, user.id),
   });
 }

@@ -3,6 +3,7 @@ import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { TRANSCRIPTION } from "@/core/llm/models";
+import { getUserTimezone } from "@/core/settings/assistant";
 import {
   assertMuseWav,
   parseWavHeader,
@@ -32,7 +33,13 @@ export async function POST(
     return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
 
   const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    timezone: await getUserTimezone(db, user.id),
+    actor: "user",
+    registry,
+  });
   const svc = meetingsService(ctx);
   const meeting = await svc.get(id);
   if (!meeting)

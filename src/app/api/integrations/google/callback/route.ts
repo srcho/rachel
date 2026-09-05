@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { registry } from "@/modules";
 import { calendarService } from "@/modules/calendar/service";
 
@@ -24,7 +25,13 @@ export async function GET(req: Request) {
     return back("google=state");
 
   const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    timezone: await getUserTimezone(db, user.id),
+    actor: "user",
+    registry,
+  });
   try {
     await calendarService(ctx).connectWithCode(code);
     // 연결 직후 첫 동기화(S2.2 잡)

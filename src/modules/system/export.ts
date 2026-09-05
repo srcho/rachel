@@ -20,6 +20,12 @@ const TABLES = [
   "llm_usage",
   "push_subscriptions",
   "domain_events",
+  "agent_tool_runs",
+  "agent_tool_approvals",
+  "assistant_suggestions",
+  "assistant_preference_corrections",
+  "notification_controls",
+  "notification_deliveries",
 ] as const;
 
 export async function buildExport(
@@ -31,11 +37,11 @@ export async function buildExport(
     const col = t === "profiles" ? "id" : "user_id";
     const rows: unknown[] = [];
     for (let from = 0; ; from += 1000) {
-      // biome-ignore lint/suspicious/noExplicitAny: 테이블 이름을 동적으로 순회
       const { data, error } = await (ctx.db
-        .from(t as any)
+        .from(t)
         .select("*")
-        .eq(col, ctx.userId)
+        .filter(col, "eq", ctx.userId)
+        .order(t === "notification_controls" ? "user_id" : "id")
         .range(from, from + 999) as unknown as Promise<{
         data: unknown[] | null;
         error: { message: string } | null;

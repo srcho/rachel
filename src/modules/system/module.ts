@@ -1,5 +1,6 @@
 import type { RachelModule } from "@/core/contracts";
 import { backupJob } from "./jobs";
+import { systemTools } from "./tools";
 import { DataSettings } from "./ui/DataSettings";
 
 /** system 모듈: 백업·내보내기 같은 사용자 데이터 운영 기능 */
@@ -11,6 +12,7 @@ export const systemModule: RachelModule = {
     schemaVersion: 14,
   },
   jobs: { backup: backupJob },
+  tools: systemTools,
   settings: {
     id: "system",
     title: "데이터",

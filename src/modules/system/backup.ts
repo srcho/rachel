@@ -31,9 +31,10 @@ export async function runBackup(
 export async function listBackups(
   ctx: ServiceContext,
 ): Promise<Array<{ name: string; bytes: number; createdAt: string }>> {
-  const { data } = await ctx.db.storage
+  const { data, error } = await ctx.db.storage
     .from("backups")
     .list(ctx.userId, { sortBy: { column: "name", order: "desc" }, limit: 10 });
+  if (error) throw new Error(`백업 조회 실패: ${error.message}`);
   return (data ?? []).map((f) => ({
     name: f.name,
     bytes: Number((f.metadata as { size?: number } | null)?.size ?? 0),

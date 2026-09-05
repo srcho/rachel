@@ -1,6 +1,7 @@
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { localYmd } from "@/core/utils/date";
 import { registry } from "@/modules";
 import { buildExport, gzip } from "@/modules/system/export";
@@ -11,7 +12,13 @@ export const maxDuration = 120;
 export async function GET() {
   const user = await requireUser();
   const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    timezone: await getUserTimezone(db, user.id),
+    actor: "user",
+    registry,
+  });
   const { json } = await buildExport(ctx);
   const gz = gzip(json);
   return new Response(new Uint8Array(gz), {

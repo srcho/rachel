@@ -5,6 +5,7 @@ import { createAdminSupabase } from "@/core/db/admin";
 import { env } from "@/core/env";
 import { runJobs } from "@/core/jobs/runner";
 import { createSupabaseJobStore } from "@/core/jobs/supabase-store";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { registry } from "@/modules";
 
 export const maxDuration = 300;
@@ -24,10 +25,13 @@ export async function POST(req: Request) {
   const stats = await runJobs({
     store: createSupabaseJobStore(admin),
     registry,
-    contextFor: (job) =>
+    contextFor: async (job) =>
       createContext({
         db: admin,
         userId: job.user_id ?? "",
+        timezone: job.user_id
+          ? await getUserTimezone(admin, job.user_id)
+          : "Asia/Seoul",
         actor: "system",
         registry,
       }),

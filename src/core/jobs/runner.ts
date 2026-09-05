@@ -12,7 +12,7 @@ export interface RunnerDeps {
   store: JobStore;
   registry: Registry;
   /** 잡의 user_id 로 서비스 컨텍스트를 만든다 */
-  contextFor(job: JobRecord): ServiceContext;
+  contextFor(job: JobRecord): ServiceContext | Promise<ServiceContext>;
   batch?: number;
   /** 한 번의 실행에 쓸 수 있는 시간(ms). 넘으면 남은 잡은 pending 으로 되돌린다 */
   budgetMs?: number;
@@ -95,7 +95,7 @@ export async function runJobs(deps: RunnerDeps): Promise<RunStats> {
     }
     try {
       await withTimeout(
-        handler.run(payload, deps.contextFor(job)),
+        handler.run(payload, await deps.contextFor(job)),
         handler.timeoutSec ?? DEFAULT_TIMEOUT_SEC,
         job.type,
       );

@@ -4,6 +4,7 @@ import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { getRegistry } from "@/core/registry/current";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { runBackup } from "./backup";
 
 export async function backupNowAction() {
@@ -13,6 +14,7 @@ export async function backupNowAction() {
     createContext({
       db,
       userId: user.id,
+      timezone: await getUserTimezone(db, user.id),
       actor: "user",
       registry: await getRegistry(),
     }),
