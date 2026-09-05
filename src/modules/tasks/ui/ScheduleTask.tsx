@@ -1,9 +1,14 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { fmtDateTime } from "@/core/utils/date";
-import { scheduleTaskAction, taskSlotsAction } from "../actions";
+import {
+  rescheduleTaskAction,
+  scheduleTaskAction,
+  taskSlotsAction,
+  unscheduleTaskAction,
+} from "../actions";
 export function ScheduleTask({
   id,
   linkedId,
@@ -31,18 +36,38 @@ export function ScheduleTask({
       setBusy(false);
     }
   }
-  if (eventId)
-    return (
-      <Link
-        className="block py-2 text-xs underline underline-offset-2"
-        href={`/calendar?event=${eventId}`}
-      >
-        잡아 둔 시간 열기
-      </Link>
-    );
   return (
     <details className="rounded-md border p-2 text-sm">
-      <summary className="cursor-pointer">시간 잡기</summary>
+      <summary className="cursor-pointer">
+        {eventId ? "잡아 둔 시간 변경" : "시간 잡기"}
+      </summary>
+      {eventId && (
+        <div className="flex items-center gap-3 py-2">
+          <Link
+            className="text-xs underline"
+            href={`/calendar?event=${eventId}`}
+          >
+            잡아 둔 시간 열기
+          </Link>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() =>
+              startTransition(() => {
+                void run(async () => {
+                  await unscheduleTaskAction(id);
+                  setEventId(null);
+                  setSlots(null);
+                });
+              })
+            }
+          >
+            시간 취소
+          </Button>
+        </div>
+      )}
       <p className="py-2 text-xs text-muted-foreground">
         일할 시간을 일정에 추가해요. 마감과 Google Tasks 날짜는 그대로예요.
       </p>
@@ -88,12 +113,15 @@ export function ScheduleTask({
                 className="min-h-11 w-full text-left text-sm"
                 onClick={() =>
                   void run(async () => {
-                    const event = await scheduleTaskAction({
+                    const event = await (eventId
+                      ? rescheduleTaskAction
+                      : scheduleTaskAction)({
                       cardId: id,
                       startAt: slot.startAt,
                       durationMinutes: duration,
                     });
                     setEventId(event.id);
+                    setSlots(null);
                   })
                 }
               >

@@ -1,6 +1,6 @@
 "use server";
 import { userContext } from "@/core/context";
-import { scheduleTask } from "./scheduling";
+import { rescheduleTask, scheduleTask, unscheduleTask } from "./scheduling";
 import type { CreateCardInput, MoveCardInput, UpdateCardInput } from "./schema";
 import { tasksService } from "./service";
 
@@ -48,4 +48,19 @@ export async function scheduleTaskAction(
   input: Parameters<typeof scheduleTask>[1],
 ) {
   return scheduleTask(await userContext(), input);
+}
+
+export async function rescheduleTaskAction(
+  input: Parameters<typeof rescheduleTask>[1],
+) {
+  return rescheduleTask(await userContext(), input);
+}
+export async function unscheduleTaskAction(id: string) {
+  return unscheduleTask(await userContext(), id);
+}
+export async function planCardsAction(
+  items: Array<{ id: string; expectedVersion: string }>,
+  planDate: string | null,
+) {
+  return (await svc()).planCards(items, planDate);
 }

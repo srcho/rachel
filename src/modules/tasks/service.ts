@@ -6,6 +6,7 @@ import { nextRepeatDue, repeatRuleSchema } from "./repeat";
 import {
   type BoardRow,
   type CardRow,
+  type CardUpdate,
   type ColumnRow,
   tasksRepository,
 } from "./repository";
@@ -17,6 +18,7 @@ import {
   listCardsFilterSchema,
   type MoveCardInput,
   moveCardSchema,
+  planCardsSchema,
   TASK_EVENTS,
   type UpdateCardInput,
   updateCardSchema,
@@ -54,6 +56,8 @@ export type CardSnapshot = ReturnType<typeof cardSnapshot>;
 export interface WriteMeta {
   origin?: "google";
   gtaskId?: string;
+  bulk?: boolean;
+  expectedVersion?: string;
 }
 
 export function tasksService(ctx: ServiceContext) {
@@ -128,14 +132,41 @@ export function tasksService(ctx: ServiceContext) {
     return todo;
   }
 
+  async function validateLinks(input: {
+    calendarEventId?: string | null;
+    meetingId?: string | null;
+  }) {
+    if (input.calendarEventId) {
+      const { data, error } = await ctx.db
+        .from("calendar_events")
+        .select("id")
+        .eq("user_id", ctx.userId)
+        .eq("id", input.calendarEventId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("연결할 일정을 찾을 수 없어요");
+    }
+    if (input.meetingId) {
+      const { data, error } = await ctx.db
+        .from("meetings")
+        .select("id")
+        .eq("user_id", ctx.userId)
+        .eq("id", input.meetingId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("연결할 회의를 찾을 수 없어요");
+    }
+  }
+
   async function createCard(
     raw: CreateCardInput,
     meta: WriteMeta = {},
-  ): Promise<CardRow> {
+  ): Promise<CardRow & { createdNow: boolean }> {
     const input = createCardSchema.parse(raw);
+    await validateLinks(input);
     if (input.creationKey) {
       const existing = await repo.findCreated(input.creationKey);
-      if (existing) return existing;
+      if (existing) return { ...existing, createdNow: false };
     }
     const board = input.boardId
       ? await repo.getBoard(input.boardId)
@@ -162,6 +193,7 @@ export function tasksService(ctx: ServiceContext) {
       meeting_id: input.meetingId ?? null,
       completed_at: column.is_done ? ctx.now.toISOString() : null,
     });
+    if (!card.createdNow) return card;
     await ctx.emit({
       type: TASK_EVENTS.created,
       entity: { type: "card", id: card.id },
@@ -182,29 +214,38 @@ export function tasksService(ctx: ServiceContext) {
     meta: WriteMeta = {},
   ): Promise<{ card: CardRow; before: CardRow }> {
     const patch = updateCardSchema.parse(raw);
+    await validateLinks(patch);
     const before = await repo.getCard(id);
     if (!before) throw new Error("카드를 찾을 수 없어요");
-    const card = await repo.updateCard(id, {
-      ...(patch.title !== undefined && { title: patch.title }),
-      ...(patch.description !== undefined && {
-        description_md: patch.description,
-      }),
-      ...(patch.priority !== undefined && { priority: patch.priority }),
-      ...(patch.repeatRule !== undefined && {
-        repeat_rule: patch.repeatRule as unknown as Json,
-      }),
-      ...(patch.planDate !== undefined && { plan_date: patch.planDate }),
-      ...(patch.dueAt !== undefined && { due_at: patch.dueAt }),
-      ...(patch.dueHasTime !== undefined && { due_has_time: patch.dueHasTime }),
-      ...(patch.labels !== undefined && { labels: patch.labels }),
-      ...(patch.checklist !== undefined && {
-        checklist: patch.checklist as unknown as Json,
-      }),
-      ...(patch.calendarEventId !== undefined && {
-        calendar_event_id: patch.calendarEventId,
-      }),
-      ...(patch.meetingId !== undefined && { meeting_id: patch.meetingId }),
-    });
+    if (meta.expectedVersion && before.updated_at !== meta.expectedVersion)
+      throw new Error("카드가 변경됐어요. 최신 내용을 확인해 주세요.");
+    const card = await repo.updateCard(
+      id,
+      {
+        ...(patch.title !== undefined && { title: patch.title }),
+        ...(patch.description !== undefined && {
+          description_md: patch.description,
+        }),
+        ...(patch.priority !== undefined && { priority: patch.priority }),
+        ...(patch.repeatRule !== undefined && {
+          repeat_rule: patch.repeatRule as unknown as Json,
+        }),
+        ...(patch.planDate !== undefined && { plan_date: patch.planDate }),
+        ...(patch.dueAt !== undefined && { due_at: patch.dueAt }),
+        ...(patch.dueHasTime !== undefined && {
+          due_has_time: patch.dueHasTime,
+        }),
+        ...(patch.labels !== undefined && { labels: patch.labels }),
+        ...(patch.checklist !== undefined && {
+          checklist: patch.checklist as unknown as Json,
+        }),
+        ...(patch.calendarEventId !== undefined && {
+          calendar_event_id: patch.calendarEventId,
+        }),
+        ...(patch.meetingId !== undefined && { meeting_id: patch.meetingId }),
+      },
+      before.updated_at,
+    );
     await ctx.emit({
       type: TASK_EVENTS.updated,
       entity: { type: "card", id },
@@ -246,13 +287,19 @@ export function tasksService(ctx: ServiceContext) {
 
     const wasDone = before.completed_at !== null;
     const nowDone = target.is_done;
-    const card = await repo.updateCard(id, {
-      column_id: target.id,
-      position,
-      completed_at: nowDone
-        ? (before.completed_at ?? ctx.now.toISOString())
-        : null,
-    });
+    if (meta.expectedVersion && before.updated_at !== meta.expectedVersion)
+      throw new Error("카드가 변경됐어요. 최신 내용을 확인해 주세요.");
+    const card = await repo.updateCard(
+      id,
+      {
+        column_id: target.id,
+        position,
+        completed_at: nowDone
+          ? (before.completed_at ?? ctx.now.toISOString())
+          : null,
+      },
+      before.updated_at,
+    );
     await ctx.emit({
       type: TASK_EVENTS.moved,
       entity: { type: "card", id },
@@ -311,6 +358,7 @@ export function tasksService(ctx: ServiceContext) {
       ) as Json,
       source: { type: "manual", repeat_parent_id: card.id },
     });
+    if (!next.createdNow) return;
     await ctx.emit({
       type: TASK_EVENTS.created,
       entity: { type: "card", id: next.id },
@@ -327,7 +375,24 @@ export function tasksService(ctx: ServiceContext) {
     const columns = await repo.listColumns(before.board_id);
     const done = columns.find((c) => c.is_done);
     if (!done) throw new Error("완료 컬럼이 없어요");
-    return moveCard(id, { columnId: done.id }, meta);
+    if (before.completed_at && before.column_id === done.id) {
+      if (before.repeat_rule) await createNextOccurrence(before);
+      return { card: before, before };
+    }
+    try {
+      return await moveCard(id, { columnId: done.id }, meta);
+    } catch (error) {
+      const current = await repo.getCard(id);
+      if (
+        !meta.expectedVersion &&
+        current?.completed_at &&
+        current.column_id === done.id
+      ) {
+        if (current.repeat_rule) await createNextOccurrence(current);
+        return { card: current, before };
+      }
+      throw error;
+    }
   }
 
   /** 완료 컬럼 밖(Todo 우선, 없으면 첫 미완료 컬럼)으로 되돌린다 */
@@ -345,10 +410,23 @@ export function tasksService(ctx: ServiceContext) {
     return moveCard(id, { columnId: target.id }, meta);
   }
 
-  async function archiveCard(id: string, archived = true): Promise<CardRow> {
-    const card = await repo.updateCard(id, {
-      archived_at: archived ? ctx.now.toISOString() : null,
-    });
+  async function archiveCard(
+    id: string,
+    archived = true,
+    expectedVersion?: string,
+  ): Promise<CardRow> {
+    const before = await repo.getCard(id);
+    if (!before) throw new Error("카드를 찾을 수 없어요");
+    if (expectedVersion && before.updated_at !== expectedVersion)
+      throw new Error("카드가 변경됐어요. 최신 내용을 확인해 주세요.");
+    if ((before.archived_at !== null) === archived) return before;
+    const card = await repo.updateCard(
+      id,
+      {
+        archived_at: archived ? ctx.now.toISOString() : null,
+      },
+      before.updated_at,
+    );
     await ctx.emit({
       type: TASK_EVENTS.archived,
       entity: { type: "card", id },
@@ -357,10 +435,15 @@ export function tasksService(ctx: ServiceContext) {
     return card;
   }
 
-  async function deleteCard(id: string): Promise<CardRow> {
+  async function deleteCard(
+    id: string,
+    expectedVersion?: string,
+  ): Promise<CardRow> {
     const before = await repo.getCard(id);
     if (!before) throw new Error("카드를 찾을 수 없어요");
-    await repo.deleteCard(id);
+    if (expectedVersion && before.updated_at !== expectedVersion)
+      throw new Error("카드가 변경됐어요. 최신 내용을 확인해 주세요.");
+    await repo.deleteCard(id, expectedVersion ?? before.updated_at);
     await ctx.emit({
       type: TASK_EVENTS.deleted,
       entity: { type: "card", id },
@@ -373,31 +456,38 @@ export function tasksService(ctx: ServiceContext) {
   async function bulkUpdate(
     ids: string[],
     raw: UpdateCardInput,
-  ): Promise<{ cards: CardRow[]; before: CardRow[] }> {
+  ): Promise<{
+    cards: CardRow[];
+    before: CardRow[];
+    remaining: Array<{ id: string; reason: string }>;
+  }> {
     const patch = updateCardSchema.parse(raw);
+    await validateLinks(patch);
     const before = await repo.getCards(ids);
-    const cards = await repo.updateCards(
-      before.map((c) => c.id),
-      {
-        ...(patch.priority !== undefined && { priority: patch.priority }),
-        ...(patch.dueAt !== undefined && { due_at: patch.dueAt }),
-        ...(patch.dueHasTime !== undefined && {
-          due_has_time: patch.dueHasTime,
-        }),
-        ...(patch.labels !== undefined && { labels: patch.labels }),
-      },
-    );
-    for (const c of cards)
-      await ctx.emit({
-        type: TASK_EVENTS.updated,
-        entity: { type: "card", id: c.id },
-        payload: {
-          fields: Object.keys(patch),
+    if (before.length !== new Set(ids).size)
+      throw new Error("선택한 카드 일부를 찾을 수 없어요");
+    for (const card of before) {
+      const expected = ctx.approvedVersions?.[`cards:${card.id}`];
+      if (expected && expected !== card.updated_at)
+        throw new Error("승인 이후 카드가 변경됐어요. 다시 확인해 주세요.");
+    }
+    const cards: CardRow[] = [];
+    const remaining: Array<{ id: string; reason: string }> = [];
+    for (const card of before) {
+      try {
+        const result = await updateCard(card.id, patch, {
+          expectedVersion: card.updated_at,
           bulk: true,
-          card: cardSnapshot(c),
-        },
-      });
-    return { cards, before };
+        });
+        cards.push(result.card);
+      } catch (error) {
+        remaining.push({
+          id: card.id,
+          reason: error instanceof Error ? error.message : "변경 실패",
+        });
+      }
+    }
+    return { cards, before, remaining };
   }
 
   async function listCards(
@@ -425,8 +515,107 @@ export function tasksService(ctx: ServiceContext) {
       includeCompleted: f.includeCompleted,
       q: f.q,
       limit: f.limit,
+      cursor: f.cursor,
+      state: f.state,
       ...due,
     });
+  }
+
+  async function listCardsPage(raw: Partial<ListCardsFilter> = {}) {
+    const filter = listCardsFilterSchema.parse(raw);
+    const items = await listCards(filter);
+    const next = filter.cursor + items.length;
+    const hasMore =
+      items.length === filter.limit &&
+      (await listCards({ ...filter, cursor: next, limit: 1 })).length > 0;
+    return {
+      items,
+      hasMore,
+      nextCursor: hasMore ? next : null,
+      scope: { ...filter },
+      completeness: hasMore ? ("partial" as const) : ("complete" as const),
+    };
+  }
+
+  /** Undo only the fields this operation wrote, while protecting newer changes. */
+  async function undoPatch(
+    id: string,
+    inverse: CardUpdate,
+    applied: CardUpdate,
+    expectedVersion: string,
+  ) {
+    const current = await repo.getCard(id);
+    if (!current) throw new Error("카드를 찾을 수 없어요");
+    if (current.updated_at !== expectedVersion) {
+      const conflicts = Object.keys(applied).filter(
+        (key) =>
+          JSON.stringify(current[key as keyof CardRow]) !==
+          JSON.stringify(applied[key as keyof CardUpdate]),
+      );
+      if (conflicts.length)
+        throw new Error(
+          `다른 변경과 충돌해 되돌리지 않았어요: ${conflicts.join(", ")}`,
+        );
+    }
+    const card = await repo.updateCard(id, inverse, current.updated_at);
+    const type =
+      "column_id" in inverse
+        ? TASK_EVENTS.moved
+        : "archived_at" in inverse
+          ? TASK_EVENTS.archived
+          : TASK_EVENTS.updated;
+    await ctx.emit({
+      type,
+      entity: { type: "card", id },
+      payload: {
+        fields: Object.keys(inverse),
+        undo: true,
+        card: cardSnapshot(card),
+      },
+    });
+    if ("completed_at" in inverse && current.completed_at !== card.completed_at)
+      await ctx.emit({
+        type: card.completed_at ? TASK_EVENTS.completed : TASK_EVENTS.reopened,
+        entity: { type: "card", id },
+        payload: { card: cardSnapshot(card) },
+      });
+    return card;
+  }
+
+  /** Explicit chosen tasks only; deadlines are never part of this operation. */
+  async function planCards(
+    items: Array<{ id: string; expectedVersion: string }>,
+    planDate: string | null,
+  ) {
+    const { planDate: date } = planCardsSchema.parse({ items, planDate });
+    const results = [];
+    for (const item of items) {
+      try {
+        const { card } = await updateCard(
+          item.id,
+          { planDate: date },
+          { expectedVersion: item.expectedVersion },
+        );
+        results.push({
+          id: card.id,
+          status: "updated" as const,
+          version: card.updated_at,
+          planDate: card.plan_date,
+        });
+      } catch (error) {
+        results.push({
+          id: item.id,
+          status: "conflict" as const,
+          reason:
+            error instanceof Error ? error.message : "계획을 변경하지 못했어요",
+        });
+      }
+    }
+    return {
+      results,
+      completed: results.filter((r) => r.status === "updated").length,
+      remaining: results.filter((r) => r.status !== "updated").map((r) => r.id),
+    };
   }
 
   async function createColumn(
@@ -472,6 +661,9 @@ export function tasksService(ctx: ServiceContext) {
     deleteCard,
     bulkUpdate,
     listCards,
+    listCardsPage,
+    undoPatch,
+    planCards,
     createColumn,
     renameColumn,
     deleteColumn,

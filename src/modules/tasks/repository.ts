@@ -170,10 +170,13 @@ export function tasksRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
-    async insertCard(row: Omit<CardInsert, "user_id">): Promise<CardRow> {
+    async insertCard(
+      row: Omit<CardInsert, "user_id">,
+    ): Promise<CardRow & { createdNow: boolean }> {
+      const candidateId = row.id ?? crypto.randomUUID();
       const { data, error } = await db
         .from("cards")
-        .insert({ ...row, user_id: userId })
+        .insert({ ...row, id: candidateId, user_id: userId })
         .select("*")
         .single();
       if (error?.code === "23505" && row.creation_key) {
@@ -183,30 +186,35 @@ export function tasksRepository(db: Db, userId: string) {
           .eq("creation_key", row.creation_key)
           .maybeSingle();
         if (lookupError) throw lookupError;
-        if (existing) return existing;
+        if (existing) return { ...existing, createdNow: false };
       }
       if (error) throw error;
+      return { ...data, createdNow: data.id === candidateId };
+    },
+    async updateCard(
+      id: string,
+      patch: CardUpdate,
+      expectedVersion?: string,
+    ): Promise<CardRow> {
+      let query = own(db.from("cards").update(patch)).eq("id", id);
+      if (expectedVersion) query = query.eq("updated_at", expectedVersion);
+      const { data, error } = await query.select("*").maybeSingle();
+      if (error) throw error;
+      if (!data)
+        throw new Error(
+          "카드가 변경됐거나 없어졌어요. 최신 내용을 확인해 주세요.",
+        );
       return data;
     },
-    async updateCard(id: string, patch: CardUpdate): Promise<CardRow> {
-      const { data, error } = await own(db.from("cards").update(patch))
-        .eq("id", id)
-        .select("*")
-        .single();
+    async deleteCard(id: string, expectedVersion?: string): Promise<void> {
+      let query = own(db.from("cards").delete()).eq("id", id);
+      if (expectedVersion) query = query.eq("updated_at", expectedVersion);
+      const { data, error } = await query.select("id").maybeSingle();
       if (error) throw error;
-      return data;
-    },
-    async updateCards(ids: string[], patch: CardUpdate): Promise<CardRow[]> {
-      if (ids.length === 0) return [];
-      const { data, error } = await own(db.from("cards").update(patch))
-        .in("id", ids)
-        .select("*");
-      if (error) throw error;
-      return data;
-    },
-    async deleteCard(id: string): Promise<void> {
-      const { error } = await own(db.from("cards").delete()).eq("id", id);
-      if (error) throw error;
+      if (!data)
+        throw new Error(
+          "카드가 변경됐거나 없어졌어요. 최신 내용을 확인해 주세요.",
+        );
     },
     /** 필터 목록. due 는 timezone 기준 경계를 호출자가 계산해 넘긴다. */
     async queryCards(f: {
@@ -221,8 +229,12 @@ export function tasksRepository(db: Db, userId: string) {
       includeCompleted: boolean;
       q?: string;
       limit: number;
+      cursor?: number;
+      state?: "active" | "archived" | "all";
     }): Promise<CardRow[]> {
-      let q = own(db.from("cards").select("*")).is("archived_at", null);
+      let q = own(db.from("cards").select("*"));
+      if (f.state === "archived") q = q.not("archived_at", "is", null);
+      else if (f.state !== "all") q = q.is("archived_at", null);
       if (f.boardId) q = q.eq("board_id", f.boardId);
       if (f.columnId) q = q.eq("column_id", f.columnId);
       if (f.planDate) q = q.eq("plan_date", f.planDate);
@@ -236,7 +248,8 @@ export function tasksRepository(db: Db, userId: string) {
       const { data, error } = await q
         .order("due_at", { ascending: true, nullsFirst: false })
         .order("position")
-        .limit(f.limit);
+        .order("id")
+        .range(f.cursor ?? 0, (f.cursor ?? 0) + f.limit - 1);
       if (error) throw error;
       return data;
     },

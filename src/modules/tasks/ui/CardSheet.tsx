@@ -345,7 +345,10 @@ function CardForm({
                   ? null
                   : {
                       kind: e.target.value as RepeatRule["kind"],
-                      interval: repeatRule?.interval ?? 7,
+                      interval:
+                        e.target.value === "weekly"
+                          ? 7
+                          : (repeatRule?.interval ?? 7),
                       weekday: repeatRule?.weekday ?? 1,
                     },
               )

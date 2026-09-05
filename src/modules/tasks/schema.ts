@@ -73,6 +73,8 @@ export const listCardsFilterSchema = z.object({
   label: z.string().optional(),
   priority: z.number().int().min(0).max(3).optional(),
   includeCompleted: z.boolean().default(false),
+  state: z.enum(["active", "archived", "all"]).default("active"),
+  cursor: z.number().int().min(0).default(0),
   q: z.string().trim().min(1).optional(),
   limit: z.number().int().min(1).max(200).default(50),
 });
@@ -87,3 +89,13 @@ export const TASK_EVENTS = {
   archived: "task.archived",
   deleted: "task.deleted",
 } as const;
+
+export const planCardsSchema = z.object({
+  items: z
+    .array(
+      z.object({ id: z.string().uuid(), expectedVersion: z.string().min(1) }),
+    )
+    .min(1)
+    .max(100),
+  planDate: z.string().date().nullable(),
+});

@@ -4,40 +4,92 @@ import {
   defineTool,
   type ToolContext,
 } from "@/core/contracts";
-import type { CardRow, ColumnRow } from "./repository";
+import type { CardRow, CardUpdate, ColumnRow } from "./repository";
+import {
+  scheduleSchema,
+  scheduleTaskResult,
+  unscheduleTask,
+} from "./scheduling";
 import {
   createCardSchema,
   listCardsFilterSchema,
   moveCardSchema,
+  planCardsSchema,
   updateCardSchema,
 } from "./schema";
 import { tasksService } from "./service";
 
-/** LLM 에게 보여 줄 압축 카드 표현 */
-export interface CardSummary {
-  id: string;
-  title: string;
-  column: string;
-  columnId: string;
-  priority: number;
-  due: string | null;
-  labels: string[];
-  completed: boolean;
-  boardId: string;
-}
-
-function summarize(card: CardRow, columns: ColumnRow[]): CardSummary {
+/** Shared read projection: every editable value survives a tool round trip. */
+function summarize(card: CardRow, columns: ColumnRow[]) {
   return {
     id: card.id,
     title: card.title,
+    description: card.description_md,
     column: columns.find((c) => c.id === card.column_id)?.name ?? "?",
     columnId: card.column_id,
     priority: card.priority,
     due: card.due_at,
+    dueAt: card.due_at,
+    dueHasTime: card.due_has_time,
+    planDate: card.plan_date,
+    repeatRule: card.repeat_rule,
+    calendarEventId: card.calendar_event_id,
+    meetingId: card.meeting_id,
+    checklist: card.checklist,
     labels: card.labels,
     completed: card.completed_at !== null,
+    completedAt: card.completed_at,
+    archived: card.archived_at !== null,
+    archivedAt: card.archived_at,
     boardId: card.board_id,
+    source: card.source,
+    repeatParentId: card.repeat_parent_id,
+    version: card.updated_at,
+    updatedAt: card.updated_at,
+    createdAt: card.created_at,
+    url: `/tasks/${card.board_id}?card=${card.id}`,
   };
+}
+export type CardSummary = ReturnType<typeof summarize>;
+
+const patchColumns = {
+  title: "title",
+  description: "description_md",
+  priority: "priority",
+  dueAt: "due_at",
+  dueHasTime: "due_has_time",
+  planDate: "plan_date",
+  repeatRule: "repeat_rule",
+  calendarEventId: "calendar_event_id",
+  meetingId: "meeting_id",
+  labels: "labels",
+  checklist: "checklist",
+} as const;
+function undoState(
+  before: CardRow,
+  card: CardRow,
+  fields: Array<keyof CardRow>,
+) {
+  return {
+    inverse: Object.fromEntries(
+      fields.map((key) => [key, before[key]]),
+    ) as CardUpdate,
+    applied: Object.fromEntries(
+      fields.map((key) => [key, card[key]]),
+    ) as CardUpdate,
+    expectedVersion: card.updated_at,
+  };
+}
+async function undoTask(
+  output: { id: string; _undo: ReturnType<typeof undoState> },
+  ctx: ToolContext,
+) {
+  await tasksService(ctx).undoPatch(
+    output.id,
+    output._undo.inverse,
+    output._undo.applied,
+    output._undo.expectedVersion,
+  );
 }
 
 async function columnsFor(
@@ -81,7 +133,7 @@ export const tasksTools: Record<string, AnyAgentTool> = {
   }),
   list: defineTool({
     description:
-      "카드 목록. due: today(오늘 마감)·overdue(지연)·week(7일 내)·none(마감 없음). column 이름이나 id, 라벨, 우선순위(0~3), 제목 검색(q)으로 거를 수 있다. 완료 카드는 includeCompleted=true 일 때만.",
+      "카드 목록. due: today(오늘 마감)·overdue(지연)·week(7일 내)·none(마감 없음). column 이름이나 id, 라벨, 우선순위(0~3), 제목 검색(q)으로 거를 수 있다. 완료 카드는 includeCompleted=true 일 때만. state=archived로 보관 검색. hasMore이면 nextCursor로 계속 조회하며 현재 페이지를 전체로 보고하지 않는다. 전체 변경은 모든 페이지의 ID를 먼저 수집한 뒤 실행한다.",
     inputSchema: listCardsFilterSchema.extend({
       column: z.string().optional().describe("컬럼 이름(예: Doing) 또는 id"),
     }),
@@ -106,12 +158,13 @@ export const tasksTools: Record<string, AnyAgentTool> = {
           );
         columnId = col.id;
       }
-      const cards = await svc.listCards({ ...filter, boardId, columnId });
+      const page = await svc.listCardsPage({ ...filter, boardId, columnId });
+      const cards = page.items;
       const columns = await columnsFor(
         ctx,
         cards.map((c) => c.board_id),
       );
-      return cards.map((c) => summarize(c, columns));
+      return { ...page, items: cards.map((c) => summarize(c, columns)) };
     },
   }),
   get: defineTool({
@@ -143,37 +196,35 @@ export const tasksTools: Record<string, AnyAgentTool> = {
           input.source?.type === "manual" ? { type: "agent" } : input.source,
       });
       const columns = await columnsFor(ctx, [card.board_id]);
-      return summarize(card, columns);
+      return { ...summarize(card, columns), createdNow: card.createdNow };
     },
     undo: async (output, ctx) => {
-      await tasksService(ctx).deleteCard(output.id);
+      if (output.createdNow)
+        await tasksService(ctx).deleteCard(output.id, output.version);
     },
   }),
   update: defineTool({
     description:
       "카드의 제목·설명·우선순위·마감·라벨·체크리스트를 바꾼다. 바꿀 필드만 넘긴다. dueAt: null 은 마감 제거.",
-    inputSchema: idSchema.extend({ patch: updateCardSchema }),
+    inputSchema: idSchema.extend({
+      patch: updateCardSchema,
+      expectedVersion: z.string().optional(),
+    }),
     risk: "write",
-    execute: async ({ id, patch }, ctx) => {
-      const { card, before } = await tasksService(ctx).updateCard(id, patch);
-      const columns = await columnsFor(ctx, [card.board_id]);
-      return { ...summarize(card, columns), _before: before };
-    },
-    undo: async (output, ctx) => {
-      const b = output._before;
-      await tasksService(ctx).updateCard(b.id, {
-        title: b.title,
-        description: b.description_md,
-        priority: b.priority,
-        dueAt: b.due_at,
-        dueHasTime: b.due_has_time,
-        planDate: b.plan_date,
-        repeatRule: b.repeat_rule as never,
-        calendarEventId: b.calendar_event_id,
-        labels: b.labels,
-        checklist: b.checklist as never,
+    execute: async ({ id, patch, expectedVersion }, ctx) => {
+      const { card, before } = await tasksService(ctx).updateCard(id, patch, {
+        expectedVersion,
       });
+      const columns = await columnsFor(ctx, [card.board_id]);
+      const fields = Object.keys(updateCardSchema.parse(patch)).map(
+        (key) => patchColumns[key as keyof typeof patchColumns],
+      );
+      return {
+        ...summarize(card, columns),
+        _undo: undoState(before, card, fields),
+      };
     },
+    undo: undoTask,
   }),
   move: defineTool({
     description:
@@ -185,17 +236,21 @@ export const tasksTools: Record<string, AnyAgentTool> = {
       const columns = await columnsFor(ctx, [card.board_id]);
       return {
         ...summarize(card, columns),
-        _before: { columnId: before.column_id },
+        _undo: undoState(before, card, [
+          "column_id",
+          "position",
+          "completed_at",
+        ]),
+        undoPolicy: card.repeat_rule
+          ? "완료를 되돌려도 이미 생성된 다음 회차는 유지해요."
+          : null,
       };
     },
-    undo: async (output, ctx) => {
-      await tasksService(ctx).moveCard(output.id, {
-        columnId: output._before.columnId,
-      });
-    },
+    undo: undoTask,
   }),
   complete: defineTool({
-    description: "카드를 완료(Done 컬럼으로 이동) 처리한다.",
+    description:
+      "카드를 완료(Done 컬럼으로 이동) 처리한다. 반복 카드의 완료 Undo는 다음 회차를 유지한다.",
     inputSchema: idSchema,
     risk: "write",
     execute: async ({ id }, ctx) => {
@@ -203,14 +258,17 @@ export const tasksTools: Record<string, AnyAgentTool> = {
       const columns = await columnsFor(ctx, [card.board_id]);
       return {
         ...summarize(card, columns),
-        _before: { columnId: before.column_id },
+        _undo: undoState(before, card, [
+          "column_id",
+          "position",
+          "completed_at",
+        ]),
+        undoPolicy: card.repeat_rule
+          ? "완료를 되돌려도 이미 생성된 다음 회차는 유지해요."
+          : null,
       };
     },
-    undo: async (output, ctx) => {
-      await tasksService(ctx).moveCard(output.id, {
-        columnId: output._before.columnId,
-      });
-    },
+    undo: undoTask,
   }),
   bulkUpdate: defineTool({
     description:
@@ -226,36 +284,102 @@ export const tasksTools: Record<string, AnyAgentTool> = {
     }),
     risk: "destructive",
     execute: async ({ ids, patch }, ctx) => {
-      const { cards } = await tasksService(ctx).bulkUpdate(ids, patch);
+      const { cards, remaining } = await tasksService(ctx).bulkUpdate(
+        ids,
+        patch,
+      );
       const columns = await columnsFor(
         ctx,
         cards.map((c) => c.board_id),
       );
       return {
         count: cards.length,
+        remaining,
+        status: remaining.length ? "partial" : "completed",
         cards: cards.map((c) => summarize(c, columns)),
       };
     },
+  }),
+  schedule: defineTool({
+    description:
+      "할 일에 작업 시간을 잡는다. 마감을 유지하며 기존 블록 재시도는 재사용한다. 충돌은 실행 직전 검사한다.",
+    inputSchema: scheduleSchema,
+    risk: "write",
+    execute: async (input, ctx) => scheduleTaskResult(ctx, input),
+  }),
+  reschedule: defineTool({
+    description:
+      "할 일의 연결된 작업 시간만 이동한다. 마감과 계획 날짜는 유지하며 겹치는 시간은 거절한다.",
+    inputSchema: scheduleSchema,
+    risk: "write",
+    execute: async (input, ctx) => scheduleTaskResult(ctx, input, true),
+  }),
+  unschedule: defineTool({
+    description:
+      "할 일 작업 시간 블록을 취소하고 링크를 정리한다. 할 일과 마감은 유지한다.",
+    inputSchema: z.object({
+      cardId: z.string().uuid(),
+      expectedVersion: z.string().optional(),
+    }),
+    risk: "write",
+    execute: async ({ cardId, expectedVersion }, ctx) =>
+      unscheduleTask(ctx, cardId, expectedVersion),
+  }),
+  plan: defineTool({
+    description:
+      "선택한 할 일의 계획 날짜만 일괄 변경한다. planDate=null은 계획에서 빼기이며 마감은 유지한다. 부분 실패 시 remaining을 보고한다.",
+    inputSchema: planCardsSchema,
+    risk: "write",
+    execute: async ({ items, planDate }, ctx) =>
+      tasksService(ctx).planCards(items, planDate),
   }),
   archive: defineTool({
     description: "카드를 보관(보드에서 숨김)한다. 삭제와 달리 되돌릴 수 있다.",
     inputSchema: idSchema,
     risk: "write",
     execute: async ({ id }, ctx) => {
-      const card = await tasksService(ctx).archiveCard(id, true);
-      return { id: card.id, title: card.title };
+      const svc = tasksService(ctx);
+      const before = await svc.getCard(id);
+      if (!before) throw new Error("카드를 찾을 수 없어요");
+      const card = await svc.archiveCard(id, true, before.updated_at);
+      return {
+        id: card.id,
+        title: card.title,
+        version: card.updated_at,
+        changed: before.archived_at !== card.archived_at,
+        _undo: undoState(before, card, ["archived_at"]),
+      };
     },
-    undo: async (output, ctx) => {
-      await tasksService(ctx).archiveCard(output.id, false);
+    undo: undoTask,
+  }),
+  restore: defineTool({
+    description:
+      "보관한 카드를 기존 ID 그대로 복원한다. state=archived 목록으로 먼저 찾는다.",
+    inputSchema: idSchema,
+    risk: "write",
+    execute: async ({ id }, ctx) => {
+      const svc = tasksService(ctx);
+      const before = await svc.getCard(id);
+      if (!before) throw new Error("카드를 찾을 수 없어요");
+      const card = await svc.archiveCard(id, false, before.updated_at);
+      return {
+        ...summarize(card, await columnsFor(ctx, [card.board_id])),
+        changed: before.archived_at !== card.archived_at,
+        _undo: undoState(before, card, ["archived_at"]),
+      };
     },
+    undo: undoTask,
   }),
   delete: defineTool({
     description:
       "카드를 영구 삭제한다. 되돌릴 수 없다. 보관(archive)으로 충분하면 그쪽을 먼저 권한다.",
-    inputSchema: idSchema,
+    inputSchema: idSchema.extend({ expectedVersion: z.string().optional() }),
     risk: "destructive",
-    execute: async ({ id }, ctx) => {
-      const card = await tasksService(ctx).deleteCard(id);
+    execute: async ({ id, expectedVersion }, ctx) => {
+      const card = await tasksService(ctx).deleteCard(
+        id,
+        ctx.approvedVersions?.[`cards:${id}`] ?? expectedVersion,
+      );
       return { id: card.id, title: card.title };
     },
   }),
