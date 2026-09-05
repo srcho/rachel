@@ -11,12 +11,23 @@ interface OutboxItem {
   args: unknown[];
   createdAt: number;
   attempts: number;
+  userId?: string;
+  error?: string;
 }
 type Handler = (...args: unknown[]) => Promise<unknown>;
+
+export type MutationResult<T = void> =
+  | { status: "saved"; value: T }
+  | { status: "queued" }
+  | { status: "failed"; message: string };
 
 const handlers = new Map<string, Handler>();
 const listeners = new Set<(n: number) => void>();
 let replaying = false;
+let currentUserId: string | undefined;
+export function setOutboxUser(userId: string) {
+  currentUserId = userId;
+}
 
 function db() {
   return openDB<{ outbox: { key: string; value: OutboxItem } }>(
@@ -48,11 +59,17 @@ export async function enqueueOutbox(
   args: unknown[],
 ): Promise<string> {
   const id = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-  await (await db()).put(
-    "outbox",
-    { id, action, args, createdAt: Date.now(), attempts: 0 },
+  const tx = (await db()).transaction("outbox", "readwrite");
+  const previous = await tx.store.getAll();
+  const createdAt = Math.max(
+    Date.now(),
+    ...previous.map((item) => item.createdAt + 1),
+  );
+  await tx.store.put(
+    { id, action, args, createdAt, attempts: 0, userId: currentUserId },
     id,
   );
+  await tx.done;
   notify();
   return id;
 }
@@ -64,7 +81,9 @@ export async function clearOutbox(): Promise<void> {
 }
 
 export async function outboxCount(): Promise<number> {
-  return (await db()).count("outbox");
+  return (await (await db()).getAll("outbox")).filter(
+    (item) => item.userId === currentUserId,
+  ).length;
 }
 
 export function onOutboxChange(fn: (n: number) => void): () => void {
@@ -78,27 +97,29 @@ function notify() {
   });
 }
 
-/** 큐를 순서대로 재생. 네트워크 오류면 중단(다음 online 때), 서버 오류면 그 항목은 버리고 계속. */
+/** 큐를 순서대로 재생. 네트워크 오류면 중단(다음 online 때), 서버 오류도 보존하고 중단한다. 이후 변경이 앞선 실패를 덮어쓰지 않게 순서를 지킨다. */
 export async function replayOutbox(): Promise<{
   done: number;
-  dropped: number;
+  failed: number;
   remaining: number;
 }> {
-  if (replaying) return { done: 0, dropped: 0, remaining: await outboxCount() };
+  if (replaying) return { done: 0, failed: 0, remaining: await outboxCount() };
   replaying = true;
+  const replayUserId = currentUserId;
   let done = 0;
-  let dropped = 0;
+  let failed = 0;
   try {
     const d = await db();
     const items = (await d.getAll("outbox")).sort(
       (a, b) => a.createdAt - b.createdAt,
     );
     for (const item of items) {
+      if (currentUserId !== replayUserId) break;
+      if (item.userId !== replayUserId) continue;
       const fn = handlers.get(item.action);
       if (!fn) {
-        await d.delete("outbox", item.id);
-        dropped++;
-        continue;
+        failed++;
+        break;
       }
       try {
         await fn(...item.args);
@@ -106,16 +127,25 @@ export async function replayOutbox(): Promise<{
         done++;
       } catch (e) {
         if (isNetworkError(e)) break;
-        console.warn("[outbox] 서버가 거부해 버림", item.action, e);
-        await d.delete("outbox", item.id);
-        dropped++;
+        console.warn("[outbox] 전송 실패, 기기에 보존", item.action, e);
+        await d.put(
+          "outbox",
+          {
+            ...item,
+            attempts: item.attempts + 1,
+            error: e instanceof Error ? e.message : "전송 실패",
+          },
+          item.id,
+        );
+        failed++;
+        break;
       }
     }
   } finally {
     replaying = false;
     notify();
   }
-  return { done, dropped, remaining: await outboxCount() };
+  return { done, failed, remaining: await outboxCount() };
 }
 
 /** 온라인 액션 실행기: 실패가 네트워크 문제면 아웃박스에 넣고 성공한 것처럼 돌려준다(낙관적 상태 유지). */

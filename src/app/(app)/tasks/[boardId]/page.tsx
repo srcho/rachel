@@ -21,7 +21,7 @@ export default async function BoardPage({
   searchParams,
 }: {
   params: Promise<{ boardId: string }>;
-  searchParams: Promise<{ done?: string }>;
+  searchParams: Promise<{ done?: string; card?: string; archived?: string }>;
 }) {
   const { boardId } = await params;
   const sp = await searchParams;
@@ -31,15 +31,26 @@ export default async function BoardPage({
   const svc = tasksService(ctx);
   let view: Awaited<ReturnType<typeof svc.getBoardView>>;
   try {
-    view = await svc.getBoardView(boardId, { showAllDone: sp.done === "all" });
-  } catch {
-    notFound();
+    view = await svc.getBoardView(boardId, {
+      showAllDone: sp.done === "all",
+      archived: sp.archived === "1",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "보드를 찾을 수 없어요")
+      notFound();
+    throw error;
   }
+  const selected = sp.card ? await svc.getCard(sp.card) : null;
   // 캘린더 → 할 일(단방향): 오늘 일정을 보드 위 스트립에 읽기 전용으로. 앱 레이어라 두 모듈을 함께 쓴다.
   const { start, end } = dayBounds(ctx.now, ctx.timezone);
+  let calendarError = false;
   const events = await eventService(ctx)
     .listEvents({ from: start, to: end, limit: 30 })
-    .catch(() => []);
+    .catch((error) => {
+      console.error("[tasks] today events", error);
+      calendarError = true;
+      return [];
+    });
   const linked = new Set(
     view.cards.map((c) => c.calendar_event_id).filter(Boolean),
   );
@@ -63,8 +74,11 @@ export default async function BoardPage({
         initial={view}
         userId={user.id}
         todayEvents={todayEvents}
+        calendarError={calendarError}
         timezone={ctx.timezone}
         showAllDone={sp.done === "all"}
+        archived={sp.archived === "1"}
+        selectedCard={selected?.board_id === boardId ? selected : null}
       />
     </Page>
   );

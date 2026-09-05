@@ -180,4 +180,49 @@ describe.skipIf(!available)("tasksService (local Supabase)", () => {
     expect(card.column_id).toBe(doing.id);
     expect(card.position < c.position).toBe(true);
   });
+  it("keeps the deadline when replanning, persists checklists, and restores archived tasks", async () => {
+    const svc = tasksService(ctx);
+    const deadline = "2026-09-10T01:00:00Z";
+    const card = await svc.createCard({
+      title: "계획과 마감 분리",
+      dueAt: deadline,
+      planDate: "2026-09-03",
+    });
+    expect(
+      (await svc.listCards({ planDate: "2026-09-03" })).map((c) => c.id),
+    ).toContain(card.id);
+    const { card: updated } = await svc.updateCard(card.id, {
+      planDate: "2026-09-04",
+      checklist: [{ id: "step-1", text: "자료 확인", done: true }],
+    });
+    expect(updated.due_at).toBe(card.due_at);
+    expect(updated.checklist).toEqual([
+      { id: "step-1", text: "자료 확인", done: true },
+    ]);
+    expect(
+      (await svc.listCards({ planDate: "2026-09-03" })).map((c) => c.id),
+    ).not.toContain(card.id);
+    await svc.archiveCard(card.id);
+    expect(
+      (await svc.getBoardView(card.board_id)).cards.map((c) => c.id),
+    ).not.toContain(card.id);
+    expect(
+      (await svc.getBoardView(card.board_id, { archived: true })).cards.map(
+        (c) => c.id,
+      ),
+    ).toContain(card.id);
+    await svc.archiveCard(card.id, false);
+    expect(
+      (await svc.getBoardView(card.board_id)).cards.map((c) => c.id),
+    ).toContain(card.id);
+    expect(
+      (
+        await tasksService({
+          ...ctx,
+          userId: other.id,
+          db: other.db,
+        }).listCards({ planDate: "2026-09-04" })
+      ).map((c) => c.id),
+    ).not.toContain(card.id);
+  });
 });

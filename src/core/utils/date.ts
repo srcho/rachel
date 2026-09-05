@@ -110,3 +110,20 @@ export function fmtDateTime(
   }
   return f.format(typeof iso === "string" ? new Date(iso) : iso);
 }
+
+/** A form's wall clock belongs to the selected timezone, independently of the browser. */
+export function dateTimeInZone(local: string, timeZone: string): string {
+  const raw = new Date(`${local}:00Z`);
+  if (!Number.isFinite(raw.getTime()))
+    throw new Error("올바른 날짜와 시각을 입력해 주세요");
+  const first = new Date(raw.getTime() - tzOffsetMs(timeZone, raw));
+  const result = new Date(raw.getTime() - tzOffsetMs(timeZone, first));
+  const roundtrip = new Date(result.getTime() + tzOffsetMs(timeZone, result))
+    .toISOString()
+    .slice(0, 16);
+  if (roundtrip !== local)
+    throw new Error(
+      "이 시간대에 존재하지 않는 시각이에요. 다른 시각을 선택해 주세요",
+    );
+  return result.toISOString();
+}

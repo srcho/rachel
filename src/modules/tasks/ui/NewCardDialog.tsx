@@ -1,12 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { MutationResult } from "@/core/offline/outbox";
 import { FormDialog } from "@/core/ui/FormDialog";
+import { dateTimeInZone, tzOffsetMs } from "@/core/utils/date";
 import { formatDue, PRIORITY_LABEL } from "../format";
 import type { parseDueFromTitle } from "../parse-due";
 import type { ColumnRow } from "../repository";
 
 export interface NewCardInput {
+  creationKey?: string;
   title: string;
   columnId: string;
   dueAt?: string;
@@ -26,14 +29,16 @@ export function NewCardDialog({
   open,
   columns,
   defaultColumnId,
+  timezone = "Asia/Seoul",
   onClose,
   onCreate,
 }: {
   open: boolean;
   columns: ColumnRow[];
   defaultColumnId?: string;
+  timezone?: string;
   onClose: () => void;
-  onCreate: (input: NewCardInput) => Promise<void>;
+  onCreate: (input: NewCardInput) => Promise<MutationResult<unknown>>;
 }) {
   const [title, setTitle] = useState("");
   const [columnId, setColumnId] = useState(defaultColumnId ?? "");
@@ -42,6 +47,11 @@ export function NewCardDialog({
   const [priority, setPriority] = useState(2);
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [details, setDetails] = useState(false);
+  const [parseEnabled, setParseEnabled] = useState(true);
+  const submitting = useRef(false);
+  const creationKey = useRef("");
   const [parse, setParse] = useState<typeof parseDueFromTitle | null>(null);
 
   // 열리는 순간에만 초기화한다. columns(Realtime 갱신)·parse(chrono 로드) 변화로 작성 중인 폼을 지우지 않는다
@@ -52,7 +62,11 @@ export function NewCardDialog({
   useEffect(() => {
     if (!open) return;
     const cols = columnsRef.current;
+    creationKey.current = crypto.randomUUID();
     setTitle("");
+    setError(null);
+    setDetails(false);
+    setParseEnabled(true);
     setDue("");
     setHasTime(false);
     setPriority(2);
@@ -72,22 +86,28 @@ export function NewCardDialog({
     );
   }, [open, parse]);
 
-  const parsed = parse && title.trim() && !due ? parse(title) : null;
+  const parsed =
+    parseEnabled && parse && title.trim() && !due
+      ? parse(title, new Date(), timezone)
+      : null;
   const hint = parsed
     ? formatDue({ due_at: parsed.dueAt, due_has_time: parsed.hasTime })
     : null;
 
   async function submit() {
     const raw = title.trim();
-    if (!raw || busy || !columnId) return;
+    if (!raw || submitting.current || !columnId) return;
+    submitting.current = true;
+    setError(null);
     setBusy(true);
     try {
       const useParsed = parsed && !due;
       let dueAt: string | undefined;
       if (useParsed) dueAt = parsed.dueAt;
       else if (due)
-        dueAt = new Date(hasTime ? due : `${due}T00:00`).toISOString();
-      await onCreate({
+        dueAt = dateTimeInZone(hasTime ? due : `${due}T23:59`, timezone);
+      const result = await onCreate({
+        creationKey: creationKey.current,
         title: useParsed ? parsed.title : raw,
         columnId,
         dueAt,
@@ -95,14 +115,18 @@ export function NewCardDialog({
         priority,
         description: description.trim(),
       });
-      onClose();
+      if (result.status === "failed") setError(result.message);
+      else onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "추가하지 못했어요");
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
 
   return (
-    <FormDialog open={open} onClose={onClose} title="카드 추가">
+    <FormDialog open={open} onClose={onClose} title="할 일 추가">
       <form
         className="space-y-3"
         onSubmit={(e) => {
@@ -124,83 +148,126 @@ export function NewCardDialog({
             <p className="px-0.5 text-xs text-muted-foreground">
               마감 제안: <span className="text-foreground">{hint.text}</span> ·
               제목은 “{parsed?.title}”
+              <button
+                type="button"
+                className="ml-2 min-h-9 underline underline-offset-4"
+                onClick={() => setParseEnabled(false)}
+              >
+                날짜 해석 취소
+              </button>
+              <button
+                type="button"
+                className="ml-2 min-h-9 underline underline-offset-4"
+                onClick={() => {
+                  if (parsed) {
+                    const date = new Date(parsed.dueAt);
+                    const local = new Date(
+                      date.getTime() + tzOffsetMs(timezone, date),
+                    ).toISOString();
+                    setDue(local.slice(0, parsed.hasTime ? 16 : 10));
+                    setHasTime(parsed.hasTime);
+                    setTitle(parsed.title);
+                  }
+                  setDetails(true);
+                  setParseEnabled(false);
+                }}
+              >
+                직접 지정
+              </button>
             </p>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <label className="space-y-1">
-            <span className="text-xs text-muted-foreground">상태</span>
-            <select
-              className={field}
-              value={columnId}
-              onChange={(e) => setColumnId(e.target.value)}
-              aria-label="상태"
-            >
-              {columns.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs text-muted-foreground">우선순위</span>
-            <select
-              className={field}
-              value={priority}
-              onChange={(e) => setPriority(Number(e.target.value))}
-            >
-              {[0, 1, 2, 3].map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs text-muted-foreground">마감</span>
-            <input
-              type={hasTime ? "datetime-local" : "date"}
-              className={field}
-              value={due}
-              onChange={(e) => setDue(e.target.value)}
-              aria-label="마감"
-            />
-          </label>
-          <label className="flex items-end gap-2 pb-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={hasTime}
-              onChange={(e) => {
-                setHasTime(e.target.checked);
-                setDue((d) =>
-                  e.target.checked
-                    ? d
-                      ? `${d.slice(0, 10)}T09:00`
-                      : ""
-                    : d.slice(0, 10),
-                );
-              }}
-            />
-            시각 지정
-          </label>
-        </div>
-        <label className="block space-y-1 text-sm">
-          <span className="text-xs text-muted-foreground">설명</span>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className={field}
-            placeholder="선택"
-          />
-        </label>
+        <button
+          type="button"
+          className="min-h-9 text-xs text-muted-foreground hover:text-foreground"
+          aria-expanded={details}
+          onClick={() => setDetails(!details)}
+        >
+          {details ? "세부 설정 접기 −" : "세부 설정 +"}
+        </button>
+        {details && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">상태</span>
+                <select
+                  className={field}
+                  value={columnId}
+                  onChange={(e) => setColumnId(e.target.value)}
+                  aria-label="상태"
+                >
+                  {columns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">우선순위</span>
+                <select
+                  className={field}
+                  value={priority}
+                  onChange={(e) => setPriority(Number(e.target.value))}
+                >
+                  {[0, 1, 2, 3].map((p) => (
+                    <option key={p} value={p}>
+                      {PRIORITY_LABEL[p]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">마감</span>
+                <input
+                  type={hasTime ? "datetime-local" : "date"}
+                  className={field}
+                  value={due}
+                  onChange={(e) => setDue(e.target.value)}
+                  aria-label="마감"
+                />
+              </label>
+              <label className="flex items-end gap-2 pb-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={hasTime}
+                  onChange={(e) => {
+                    setHasTime(e.target.checked);
+                    setDue((d) =>
+                      e.target.checked
+                        ? d
+                          ? `${d.slice(0, 10)}T09:00`
+                          : ""
+                        : d.slice(0, 10),
+                    );
+                  }}
+                />
+                시각 지정
+              </label>
+            </div>
+            <label className="block space-y-1 text-sm">
+              <span className="text-xs text-muted-foreground">설명</span>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className={field}
+                placeholder="선택"
+              />
+            </label>
+          </div>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error} · 입력한 내용은 그대로 남아 있어요.
+          </p>
+        )}
         <div className="flex items-center justify-between pt-1">
           <span className="text-[11px] text-muted-foreground">
-            Enter 로 만들기 · 마감이 있으면 Google Tasks 에도 보여요
+            Enter로 추가 · 날짜는 선택 사항이에요
           </span>
           <Button type="submit" size="sm" disabled={!title.trim() || busy}>
-            {busy ? "만드는 중…" : "만들기"}
+            {busy ? "추가 중…" : "추가"}
           </Button>
         </div>
       </form>

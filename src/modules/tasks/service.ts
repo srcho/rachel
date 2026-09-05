@@ -2,6 +2,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import type { ServiceContext } from "@/core/contracts";
 import type { Json } from "@/core/db/types.generated";
 import { dayBounds } from "@/core/utils/date";
+import { nextRepeatDue, repeatRuleSchema } from "./repeat";
 import {
   type BoardRow,
   type CardRow,
@@ -86,7 +87,7 @@ export function tasksService(ctx: ServiceContext) {
    */
   async function getBoardView(
     boardId?: string,
-    opts: { showAllDone?: boolean } = {},
+    opts: { showAllDone?: boolean; archived?: boolean } = {},
   ): Promise<BoardView> {
     const board = boardId
       ? await repo.getBoard(boardId)
@@ -97,7 +98,11 @@ export function tasksService(ctx: ServiceContext) {
       repo.listColumns(board.id),
       repo.listCardsByBoard(
         board.id,
-        opts.showAllDone ? {} : { completedSince: todayStart },
+        opts.archived
+          ? { archived: true }
+          : opts.showAllDone
+            ? {}
+            : { completedSince: todayStart },
       ),
       opts.showAllDone
         ? Promise.resolve(0)
@@ -128,6 +133,10 @@ export function tasksService(ctx: ServiceContext) {
     meta: WriteMeta = {},
   ): Promise<CardRow> {
     const input = createCardSchema.parse(raw);
+    if (input.creationKey) {
+      const existing = await repo.findCreated(input.creationKey);
+      if (existing) return existing;
+    }
     const board = input.boardId
       ? await repo.getBoard(input.boardId)
       : await ensureDefaultBoard();
@@ -135,12 +144,15 @@ export function tasksService(ctx: ServiceContext) {
     const column = await resolveColumn(board.id, input.columnId);
     const last = await repo.lastCardInColumn(column.id);
     const card = await repo.insertCard({
+      creation_key: input.creationKey ?? null,
+      repeat_rule: (input.repeatRule as unknown as Json) ?? null,
       board_id: board.id,
       column_id: column.id,
       title: input.title,
       description_md: input.description,
       position: generateKeyBetween(last?.position ?? null, null),
       priority: input.priority,
+      plan_date: input.planDate ?? null,
       due_at: input.dueAt ?? null,
       due_has_time: input.dueHasTime,
       labels: input.labels,
@@ -178,6 +190,10 @@ export function tasksService(ctx: ServiceContext) {
         description_md: patch.description,
       }),
       ...(patch.priority !== undefined && { priority: patch.priority }),
+      ...(patch.repeatRule !== undefined && {
+        repeat_rule: patch.repeatRule as unknown as Json,
+      }),
+      ...(patch.planDate !== undefined && { plan_date: patch.planDate }),
       ...(patch.dueAt !== undefined && { due_at: patch.dueAt }),
       ...(patch.dueHasTime !== undefined && { due_has_time: patch.dueHasTime }),
       ...(patch.labels !== undefined && { labels: patch.labels }),
@@ -247,6 +263,7 @@ export function tasksService(ctx: ServiceContext) {
         ...meta,
       },
     });
+    if (nowDone && card.repeat_rule) await createNextOccurrence(card);
     if (!wasDone && nowDone)
       await ctx.emit({
         type: TASK_EVENTS.completed,
@@ -260,6 +277,45 @@ export function tasksService(ctx: ServiceContext) {
         payload: { card: cardSnapshot(card), ...meta },
       });
     return { card, before };
+  }
+
+  async function createNextOccurrence(card: CardRow) {
+    const rule = repeatRuleSchema.parse(card.repeat_rule);
+    if (!card.completed_at) return;
+    const key = `repeat:${card.id}`;
+    const existing = await repo.findCreated(key);
+    if (existing) return;
+    const column = await resolveColumn(card.board_id);
+    const last = await repo.lastCardInColumn(column.id);
+    const next = await repo.insertCard({
+      creation_key: key,
+      repeat_parent_id: card.id,
+      repeat_rule: card.repeat_rule,
+      board_id: card.board_id,
+      column_id: column.id,
+      title: card.title,
+      description_md: card.description_md,
+      priority: card.priority,
+      labels: card.labels,
+      position: generateKeyBetween(last?.position ?? null, null),
+      due_at: nextRepeatDue(
+        rule,
+        card.completed_at,
+        card.due_at,
+        card.due_has_time,
+        ctx.timezone,
+      ),
+      due_has_time: card.due_has_time,
+      checklist: (Array.isArray(card.checklist) ? card.checklist : []).map(
+        (item) => ({ ...(item as Record<string, Json>), done: false }),
+      ) as Json,
+      source: { type: "manual", repeat_parent_id: card.id },
+    });
+    await ctx.emit({
+      type: TASK_EVENTS.created,
+      entity: { type: "card", id: next.id },
+      payload: { title: next.title, card: cardSnapshot(next) },
+    });
   }
 
   async function completeCard(
@@ -363,6 +419,7 @@ export function tasksService(ctx: ServiceContext) {
     return repo.queryCards({
       boardId: f.boardId,
       columnId: f.columnId,
+      planDate: f.planDate,
       label: f.label,
       priority: f.priority,
       includeCompleted: f.includeCompleted,

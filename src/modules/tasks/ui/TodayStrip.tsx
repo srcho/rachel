@@ -30,7 +30,7 @@ export function TodayStrip({ events }: { events: StripEvent[] }) {
         <Chip key={e.id} event={e} time={e.label} />
       ))}
       <span className="shrink-0 text-muted-foreground/70">
-        컬럼에 끌어다 놓으면 카드가 돼요
+        상태에 끌어다 놓으면 오늘 할 일이 돼요
       </span>
     </div>
   );
@@ -54,7 +54,9 @@ function Chip({ event, time }: { event: StripEvent; time: string }) {
           : "cursor-grab hover:border-foreground/25 active:cursor-grabbing",
         isDragging && "opacity-40",
       )}
-      title={event.linked ? "이미 카드가 있어요" : "컬럼으로 끌어다 놓기"}
+      title={
+        event.linked ? "이미 연결된 할 일이 있어요" : "컬럼으로 끌어다 놓기"
+      }
     >
       <span className="tabular-nums text-muted-foreground">{time}</span>
       <span className="max-w-[14rem] truncate">{event.title}</span>

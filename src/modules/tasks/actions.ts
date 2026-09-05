@@ -1,5 +1,6 @@
 "use server";
 import { userContext } from "@/core/context";
+import { scheduleTask } from "./scheduling";
 import type { CreateCardInput, MoveCardInput, UpdateCardInput } from "./schema";
 import { tasksService } from "./service";
 
@@ -25,4 +26,26 @@ export async function archiveCardAction(id: string, archived = true) {
 }
 export async function deleteCardAction(id: string) {
   return (await svc()).deleteCard(id);
+}
+
+export async function taskSlotsAction(durationMinutes: 30 | 60 | 90) {
+  const ctx = await userContext();
+  const tool = ctx.registry.tools()["calendar.findFreeSlots"];
+  if (!tool) throw new Error("캘린더를 사용할 수 없어요");
+  const from = new Date(Math.ceil(ctx.now.getTime() / 300_000) * 300_000);
+  const slots = (await tool.execute(
+    {
+      from: from.toISOString(),
+      to: new Date(from.getTime() + 7 * 86_400_000).toISOString(),
+      durationMinutes,
+      limit: 3,
+    },
+    ctx,
+  )) as Array<{ startAt: string; endAt: string }>;
+  return { slots, timezone: ctx.timezone };
+}
+export async function scheduleTaskAction(
+  input: Parameters<typeof scheduleTask>[1],
+) {
+  return scheduleTask(await userContext(), input);
 }

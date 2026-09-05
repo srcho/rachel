@@ -128,11 +128,12 @@ export function tasksRepository(db: Db, userId: string) {
     /** 보드의 카드. completedSince 를 주면 그 전에 완료된 카드는 뺀다(오늘 완료만 보이는 Done). */
     async listCardsByBoard(
       boardId: string,
-      opts: { completedSince?: string } = {},
+      opts: { completedSince?: string; archived?: boolean } = {},
     ): Promise<CardRow[]> {
-      let q = own(db.from("cards").select("*"))
-        .eq("board_id", boardId)
-        .is("archived_at", null);
+      let q = own(db.from("cards").select("*")).eq("board_id", boardId);
+      q = opts.archived
+        ? q.not("archived_at", "is", null)
+        : q.is("archived_at", null);
       if (opts.completedSince)
         q = q.or(
           `completed_at.is.null,completed_at.gte.${opts.completedSince}`,
@@ -162,12 +163,28 @@ export function tasksRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
+    async findCreated(key: string): Promise<CardRow | null> {
+      const { data, error } = await own(db.from("cards").select("*"))
+        .eq("creation_key", key)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
     async insertCard(row: Omit<CardInsert, "user_id">): Promise<CardRow> {
       const { data, error } = await db
         .from("cards")
         .insert({ ...row, user_id: userId })
         .select("*")
         .single();
+      if (error?.code === "23505" && row.creation_key) {
+        const { data: existing, error: lookupError } = await own(
+          db.from("cards").select("*"),
+        )
+          .eq("creation_key", row.creation_key)
+          .maybeSingle();
+        if (lookupError) throw lookupError;
+        if (existing) return existing;
+      }
       if (error) throw error;
       return data;
     },
@@ -198,6 +215,7 @@ export function tasksRepository(db: Db, userId: string) {
       dueFrom?: string;
       dueTo?: string;
       dueIsNull?: boolean;
+      planDate?: string;
       label?: string;
       priority?: number;
       includeCompleted: boolean;
@@ -207,6 +225,7 @@ export function tasksRepository(db: Db, userId: string) {
       let q = own(db.from("cards").select("*")).is("archived_at", null);
       if (f.boardId) q = q.eq("board_id", f.boardId);
       if (f.columnId) q = q.eq("column_id", f.columnId);
+      if (f.planDate) q = q.eq("plan_date", f.planDate);
       if (!f.includeCompleted) q = q.is("completed_at", null);
       if (f.dueIsNull) q = q.is("due_at", null);
       if (f.dueFrom) q = q.gte("due_at", f.dueFrom);

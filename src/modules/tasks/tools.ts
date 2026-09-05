@@ -167,6 +167,9 @@ export const tasksTools: Record<string, AnyAgentTool> = {
         priority: b.priority,
         dueAt: b.due_at,
         dueHasTime: b.due_has_time,
+        planDate: b.plan_date,
+        repeatRule: b.repeat_rule as never,
+        calendarEventId: b.calendar_event_id,
         labels: b.labels,
         checklist: b.checklist as never,
       });

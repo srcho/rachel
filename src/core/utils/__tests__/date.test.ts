@@ -24,3 +24,16 @@ describe("dayBounds", () => {
     });
   });
 });
+
+it("interprets form times in the selected zone and rejects the DST gap", async () => {
+  const { dateTimeInZone } = await import("../date");
+  expect(dateTimeInZone("2026-09-05T23:59", "Asia/Seoul")).toBe(
+    "2026-09-05T14:59:00.000Z",
+  );
+  expect(dateTimeInZone("2026-03-08T08:00", "America/New_York")).toBe(
+    "2026-03-08T12:00:00.000Z",
+  );
+  expect(() => dateTimeInZone("2026-03-08T02:30", "America/New_York")).toThrow(
+    "존재하지 않는",
+  );
+});

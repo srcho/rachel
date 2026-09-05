@@ -9,10 +9,12 @@ import {
   registerOutboxHandler,
   replayOutbox,
   runOrQueue,
+  setOutboxUser,
 } from "../outbox";
 
 describe("outbox", () => {
   beforeEach(async () => {
+    setOutboxUser("test-user");
     await clearOutbox();
   });
 
@@ -21,7 +23,7 @@ describe("outbox", () => {
     expect(isNetworkError(new Error("카드를 찾을 수 없어요"))).toBe(false);
   });
 
-  it("queues on network failure and replays in order; drops server-rejected items", async () => {
+  it("queues on network failure and replays in order; preserves server-rejected items and their successors", async () => {
     const calls: string[] = [];
     registerOutboxHandler("t.ok", async (x) => {
       calls.push(`ok:${x}`);
@@ -37,8 +39,27 @@ describe("outbox", () => {
     await enqueueOutbox("t.ok", ["b"]);
     expect(await outboxCount()).toBe(3);
     const r = await replayOutbox();
-    expect(r).toEqual({ done: 2, dropped: 1, remaining: 0 });
-    expect(calls).toEqual(["ok:a", "ok:b"]);
+    expect(r).toEqual({ done: 1, failed: 1, remaining: 2 });
+    expect(calls).toEqual(["ok:a"]);
+  });
+
+  it("preserves actions whose module has not registered and retries once available", async () => {
+    await enqueueOutbox("t.late", ["saved draft"]);
+    expect((await replayOutbox()).remaining).toBe(1);
+    const handler = vi.fn(async () => undefined);
+    registerOutboxHandler("t.late", handler);
+    expect((await replayOutbox()).done).toBe(1);
+    expect(handler).toHaveBeenCalledWith("saved draft");
+  });
+  it("never replays another user's queued creation", async () => {
+    const handler = vi.fn(async () => undefined);
+    registerOutboxHandler("t.owner", handler);
+    await enqueueOutbox("t.owner", []);
+    setOutboxUser("other-user");
+    expect((await replayOutbox()).done).toBe(0);
+    expect(handler).not.toHaveBeenCalled();
+    setOutboxUser("test-user");
+    expect((await replayOutbox()).done).toBe(1);
   });
 
   it("stops replaying when still offline", async () => {

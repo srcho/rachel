@@ -28,6 +28,9 @@ export function CardBody({
         card.completed_at && "opacity-60",
       )}
     >
+      {card.id.startsWith("temp-") && (
+        <p className="mb-1 text-xs text-muted-foreground">저장·전송 확인 중</p>
+      )}
       <div className="flex items-start gap-1.5">
         <span
           className={cn(
@@ -96,6 +99,7 @@ export function SortableCard({
     isDragging,
   } = useSortable({
     id: card.id,
+    disabled: card.id.startsWith("temp-"),
     data: { type: "card", columnId: card.column_id },
   });
   return (
