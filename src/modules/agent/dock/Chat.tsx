@@ -27,6 +27,7 @@ export function Chat({
   const draft = useDock((s) => s.drafts[threadId] ?? "");
   const setDraft = useDock((s) => s.setDraft);
   const setMessages = useDock((s) => s.setMessages);
+  const removeThread = useDock((s) => s.removeThread);
   const saved = useDock.getState().conversations[threadId] ?? [];
   const cached = useRef(initialMessages.length ? initialMessages : saved);
   const [hasOlder, setHasOlder] = useState(initialMessages.length >= 200);
@@ -75,6 +76,27 @@ export function Chat({
   }, [error]);
 
   const busy = status === "submitted" || status === "streaming";
+  useEffect(() => {
+    if (busy) return;
+    const deleted = messages.some((message) =>
+      message.parts.some((part) => {
+        if (part.type !== "tool-agent_deleteThread") return false;
+        const result = part as unknown as {
+          state: string;
+          output?: { id?: string; deleted?: boolean };
+        };
+        return (
+          result.state === "output-available" &&
+          result.output?.id === threadId &&
+          result.output.deleted === true
+        );
+      }),
+    );
+    if (deleted) {
+      removeThread(threadId);
+      toast.success("대화를 삭제했어요. 새 대화를 시작할 수 있어요.");
+    }
+  }, [busy, messages, removeThread, threadId]);
   return (
     <>
       {hasOlder && (

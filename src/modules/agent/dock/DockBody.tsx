@@ -24,7 +24,10 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
     toggleExpanded,
   } = useDock();
   const isDesktop = useIsDesktop();
-  const [initial, setInitial] = useState<RachelUIMessage[] | null>(null);
+  const [initial, setInitial] = useState<{
+    threadId: string;
+    messages: RachelUIMessage[];
+  } | null>(null);
   const [threads, setThreads] = useState<ThreadItem[] | null>(null);
   const [showThreads, setShowThreads] = useState(false);
 
@@ -37,7 +40,8 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
     setLoadError(false);
     void loadThreadAction(threadId)
       .then((messages) => {
-        if (active) setInitial(messages as unknown as RachelUIMessage[]);
+        if (active)
+          setInitial({ threadId, messages: messages as RachelUIMessage[] });
       })
       .catch(() => {
         if (active) setLoadError(true);
@@ -53,7 +57,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
 
   async function openThreads() {
     setShowThreads((v) => !v);
-    if (!threads) setThreads(await listThreadsAction());
+    setThreads(await listThreadsAction());
   }
 
   const contextLabel =
@@ -101,7 +105,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
             className="size-8"
             onClick={() => {
               newThread();
-              setInitial([]);
+              setInitial(null);
               setShowThreads(false);
             }}
             aria-label="새 대화"
@@ -171,7 +175,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
             다시 불러오기
           </button>
         </p>
-      ) : initial === null ? (
+      ) : initial?.threadId !== threadId ? (
         <p className="flex-1 p-4 text-sm text-muted-foreground">
           대화를 불러오는 중…
         </p>
@@ -179,7 +183,7 @@ export default function DockBody({ onClose }: { onClose: () => void }) {
         <Chat
           key={threadId}
           threadId={threadId}
-          initialMessages={initial}
+          initialMessages={initial.messages}
           autoFocus
         />
       )}

@@ -2,7 +2,12 @@ import { z } from "zod";
 import type { ServiceContext } from "@/core/contracts";
 import type { Json } from "@/core/db/types.generated";
 import { listExecutionReceipts } from "./execution";
-import { agentRepository, type MessageRow, type ThreadRow } from "./repository";
+import {
+  agentRepository,
+  type MessageRow,
+  type ThreadRow,
+  threadDeletionVersion,
+} from "./repository";
 import { threadListSchema, threadReadSchema } from "./schema";
 
 export interface UiMessageLike {
@@ -108,11 +113,15 @@ export function agentService(ctx: ServiceContext) {
     loadMessages,
     listThreads: (limit?: number) => repo.listThreads(limit),
     getThread: (id: string) => repo.getThread(id),
-    deleteThread: (id: string) =>
-      repo.deleteThread(
-        z.string().uuid().parse(id),
-        ctx.approvedVersions?.[`chat_threads:${id}`],
-      ),
+    deleteThread: async (id: string) => {
+      z.string().uuid().parse(id);
+      const current = await repo.getThread(id);
+      if (!current) throw new Error("대화가 변경되었거나 이미 삭제됐어요");
+      const approved = ctx.approvedVersions?.[`chat_threads:${id}`];
+      if (approved && approved !== threadDeletionVersion(current))
+        throw new Error("대화가 변경되었거나 이미 삭제됐어요");
+      return repo.deleteThread(id, current.updated_at);
+    },
   };
 }
 

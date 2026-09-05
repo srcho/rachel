@@ -1,6 +1,7 @@
 import type { ToolContext } from "@/core/contracts";
 import { getProfileSettings } from "@/core/settings/profile";
 import { fmtDateTime } from "@/core/utils/date";
+import { threadDeletionVersion } from "./repository";
 
 const fields: Record<string, [string, string]> = {
   title: ["제목", "title"],
@@ -75,12 +76,18 @@ export async function toolPreview(
       return {
         table,
         id: String(row.id),
-        version: String(
-          row.content_version ??
-            row.updated_at ??
-            row.last_message_at ??
-            row.created_at,
-        ),
+        version:
+          name === "agent_deleteThread"
+            ? threadDeletionVersion({
+                created_at: String(row.created_at),
+                title: row.title as string | null,
+              })
+            : String(
+                row.content_version ??
+                  row.updated_at ??
+                  row.last_message_at ??
+                  row.created_at,
+              ),
       };
     }),
     count: data.length,

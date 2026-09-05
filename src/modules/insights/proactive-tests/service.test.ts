@@ -411,5 +411,9 @@ describe.skipIf(!available)("deterministic proactive suggestions", () => {
     expect(
       candidates.find((c) => c.kind === "changed_evidence")?.body,
     ).toContain("바뀐 회의 결정");
+    const changed = candidates.find((c) => c.kind === "changed_evidence");
+    expect(changed?.href).toBe(
+      `/memory?id=${changed?.evidence.memoryId}#memory-${changed?.evidence.memoryId}`,
+    );
   });
 });

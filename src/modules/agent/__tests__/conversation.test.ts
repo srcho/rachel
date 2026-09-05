@@ -2,8 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ToolContext } from "@/core/contracts";
 import { createRegistry } from "@/core/registry/registry";
 import { localSupabaseAvailable, testUser } from "@/test/supabase";
+import { requestApproval, respondToApproval } from "../approvals";
 import { conversationTools } from "../conversation-tools";
+import { threadDeletionVersion } from "../repository";
 import { agentService, conversationWorkingState } from "../service";
+import { adaptTools } from "../tool-adapter";
 
 const available = await localSupabaseAvailable();
 describe.skipIf(!available)(
@@ -22,7 +25,17 @@ describe.skipIf(!available)(
         actor: "agent",
         timezone: "Asia/Seoul",
         now: new Date(),
-        registry: createRegistry(() => []),
+        registry: createRegistry(() => [
+          {
+            manifest: {
+              id: "agent",
+              name: "Agent",
+              icon: "x",
+              schemaVersion: 1,
+            },
+            tools: conversationTools,
+          },
+        ]),
         emit: async () => {},
         enqueue: async () => "",
       };
@@ -200,6 +213,8 @@ describe.skipIf(!available)(
         ctx,
       );
       expect(renamed.title).toBe("제품 계획 대화");
+      const current = await svc.getThread(threadId);
+      if (!current) throw new Error("missing thread");
       await expect(
         conversationTools.renameThread.execute(
           {
@@ -216,7 +231,7 @@ describe.skipIf(!available)(
           {
             ...ctx,
             approvedVersions: {
-              [`chat_threads:${threadId}`]: original.updated_at,
+              [`chat_threads:${threadId}`]: threadDeletionVersion(original),
             },
           },
         ),
@@ -228,7 +243,9 @@ describe.skipIf(!available)(
             ...ctx,
             db: other.db,
             userId: other.id,
-            approvedVersions: { [`chat_threads:${threadId}`]: renamed.version },
+            approvedVersions: {
+              [`chat_threads:${threadId}`]: threadDeletionVersion(current),
+            },
           },
         ),
       ).rejects.toThrow();
@@ -236,7 +253,9 @@ describe.skipIf(!available)(
         { id: threadId },
         {
           ...ctx,
-          approvedVersions: { [`chat_threads:${threadId}`]: renamed.version },
+          approvedVersions: {
+            [`chat_threads:${threadId}`]: threadDeletionVersion(current),
+          },
         },
       );
       expect(deleted.deleted).toBe(true);
@@ -249,6 +268,86 @@ describe.skipIf(!available)(
             .eq("thread_id", threadId)
         ).data,
       ).toEqual([]);
+    });
+    it("approves current-thread deletion after saving the approval and resubmitting the user message, exactly once", async () => {
+      const svc = agentService(ctx);
+      const thread = await svc.ensureThread(undefined);
+      const userMessage = {
+        id: `delete-current-${thread.id}`,
+        role: "user" as const,
+        parts: [{ type: "text", text: "이 대화를 삭제해줘" }],
+      };
+      await svc.saveMessages(thread.id, [userMessage]);
+      const turn = `${thread.id}:${userMessage.id}`;
+      const call = `delete-current-call-${thread.id}`;
+      const input = { id: thread.id };
+      await requestApproval(ctx, turn, call, "agent.deleteThread", input);
+      await svc.saveMessages(thread.id, [
+        userMessage,
+        {
+          id: `delete-current-reply-${thread.id}`,
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-agent_deleteThread",
+              toolCallId: call,
+              state: "approval-requested",
+              input,
+              approval: { id: call },
+            },
+          ],
+        },
+      ]);
+      await respondToApproval(ctx, call, true);
+      await svc.saveMessages(thread.id, [userMessage]);
+      const executionCtx = {
+        ...ctx,
+        latestUserMessage: {
+          id: userMessage.id,
+          text: "이 대화를 삭제해줘",
+          threadId: thread.id,
+        },
+      };
+      const tool = adaptTools(
+        { "agent.deleteThread": conversationTools.deleteThread },
+        executionCtx,
+        turn,
+      ).tools.agent_deleteThread;
+      if (!tool?.execute) throw new Error("missing deletion tool");
+      const options = { toolCallId: call, messages: [], context: undefined };
+      const first = await tool.execute(input, options);
+      expect(first).toMatchObject({ id: thread.id, deleted: true });
+      expect(await tool.execute(input, options)).toEqual(first);
+      expect(await svc.getThread(thread.id)).toBeNull();
+      const receipts = await user.db
+        .from("agent_tool_runs")
+        .select("status,thread_id")
+        .eq("turn_key", turn);
+      expect(receipts.error).toBeNull();
+      expect(receipts.data).toEqual([{ status: "done", thread_id: null }]);
+    });
+    it("still rejects a renamed current thread after its approval message was saved", async () => {
+      const svc = agentService(ctx);
+      const thread = await svc.ensureThread(undefined);
+      await svc.renameThread(thread.id, "원래 제목");
+      const call = `rename-after-preview-${thread.id}`;
+      await requestApproval(ctx, thread.id, call, "agent.deleteThread", {
+        id: thread.id,
+      });
+      await svc.saveMessages(thread.id, [
+        {
+          id: call,
+          role: "assistant",
+          parts: [{ type: "text", text: "삭제 승인 대기" }],
+        },
+      ]);
+      await svc.renameThread(thread.id, "사용자가 바꾼 제목");
+      await expect(respondToApproval(ctx, call, true)).rejects.toThrow(
+        "대상이 바뀌었어요",
+      );
+      expect((await svc.getThread(thread.id))?.title).toBe(
+        "사용자가 바꾼 제목",
+      );
     });
   },
 );

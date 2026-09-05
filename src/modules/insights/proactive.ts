@@ -152,7 +152,7 @@ export function proactiveService(initialCtx: ToolContext) {
         priority: 70,
         title: "기억의 근거가 바뀌었어요",
         body: memory.content.slice(0, 160),
-        href: "/memory",
+        href: `/memory?id=${memory.id}#memory-${memory.id}`,
         evidence: { memoryId: memory.id, invalidatedAt: memory.invalidated_at },
       });
     const myName = String(settings.honorific ?? "")

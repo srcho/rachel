@@ -4,6 +4,13 @@ import type { Database, Json } from "@/core/db/types.generated";
 export type ThreadRow = Database["public"]["Tables"]["chat_threads"]["Row"];
 export type MessageRow = Database["public"]["Tables"]["chat_messages"]["Row"];
 
+/** Saving the approval conversation updates bookkeeping, not the approved thread identity. */
+export function threadDeletionVersion(
+  thread: Pick<ThreadRow, "created_at" | "title">,
+) {
+  return JSON.stringify([thread.created_at, thread.title]);
+}
+
 export function agentRepository(db: Db, userId: string) {
   const own = <T extends { eq: (col: string, val: string) => T }>(q: T) =>
     q.eq("user_id", userId);

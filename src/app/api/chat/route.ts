@@ -97,17 +97,12 @@ export async function POST(req: Request) {
     );
   let costUsd = 0;
   let steps = 0;
-  let lastFinishReason = "";
   let execution: ChatMetadata["execution"];
   const turnKey = `${threadId}:${lastUser.id}`;
   const overBudget = () =>
     budget.budgetUsd !== null && budget.spentUsd + costUsd >= budget.budgetUsd;
   const stopReason = (): ChatMetadata["stopReason"] =>
-    overBudget()
-      ? "budget"
-      : steps >= MAX_STEPS && lastFinishReason === "tool-calls"
-        ? "step_limit"
-        : undefined;
+    overBudget() ? "budget" : steps >= MAX_STEPS ? "step_limit" : undefined;
   ctx.latestUserMessage = { id: lastUser.id, text: userQuery, threadId };
   const agent = await createRachelAgent({
     ctx,
@@ -135,9 +130,8 @@ export async function POST(req: Request) {
       `reply-${createHash("sha256").update(`${threadId}:${lastUser.id}`).digest("hex")}`,
     // biome-ignore lint/suspicious/noExplicitAny: UI 메시지는 서버에서 검증 후 그대로 전달
     uiMessages: messages as any,
-    onStepFinish: async ({ usage: u, finishReason }) => {
+    onStepFinish: async ({ usage: u }) => {
       steps++;
-      lastFinishReason = finishReason;
       const s = splitLanguageModelUsage(u);
       usage.input += s.input;
       usage.cached += s.cached;
@@ -178,8 +172,10 @@ export async function POST(req: Request) {
           execution,
           stopReason: isAborted ? "interrupted" : stopReason(),
         };
+      let threadExists = false;
       try {
-        await svc.saveMessages(threadId, all as never);
+        threadExists = Boolean(await svc.getThread(threadId));
+        if (threadExists) await svc.saveMessages(threadId, all as never);
       } catch (e) {
         console.error("[chat] 메시지 저장 실패", e);
       }
@@ -208,6 +204,7 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error("[chat] 원장 기록 실패", e);
       }
+      if (!threadExists) return;
       try {
         await ctx.emit({
           type: "chat.turn_completed",

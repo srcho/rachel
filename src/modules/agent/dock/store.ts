@@ -23,6 +23,7 @@ interface DockState {
   toggleExpanded: () => void;
   setThread: (id: string) => void;
   newThread: () => void;
+  removeThread: (id: string) => void;
   setUi: (ui: UiContextState | null) => void;
   setUseUi: (v: boolean) => void;
 }
@@ -44,6 +45,18 @@ export const useDock = create<DockState>((set) => ({
   toggleExpanded: () => set((s) => ({ expanded: !s.expanded })),
   setThread: (threadId) => set({ threadId }),
   newThread: () => set({ threadId: crypto.randomUUID() }),
+  removeThread: (id) =>
+    set((state) => {
+      const conversations = { ...state.conversations };
+      const drafts = { ...state.drafts };
+      delete conversations[id];
+      delete drafts[id];
+      return {
+        conversations,
+        drafts,
+        threadId: state.threadId === id ? crypto.randomUUID() : state.threadId,
+      };
+    }),
   setUi: (ui) => set({ ui }),
   setUseUi: (useUi) => set({ useUi }),
 }));
