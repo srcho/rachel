@@ -36,6 +36,43 @@ export const triageSchema = z.object({
 });
 export type Triage = z.infer<typeof triageSchema>;
 
+// Structured Outputs requires every property to be required; absent proposals use null.
+export const triageOutputSchema = triageSchema.extend({
+  task: triageSchema.shape.task
+    .unwrap()
+    .extend({
+      due: z.string().datetime({ offset: true }).nullable(),
+      dueHasTime: z.boolean(),
+      priority: z.number().int().min(0).max(3),
+    })
+    .nullable(),
+  event: triageSchema.shape.event
+    .unwrap()
+    .extend({
+      allDay: z.boolean(),
+      location: z.string().nullable(),
+    })
+    .nullable(),
+  memory: triageSchema.shape.memory.unwrap().nullable(),
+});
+
+export function normalizeTriage(
+  output: z.infer<typeof triageOutputSchema>,
+): Triage {
+  if (output.type !== "note" && !output[output.type])
+    throw new Error("분류 결과가 비어 있어요. 다시 분류해 주세요.");
+  return triageSchema.parse({
+    type: output.type,
+    reason: output.reason,
+    task: output.type === "task" ? (output.task ?? undefined) : undefined,
+    event:
+      output.type === "event" && output.event
+        ? { ...output.event, location: output.event.location ?? undefined }
+        : undefined,
+    memory: output.type === "memory" ? (output.memory ?? undefined) : undefined,
+  });
+}
+
 export const CAPTURE_EVENTS = {
   added: "capture.added",
   triaged: "capture.triaged",

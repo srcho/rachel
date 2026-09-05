@@ -20,7 +20,7 @@ export const captureModule: RachelModule = {
     {
       id: "capture.open",
       label: "수집함 열기",
-      keywords: ["capture", "캡처"],
+      keywords: ["capture", "캡처", "메모", "링크", "인박스"],
       href: "/capture",
     },
   ],

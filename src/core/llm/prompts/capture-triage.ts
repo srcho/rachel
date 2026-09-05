@@ -7,5 +7,6 @@ export function captureTriagePrompt(): string {
     "event: title, startAt·endAt ISO 8601(+09:00). 길이 미언급 시 1시간. allDay 는 시각이 없을 때.",
     "memory: kind(fact|preference|person|decision|goal|routine), content 한 문장.",
     "reason 은 한 문장 해요체. 확신이 낮으면 note.",
+    "선택한 type의 제안만 채우고 나머지 task·event·memory는 null. 기한이나 장소가 없으면 null. task.dueHasTime은 시각을 명시했을 때만 true.",
   ].join("\n");
 }

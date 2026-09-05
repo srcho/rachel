@@ -4,6 +4,7 @@ import { userContext } from "@/core/context";
 import { parseDueFromTitle } from "@/modules/tasks/parse-due";
 import type { Triage } from "./schema";
 import { captureService } from "./service";
+import { captureUrl } from "./url";
 
 async function svc() {
   return captureService(await userContext());
@@ -13,8 +14,14 @@ export async function captureAction(
   text: string,
   origin: "text" | "voice" | "share" = "text",
   url?: string,
+  id?: string,
 ) {
-  const c = await (await svc()).add({ text, origin, url });
+  const c = await (await svc()).add({
+    text,
+    origin,
+    url: captureUrl(url || text),
+    id,
+  });
   revalidatePath("/capture", "layout");
   revalidatePath("/today");
   return { id: c.id };

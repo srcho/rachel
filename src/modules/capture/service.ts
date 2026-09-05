@@ -8,7 +8,9 @@ import { memoryService } from "@/modules/memory/service";
 import {
   CAPTURE_EVENTS,
   captureListSchema,
+  normalizeTriage,
   type Triage,
+  triageOutputSchema,
   triageSchema,
 } from "./schema";
 
@@ -128,7 +130,7 @@ export function captureService(ctx: ServiceContext) {
       ctx.registry,
       c.raw_text,
     );
-    const { output } = await llmGenerate<Triage>({
+    const { output: rawOutput } = await llmGenerate({
       db: ctx.db,
       userId: ctx.userId,
       role: "extract",
@@ -136,9 +138,10 @@ export function captureService(ctx: ServiceContext) {
       ref: { type: "capture", id },
       instructions: captureTriagePrompt(),
       prompt: `${now.split("\n\n")[0] ?? ""}\n\n메모(${c.origin}${c.url ? `, ${c.url}` : ""}): ${c.raw_text}`,
-      output: triageSchema,
+      output: triageOutputSchema,
       maxOutputTokens: 400,
     });
+    const output = normalizeTriage(rawOutput);
     const { data: triaged, error: triageError } = await ctx.db
       .from("captures")
       .update({ status: "triaged", triage: output as unknown as Json })

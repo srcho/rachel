@@ -7,12 +7,12 @@ import { PageHeader } from "@/core/ui/PageHeader";
 import { registry } from "@/modules";
 import { captureListSchema } from "@/modules/capture/schema";
 import { captureService } from "@/modules/capture/service";
+import { CaptureComposer } from "@/modules/capture/ui/CaptureComposer";
 import { Inbox } from "@/modules/capture/ui/Inbox";
-import { ShareReceiver } from "@/modules/capture/ui/ShareReceiver";
 
 export const dynamic = "force-dynamic";
 
-/** 수집함. PWA share_target 이 GET 으로 title/text/url 을 넘기면 캡처를 만든다. */
+/** 공유된 내용은 미리 보여 주고 사용자가 저장할 때만 캡처를 만든다. */
 export default async function CapturePage({
   searchParams,
 }: {
@@ -49,7 +49,38 @@ export default async function CapturePage({
     <>
       <PageHeader title="수집함" meta={`${page.total}개`} />
       <Page width="narrow">
-        {shared && <ShareReceiver text={shared.text} url={shared.url} />}
+        <section
+          className="mb-5 rounded-xl border bg-card p-4"
+          aria-label="빠른 메모"
+        >
+          <CaptureComposer
+            key={shared ? `${shared.text}:${shared.url}` : "compose"}
+            userId={user.id}
+            initialText={
+              shared
+                ? [
+                    shared.text,
+                    shared.url && !shared.text.includes(shared.url)
+                      ? shared.url
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join("\n")
+                : ""
+            }
+            shared={!!shared}
+          />
+          <details className="mt-3 text-xs text-muted-foreground">
+            <summary className="cursor-pointer">
+              다른 앱의 링크는 어떻게 저장하나요?
+            </summary>
+            <p className="mt-2 leading-relaxed">
+              링크 복사 → 레이첼의 메모 버튼 → 붙여넣기 → 수집함에 저장.
+              Android에서는 설치 후 다른 앱의 공유 메뉴에서 Rachel을 선택할 수도
+              있어요. iPhone에서는 링크를 복사해 붙여넣어 주세요.
+            </p>
+          </details>
+        </section>
         <form action="/capture" className="mb-4 flex flex-wrap gap-2">
           <select
             name="status"

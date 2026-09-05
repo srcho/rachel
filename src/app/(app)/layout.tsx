@@ -8,6 +8,8 @@ import { registry } from "@/modules";
 import { RachelFab } from "@/modules/agent/dock/RachelFab";
 import { RachelPanel } from "@/modules/agent/dock/RachelPanel";
 import { maybeTriggerSync } from "@/modules/calendar/trigger";
+import { CaptureOutbox } from "@/modules/capture/ui/CaptureOutbox";
+import { QuickCapture } from "@/modules/capture/ui/QuickCapture";
 import { scheduleReminders } from "@/modules/notify/reminders";
 import { TaskOutbox } from "@/modules/tasks/ui/TaskOutbox";
 import { PaletteHost } from "./_ui/PaletteHost";
@@ -61,11 +63,20 @@ export default async function AppLayout({
   return (
     <AppShell
       nav={nav}
-      dock={{ fab: <RachelFab />, panel: <RachelPanel userId={user.id} /> }}
+      dock={{
+        fab: (
+          <>
+            <QuickCapture userId={user.id} />
+            <RachelFab />
+          </>
+        ),
+        panel: <RachelPanel userId={user.id} />,
+      }}
     >
       {children}
       <PaletteHost commands={registry.commands()} />
       <TaskOutbox />
+      <CaptureOutbox />
       <OutboxReplayer userId={user.id} />
     </AppShell>
   );

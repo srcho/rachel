@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { captureAction, quickTaskAction } from "../actions";
+import { quickTaskAction } from "../actions";
+import { saveCapture } from "./CaptureOutbox";
 
 /** Today 상단 한 줄 캡처 */
 export function CaptureInput({ openCount }: { openCount: number }) {
@@ -18,11 +19,19 @@ export function CaptureInput({ openCount }: { openCount: number }) {
     submitting.current = true;
     setBusy(true);
     try {
+      let queued = false;
       if (asTask) await quickTaskAction(t, key.current);
-      else await captureAction(t, "text");
+      else
+        queued = (await saveCapture(t, "text", undefined, key.current)).queued;
       key.current = crypto.randomUUID();
       setText("");
-      toast.success(asTask ? "할 일로 추가했어요" : "수집함에 메모를 남겼어요");
+      toast.success(
+        asTask
+          ? "할 일로 추가했어요"
+          : queued
+            ? "기기에 보관했어요. 연결되면 수집함으로 전송해요."
+            : "수집함에 메모를 남겼어요",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "실패");
     } finally {

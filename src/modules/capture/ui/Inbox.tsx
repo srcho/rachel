@@ -51,7 +51,7 @@ export function Inbox({
     return (
       <Panel>
         <p className="py-6 text-center text-sm text-muted-foreground">
-          표시할 메모가 없어요. 오늘 화면에서 빠른 메모를 남길 수 있어요.
+          표시할 메모가 없어요. 위 입력창에 메모나 링크를 저장해 보세요.
         </p>
       </Panel>
     );
@@ -75,7 +75,7 @@ export function Inbox({
           <li key={c.id} className="rounded-lg border bg-card p-3 text-sm">
             <Link
               href={`/capture/${c.id}`}
-              className="whitespace-pre-wrap hover:underline"
+              className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] hover:underline"
             >
               {c.raw_text}
             </Link>
@@ -144,7 +144,7 @@ export function Inbox({
                 </>
               ) : (
                 <span className="flex-1 text-xs text-muted-foreground">
-                  레이첼이 분류하는 중…
+                  저장됨 · AI 분류 대기. 직접 정리할 수도 있어요.
                 </span>
               )}
               {!closed && !c.resolved_ref && (
