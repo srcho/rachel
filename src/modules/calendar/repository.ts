@@ -191,7 +191,7 @@ export function calendarRepository(db: Db, userId: string) {
     // ── events ──
     async listEvents(
       range: { from: string; to: string },
-      opts: { calendarIds?: string[]; limit?: number } = {},
+      opts: { calendarIds?: string[]; limit?: number; offset?: number } = {},
     ): Promise<EventRow[]> {
       let q = own(db.from("calendar_events").select("*"))
         .is("deleted_at", null)
@@ -200,7 +200,7 @@ export function calendarRepository(db: Db, userId: string) {
       if (opts.calendarIds) q = q.in("calendar_id", opts.calendarIds);
       const { data, error } = await q
         .order("start_at")
-        .limit(opts.limit ?? 500);
+        .range(opts.offset ?? 0, (opts.offset ?? 0) + (opts.limit ?? 500) - 1);
       if (error) throw error;
       return data;
     },
@@ -226,12 +226,19 @@ export function calendarRepository(db: Db, userId: string) {
       rows: Array<Omit<EventInsert, "user_id">>,
     ): Promise<number> {
       if (rows.length === 0) return 0;
-      const { error, count } = await db.from("calendar_events").upsert(
-        rows.map((r) => ({ ...r, user_id: userId })),
-        { onConflict: "calendar_id,external_id", count: "exact" },
-      );
+      const { data, error } = await db.rpc("merge_calendar_events", {
+        p_rows: rows as Json,
+        p_user_id: userId,
+      });
       if (error) throw error;
-      return count ?? rows.length;
+      return data;
+    },
+    async findCreated(key: string): Promise<EventRow | null> {
+      const { data, error } = await own(db.from("calendar_events").select("*"))
+        .eq("creation_key", key)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
     },
     async insertEvent(row: Omit<EventInsert, "user_id">): Promise<EventRow> {
       const { data, error } = await db
@@ -239,6 +246,15 @@ export function calendarRepository(db: Db, userId: string) {
         .insert({ ...row, user_id: userId })
         .select("*")
         .single();
+      if (error?.code === "23505" && row.creation_key) {
+        const { data: existing, error: lookupError } = await own(
+          db.from("calendar_events").select("*"),
+        )
+          .eq("creation_key", row.creation_key)
+          .maybeSingle();
+        if (lookupError) throw lookupError;
+        if (existing) return existing;
+      }
       if (error) throw error;
       return data;
     },
@@ -251,6 +267,26 @@ export function calendarRepository(db: Db, userId: string) {
         .single();
       if (error) throw error;
       return data;
+    },
+    async finishPush(
+      id: string,
+      version: string,
+      patch: EventUpdate,
+    ): Promise<EventRow> {
+      const { data, error } = await own(
+        db.from("calendar_events").update(patch),
+      )
+        .eq("id", id)
+        .eq("updated_at", version)
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      if (data) return data;
+      const latest = await own(db.from("calendar_events").select("*"))
+        .eq("id", id)
+        .single();
+      if (latest.error) throw latest.error;
+      return latest.data;
     },
     async listPending(): Promise<EventRow[]> {
       const { data, error } = await own(db.from("calendar_events").select("*"))

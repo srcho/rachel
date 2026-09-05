@@ -58,3 +58,27 @@ export async function pullGtasksAction() {
   revalidatePath("/tasks");
   return r;
 }
+
+export async function calendarConflictAction(id: string) {
+  return eventService(await userContext()).conflictVersions(id);
+}
+export async function resolveCalendarConflictAction(
+  id: string,
+  choice: "local" | "remote",
+  localVersion: string,
+  remoteEtag: string,
+) {
+  const result = await eventService(await userContext()).resolveConflict(
+    id,
+    choice,
+    localVersion,
+    remoteEtag,
+  );
+  revalidatePath("/calendar");
+  return result;
+}
+export async function retryEventPushAction(id: string) {
+  const result = await eventService(await userContext()).retryPush(id);
+  revalidatePath("/calendar");
+  return result;
+}

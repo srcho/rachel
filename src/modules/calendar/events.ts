@@ -1,5 +1,6 @@
 import type { ServiceContext } from "@/core/contracts";
 import { dayBounds, localYmd } from "@/core/utils/date";
+import { freeSlots } from "./free-slots";
 import { type GEvent, GoogleApiError, google } from "./google";
 import {
   type CalendarRow,
@@ -48,11 +49,13 @@ export function eventService(ctx: ServiceContext) {
       | "end_at"
       | "all_day"
       | "timezone"
+      | "is_busy"
     >,
   ): Partial<GEvent> {
     const tz = row.timezone ?? ctx.timezone;
     return {
       summary: row.title,
+      transparency: row.is_busy ? "opaque" : "transparent",
       description: row.description ?? undefined,
       location: row.location ?? undefined,
       start: row.all_day
@@ -140,6 +143,10 @@ export function eventService(ctx: ServiceContext) {
 
   async function createEvent(raw: CreateEventInput): Promise<EventRow> {
     const input = createEventSchema.parse(raw);
+    if (input.creationKey) {
+      const existing = await repo.findCreated(input.creationKey);
+      if (existing) return existing;
+    }
     const { startAt, endAt } = normalizeRange(
       input.startAt,
       input.endAt ?? null,
@@ -147,6 +154,7 @@ export function eventService(ctx: ServiceContext) {
     );
     const cal = await writableCalendar(input.calendarId);
     let row = await repo.insertEvent({
+      creation_key: input.creationKey ?? null,
       calendar_id: cal.id,
       external_id: `local:${crypto.randomUUID()}`,
       title: input.title,
@@ -155,6 +163,7 @@ export function eventService(ctx: ServiceContext) {
       start_at: startAt,
       end_at: endAt,
       all_day: input.allDay,
+      is_busy: input.isBusy,
       timezone: ctx.timezone,
       sync_status: "pending_push",
     });
@@ -193,6 +202,7 @@ export function eventService(ctx: ServiceContext) {
       start_at: startAt,
       end_at: endAt,
       all_day: allDay,
+      ...(patch.isBusy !== undefined && { is_busy: patch.isBusy }),
       sync_status: "pending_push",
     });
     row = await pushOne(row, cal);
@@ -231,15 +241,45 @@ export function eventService(ctx: ServiceContext) {
       if (row.deleted_at) {
         if (!isLocal)
           await google.deleteEvent(token, cal.external_id, row.external_id);
-        return repo.updateEvent(row.id, { sync_status: "synced" });
+        return repo.finishPush(row.id, row.updated_at, {
+          sync_status: "synced",
+          remote_snapshot: null,
+        });
       }
       if (isLocal) {
-        const g = await google.insertEvent(
-          token,
-          cal.external_id,
-          toGoogleBody(row),
-        );
-        return repo.updateEvent(row.id, { ...toRow(cal, g), deleted_at: null });
+        // The same local UUID is used across retries, including lost Google responses.
+        const googleId = row.id.replaceAll("-", "");
+        let g: GEvent;
+        try {
+          g = await google.insertEvent(token, cal.external_id, {
+            ...toGoogleBody(row),
+            id: googleId,
+          });
+        } catch (e) {
+          if (!(e instanceof GoogleApiError) || e.status !== 409) throw e;
+          g = await google.getEvent(token, cal.external_id, googleId);
+          const remote = toRow(cal, g);
+          const changed =
+            row.title !== remote.title ||
+            (row.description ?? "") !== (remote.description ?? "") ||
+            (row.location ?? "") !== (remote.location ?? "") ||
+            Date.parse(row.start_at) !== Date.parse(remote.start_at) ||
+            Date.parse(row.end_at) !== Date.parse(remote.end_at) ||
+            row.all_day !== remote.all_day ||
+            row.is_busy !== remote.is_busy;
+          if (changed)
+            return repo.finishPush(row.id, row.updated_at, {
+              external_id: googleId,
+              etag: remote.etag,
+              sync_status: "conflict",
+              remote_snapshot: remote,
+            });
+        }
+        return repo.finishPush(row.id, row.updated_at, {
+          ...toRow(cal, g),
+          deleted_at: null,
+          remote_snapshot: null,
+        });
       }
       const g = await google.patchEvent(
         token,
@@ -248,13 +288,28 @@ export function eventService(ctx: ServiceContext) {
         toGoogleBody(row),
         row.etag ?? undefined,
       );
-      return repo.updateEvent(row.id, { ...toRow(cal, g), deleted_at: null });
+      return repo.finishPush(row.id, row.updated_at, {
+        ...toRow(cal, g),
+        deleted_at: null,
+        remote_snapshot: null,
+      });
     } catch (e) {
       if (e instanceof GoogleApiError && e.status === 412) {
-        return repo.updateEvent(row.id, { sync_status: "conflict" });
+        const remote = await google.getEvent(
+          token,
+          cal.external_id,
+          row.external_id,
+        );
+        return repo.finishPush(row.id, row.updated_at, {
+          sync_status: "conflict",
+          remote_snapshot: toRow(cal, remote),
+        });
       }
       if (e instanceof GoogleApiError && e.status === 404 && row.deleted_at) {
-        return repo.updateEvent(row.id, { sync_status: "synced" });
+        return repo.finishPush(row.id, row.updated_at, {
+          sync_status: "synced",
+          remote_snapshot: null,
+        });
       }
       console.warn("[calendar] push failed, kept pending", e);
       return row;
@@ -274,54 +329,80 @@ export function eventService(ctx: ServiceContext) {
     return n;
   }
 
+  async function conflictVersions(id: string) {
+    const local = await repo.getEvent(id);
+    if (!local) throw new Error("일정을 찾을 수 없어요");
+    const cal = await repo.getCalendar(local.calendar_id);
+    if (!cal) throw new Error("캘린더를 찾을 수 없어요");
+    const token = await getAccessToken(ctx, cal.integration_id);
+    const remote = toRow(
+      cal,
+      await google.getEvent(token, cal.external_id, local.external_id),
+    );
+    return { local, remote };
+  }
+
+  async function resolveConflict(
+    id: string,
+    choice: "local" | "remote",
+    localVersion: string,
+    remoteEtag: string,
+  ) {
+    const { local, remote } = await conflictVersions(id);
+    if (local.updated_at !== localVersion || remote.etag !== remoteEtag)
+      throw new Error("비교 후 내용이 변경됐어요. 새 내용을 확인해 주세요.");
+    if (choice === "remote")
+      return repo.finishPush(id, localVersion, {
+        ...remote,
+        remote_snapshot: null,
+      });
+    const cal = await repo.getCalendar(local.calendar_id);
+    if (!cal?.writable) throw new Error("읽기 전용 캘린더예요");
+    const pending = await repo.finishPush(id, localVersion, {
+      etag: remote.etag,
+      sync_status: "pending_push",
+      remote_snapshot: null,
+    });
+    return pushOne(pending, cal);
+  }
+
+  async function retryPush(id: string) {
+    const row = await repo.getEvent(id);
+    if (!row) throw new Error("일정을 찾을 수 없어요");
+    if (row.sync_status === "conflict")
+      throw new Error("두 내용을 비교한 후 선택해 주세요.");
+    const cal = await repo.getCalendar(row.calendar_id);
+    if (!cal?.writable) throw new Error("읽기 전용 캘린더예요");
+    return pushOne(row, cal);
+  }
+
   /** 근무시간 안의 빈 구간(SQL 없이 메모리 계산: 범위가 며칠 단위라 충분). */
   async function findFreeSlots(
     raw: FindFreeSlotsInput,
   ): Promise<Array<{ startAt: string; endAt: string }>> {
     const f = findFreeSlotsSchema.parse(raw);
-    const events = (
-      await listEvents({ from: f.from, to: f.to, limit: 200 })
-    ).filter((e) => !e.all_day);
-    const busy = events
-      .map((e) => [Date.parse(e.start_at), Date.parse(e.end_at)] as const)
-      .sort((a, b) => a[0] - b[0]);
-    const slots: Array<{ startAt: string; endAt: string }> = [];
-    const need = f.durationMinutes * 60_000;
-    for (
-      let d = new Date(f.from);
-      d < new Date(f.to) && slots.length < f.limit;
-      d = new Date(d.getTime() + 86_400_000)
-    ) {
-      const { start } = dayBounds(d, ctx.timezone);
-      const dayStart = Date.parse(start);
-      let cursor = Math.max(
-        dayStart + f.workStartHour * 3_600_000,
-        Date.parse(f.from),
-        ctx.now.getTime(),
+    const selected = (await repo.listCalendars(true)).map((c) => c.id);
+    if (selected.length === 0)
+      throw new Error(
+        "일정을 확인할 캘린더가 없어요. 캘린더 연결을 확인해 주세요.",
       );
-      const dayEnd = dayStart + f.workEndHour * 3_600_000;
-      for (const [s, e] of busy) {
-        if (e <= cursor) continue;
-        if (s >= dayEnd) break;
-        if (s - cursor >= need)
-          slots.push({
-            startAt: new Date(cursor).toISOString(),
-            endAt: new Date(cursor + need).toISOString(),
-          });
-        cursor = Math.max(cursor, e);
-        if (slots.length >= f.limit) break;
-      }
-      if (
-        slots.length < f.limit &&
-        dayEnd - cursor >= need &&
-        cursor < Date.parse(f.to)
-      )
-        slots.push({
-          startAt: new Date(cursor).toISOString(),
-          endAt: new Date(cursor + need).toISOString(),
-        });
+    const events: EventRow[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const page = await repo.listEvents(
+        {
+          from: new Date(
+            Date.parse(f.from) - f.bufferMinutes * 60000,
+          ).toISOString(),
+          to: new Date(
+            Date.parse(f.to) + f.bufferMinutes * 60000,
+          ).toISOString(),
+        },
+        { calendarIds: selected, offset, limit: 500 },
+      );
+      events.push(...page);
+      if (page.length < 500) break;
     }
-    return slots.slice(0, f.limit);
+    return freeSlots(events, f, ctx.now, ctx.timezone);
   }
 
   return {
@@ -330,6 +411,9 @@ export function eventService(ctx: ServiceContext) {
     updateEvent,
     deleteEvent,
     pushPending,
+    conflictVersions,
+    resolveConflict,
+    retryPush,
     findFreeSlots,
     getEvent: repo.getEvent,
     listCalendars: repo.listCalendars,

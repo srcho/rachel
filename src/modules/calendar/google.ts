@@ -144,6 +144,11 @@ export interface GEventTime {
   timeZone?: string;
 }
 export interface GEvent {
+  reminders?: {
+    useDefault?: boolean;
+    overrides?: Array<{ method: string; minutes: number }>;
+  };
+  transparency?: "opaque" | "transparent";
   id: string;
   etag?: string;
   status?: "confirmed" | "tentative" | "cancelled";
@@ -182,6 +187,11 @@ export const google = {
       token,
       `/calendars/${encodeURIComponent(calendarId)}/events`,
       { query },
+    ),
+  getEvent: (token: string, calendarId: string, eventId: string) =>
+    api<GEvent>(
+      token,
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     ),
   insertEvent: (token: string, calendarId: string, body: Partial<GEvent>) =>
     api<GEvent>(token, `/calendars/${encodeURIComponent(calendarId)}/events`, {

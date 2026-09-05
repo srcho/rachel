@@ -67,7 +67,18 @@ export const todayTimelineWidget: DashboardWidget<{
               <span className="w-[5.5rem] shrink-0 tabular-nums text-muted-foreground">
                 {occurrenceLabel(o, data.timezone)}
               </span>
-              <span className="min-w-0 flex-1 truncate">{e.title}</span>
+              <Link
+                href={`/calendar?event=${e.id}&date=${data.today}`}
+                className="min-w-0 flex-1 truncate py-2"
+              >
+                {e.title}
+              </Link>
+              <Link
+                href={`/calendar?event=${e.id}&date=${data.today}`}
+                className="shrink-0 px-1 py-2 text-xs underline underline-offset-2"
+              >
+                회의 준비
+              </Link>
               {e.location && (
                 <span className="hidden max-w-[30%] truncate text-xs text-muted-foreground sm:block">
                   {e.location}

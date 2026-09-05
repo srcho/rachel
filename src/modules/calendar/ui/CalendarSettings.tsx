@@ -27,7 +27,7 @@ export async function CalendarSettings() {
 
   if (!integration) {
     return (
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <div>
           <p>Google 캘린더가 연결되지 않았어요.</p>
           <p className="text-xs text-muted-foreground">
@@ -48,7 +48,7 @@ export async function CalendarSettings() {
   const needsReauth = integration.status !== "connected";
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate">
             {integration.account_email ?? "Google 계정"}
@@ -61,7 +61,7 @@ export async function CalendarSettings() {
                 : "아직 동기화 전"}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1">
+        <div className="flex flex-wrap gap-1">
           {needsReauth && (
             <Button asChild size="sm">
               <Link

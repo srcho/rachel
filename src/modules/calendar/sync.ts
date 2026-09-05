@@ -39,6 +39,10 @@ export function toRow(
     start_at: new Date(start).toISOString(),
     end_at: new Date(end).toISOString(),
     all_day: allDay,
+    is_busy: e.transparency !== "transparent",
+    google_has_reminders:
+      e.reminders?.useDefault !== false ||
+      Boolean(e.reminders.overrides?.length),
     timezone: e.start?.timeZone ?? null,
     recurring_event_id: e.recurringEventId ?? null,
     attendees: (e.attendees ?? []).map((a) => ({
@@ -118,7 +122,9 @@ export async function syncCalendars(ctx: ServiceContext): Promise<SyncResult> {
     }
   }
   await repo.updateIntegration(integration.id, {
-    last_synced_at: ctx.now.toISOString(),
+    ...(result.errors.length === 0 && {
+      last_synced_at: ctx.now.toISOString(),
+    }),
     last_error: result.errors[0] ?? null,
   });
   if (result.upserted > 0)

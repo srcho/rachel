@@ -4,12 +4,7 @@ import { createServerSupabase } from "@/core/db/server";
 import { dayBounds, localYmd } from "@/core/utils/date";
 import { registry } from "@/modules";
 import { eventService } from "@/modules/calendar/events";
-import {
-  addDays,
-  addMonths,
-  startOfMonth,
-  startOfWeek,
-} from "@/modules/calendar/format";
+import { addDays, startOfMonth, startOfWeek } from "@/modules/calendar/format";
 import { calendarService } from "@/modules/calendar/service";
 import {
   CalendarScreen,
@@ -23,7 +18,7 @@ const VIEWS: CalendarView[] = ["agenda", "week", "month"];
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; date?: string }>;
+  searchParams: Promise<{ view?: string; date?: string; event?: string }>;
 }) {
   const sp = await searchParams;
   const user = await requireUser();
@@ -31,7 +26,7 @@ export default async function CalendarPage({
   const ctx = createContext({ db, userId: user.id, actor: "user", registry });
   const view: CalendarView = VIEWS.includes(sp.view as CalendarView)
     ? (sp.view as CalendarView)
-    : "month";
+    : "week";
   const today = localYmd(ctx.now, ctx.timezone);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? "")
     ? (sp.date as string)
@@ -60,9 +55,13 @@ export default async function CalendarPage({
     svc.listEvents({ from, to, limit: 200 }),
   ]);
 
+  const selectedEvent = sp.event ? await svc.getEvent(sp.event) : null;
   return (
     <CalendarScreen
       view={view}
+      explicitView={!!sp.view}
+      selectedEvent={selectedEvent}
+      lastSyncedAt={integration?.last_synced_at ?? null}
       date={date}
       today={today}
       timezone={ctx.timezone}
