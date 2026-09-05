@@ -45,12 +45,25 @@ export const actionItemSchema = z.object({
     .optional()
     .describe("ISO 날짜 또는 '다음 주 월요일' 같은 표현"),
   sourceSeq: z.array(z.number().int()).default([]),
+  sourceAtMs: z.array(z.number().nonnegative()).optional(),
+  ownerInferred: z.boolean().optional(),
+  dueInferred: z.boolean().optional(),
 });
 
 export const meetingSummarySchema = z.object({
   tldr: z.string().max(400),
   keyPoints: z.array(z.string().max(200)).max(10),
   decisions: z.array(z.string().max(200)).max(10),
+  decisionSources: z
+    .array(
+      z.object({
+        decisionIndex: z.number().int().min(0),
+        sourceSeq: z.array(z.number().int()),
+        sourceAtMs: z.array(z.number().nonnegative()).optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
   actionItems: z.array(actionItemSchema).max(15),
   openQuestions: z.array(z.string().max(200)).max(10),
   participants: z.array(z.string().max(60)).max(20),

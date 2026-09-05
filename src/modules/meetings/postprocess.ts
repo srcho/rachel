@@ -31,10 +31,34 @@ export function assembleTranscript(
       ? `${speakerMap[s.speaker] ?? `화자 ${s.speaker.replace(/^S/, "")}`}: `
       : "";
     lines.push(
-      `[${fmtClock(s.start_ms)}]${marked ? " [중요]" : ""} ${who}${s.text.trim()}`,
+      `[seq=${s.seq}] [${fmtClock(s.start_ms)}]${marked ? " [중요]" : ""} ${who}${s.text.trim()}`,
     );
   }
   return lines.join("\n");
+}
+
+/** Accept references only to transcript segments that were actually supplied. */
+export function attachSummarySources(
+  summary: MeetingSummary,
+  segments: SegmentRow[],
+): MeetingSummary {
+  const refs = (seqs: number[]) => {
+    const rows = segments.filter((s) => seqs.includes(s.seq) && s.text.trim());
+    return {
+      sourceSeq: [...new Set(rows.map((s) => s.seq))],
+      sourceAtMs: [...new Set(rows.map((s) => s.start_ms))],
+    };
+  };
+  return {
+    ...summary,
+    actionItems: summary.actionItems.map((a) => ({
+      ...a,
+      ...refs(a.sourceSeq),
+    })),
+    decisionSources: (summary.decisionSources ?? [])
+      .filter((d) => d.decisionIndex < summary.decisions.length)
+      .map((d) => ({ ...d, ...refs(d.sourceSeq) })),
+  };
 }
 
 export function summaryToMarkdown(s: MeetingSummary): string {
@@ -87,7 +111,7 @@ export async function postprocessMeeting(
     ? `회의 제목: ${meeting.title}\n`
     : `제목: ${meeting.title}\n`;
   try {
-    const { output } = await llmGenerate<MeetingSummary>({
+    const { output: generated } = await llmGenerate<MeetingSummary>({
       db: ctx.db,
       userId: ctx.userId,
       role: "summarize",
@@ -98,6 +122,19 @@ export async function postprocessMeeting(
       output: meetingSummarySchema,
       maxOutputTokens: 2000,
     });
+    // Apply explicit edits after generation, including edits saved while the model ran.
+    const latest = await svc.get(meetingId);
+    const edits = (latest?.summary_edits ?? {}) as Partial<
+      Pick<MeetingSummary, "tldr" | "decisions">
+    >;
+    const output = attachSummarySources(
+      {
+        ...generated,
+        ...edits,
+        ...(edits.decisions ? { decisionSources: [] } : {}),
+      },
+      segments,
+    );
     await svc.update(meetingId, {
       status: "ready",
       summary: output as unknown as Json,

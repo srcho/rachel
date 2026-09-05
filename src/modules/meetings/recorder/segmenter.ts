@@ -46,7 +46,16 @@ export class Segmenter {
   private startSample = 0;
   private totalSamples = 0;
 
-  constructor(private readonly opt: SegmenterOptions = DEFAULT_SEGMENTER) {}
+  constructor(
+    private readonly opt: SegmenterOptions = DEFAULT_SEGMENTER,
+    resume?: { nextSeq: number; elapsedMs: number },
+  ) {
+    this.seq = resume?.nextSeq ?? 0;
+    this.startSample = Math.round(
+      ((resume?.elapsedMs ?? 0) * opt.sampleRate) / 1000,
+    );
+    this.totalSamples = this.startSample;
+  }
 
   /** 블록을 넣고, 컷이 발생하면 세그먼트를 돌려준다(무음 세그먼트는 null 로 버리되 시간은 진행). */
   push(block: Int16Array): Segment | null {

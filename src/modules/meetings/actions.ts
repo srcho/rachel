@@ -1,6 +1,13 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { userContext } from "@/core/context";
+import {
+  createMeetingNote,
+  editMeetingSummary,
+  editTranscript,
+} from "./editing";
+import { postprocessMeeting } from "./postprocess";
+import { meetingPreparation } from "./preparation";
 import { meetingsService } from "./service";
 
 async function svc() {
@@ -61,4 +68,39 @@ export async function listLiveSegmentsAction(id: string) {
     text: r.text,
     status: r.status as "ok" | "failed",
   }));
+}
+
+export async function meetingPreparationAction(eventId: string) {
+  return meetingPreparation(await userContext(), eventId);
+}
+
+export async function editMeetingSummaryAction(
+  id: string,
+  patch: { tldr: string; decisions: string[] },
+) {
+  await editMeetingSummary(await userContext(), id, patch);
+  revalidatePath(`/meetings/${id}`);
+}
+export async function editTranscriptAction(
+  id: string,
+  segmentId: string,
+  text: string,
+) {
+  await editTranscript(await userContext(), id, segmentId, text);
+  revalidatePath(`/meetings/${id}`);
+}
+export async function createMeetingNoteAction(input: {
+  id: string;
+  title: string;
+  text: string;
+}) {
+  const m = await createMeetingNote(await userContext(), input);
+  revalidatePath("/meetings");
+  return { id: m.id };
+}
+export async function regenerateMeetingSummaryAction(id: string) {
+  const ctx = await userContext();
+  const { pass } = await meetingsService(ctx).transcript(id);
+  await postprocessMeeting(ctx, id, pass);
+  revalidatePath(`/meetings/${id}`);
 }

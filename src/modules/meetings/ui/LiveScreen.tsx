@@ -6,8 +6,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FormDialog } from "@/core/ui/FormDialog";
 import { cn } from "@/lib/utils";
-import { bookmarkAction, finalizeMeetingAction } from "../actions";
+import {
+  bookmarkAction,
+  finalizeMeetingAction,
+  listLiveSegmentsAction,
+} from "../actions";
 import { fmtClock } from "../format";
+import { audioStore } from "../recorder/audio-store";
 import { MeetingRecorder, type RecorderState } from "../recorder/recorder";
 import type { UploadedTurn } from "../recorder/uploader";
 
@@ -30,6 +35,9 @@ export function LiveScreen({
   const router = useRouter();
   const rec = useRef<MeetingRecorder | null>(null);
   const [state, setState] = useState<RecorderState>("idle");
+  const [recovery, setRecovery] = useState<Awaited<
+    ReturnType<typeof audioStore.resumeInfo>
+  > | null>(null);
   const [error, setError] = useState<string | undefined>();
   const [level, setLevel] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -38,13 +46,16 @@ export function LiveScreen({
   const [fontSize, setFontSize] = useState(15);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [endError, setEndError] = useState<string | null>(null);
+  const ending = useRef(false);
   const durationRef = useRef<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const elapsedRef = useRef(0);
 
   useEffect(() => {
+    let mounted = true;
     const r = new MeetingRecorder(meetingId, {
       onState: (s, e) => {
+        if (!mounted) return;
         setState(s);
         setError(e);
       },
@@ -84,7 +95,45 @@ export function LiveScreen({
       },
     });
     rec.current = r;
-    void r.start();
+    void listLiveSegmentsAction(meetingId)
+      .then((rows) => {
+        if (!mounted) return;
+        setLines((current) => {
+          const activeSeqs = new Set(current.map((l) => l.seq));
+          return [
+            ...rows
+              .filter((r) => !activeSeqs.has(r.seq))
+              .map((r) => ({
+                key: r.id,
+                seq: r.seq,
+                startMs: r.start_ms,
+                text: r.text,
+                status: r.status,
+              })),
+            ...current,
+          ].sort(bySeq);
+        });
+      })
+      .catch(() => {
+        if (mounted)
+          setEndError("앞선 전사를 불러오지 못했어요. 녹음은 기기에 보존돼요.");
+      });
+    void audioStore
+      .resumeInfo(meetingId)
+      .then((info) => {
+        if (!mounted) return;
+        if (info.hasData) {
+          setRecovery(info);
+          setElapsed(info.elapsedMs);
+          elapsedRef.current = info.elapsedMs;
+        } else void r.start();
+      })
+      .catch((e) => {
+        if (mounted) {
+          setState("error");
+          setError(e instanceof Error ? e.message : "녹음을 확인하지 못했어요");
+        }
+      });
     const onVis = () => setHidden(document.visibilityState !== "visible");
     document.addEventListener("visibilitychange", onVis);
     const onUnload = (e: BeforeUnloadEvent) => {
@@ -92,10 +141,12 @@ export function LiveScreen({
     };
     window.addEventListener("beforeunload", onUnload);
     return () => {
+      mounted = false;
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("beforeunload", onUnload);
       // 화면을 벗어나면(클라이언트 라우팅·뒤로가기·StrictMode 재마운트) 마이크·WakeLock 을 반드시 놓는다
-      if (rec.current === r && r.state !== "done") void r.stop();
+      if (rec.current === r && r.state !== "done")
+        void r.stop().catch(() => {});
       if (rec.current === r) rec.current = null;
     };
   }, [meetingId]);
@@ -109,18 +160,41 @@ export function LiveScreen({
   /** 종료: 남은 세그먼트 업로드 → 서버에 종료 알림(요약 시작) → 상세로. 실패하면 화면에 남아 다시 시도 */
   async function end() {
     const r = rec.current;
-    if (!r) return;
+    if (!r || ending.current) return;
+    ending.current = true;
     setConfirmEnd(false);
     setEndError(null);
     try {
-      if (durationRef.current === null) {
-        const { durationSec } = await r.stop();
-        durationRef.current = durationSec;
-      }
-      await finalizeMeetingAction(meetingId, durationRef.current);
+      const finish = async () => {
+        if (durationRef.current === null) {
+          if (recovery) {
+            const latest = await audioStore.resumeInfo(meetingId);
+            durationRef.current = Math.round(latest.elapsedMs / 1000);
+          } else {
+            const { durationSec } = await r.stop();
+            durationRef.current = durationSec;
+          }
+        }
+        await finalizeMeetingAction(meetingId, durationRef.current);
+      };
+      if (recovery && navigator.locks) {
+        await navigator.locks.request(
+          `rachel-recording:${meetingId}`,
+          { ifAvailable: true },
+          async (lock) => {
+            if (!lock)
+              throw new Error(
+                "이 회의가 다른 화면에서 녹음 중이에요. 녹음 중인 화면에서 종료해 주세요.",
+              );
+            await finish();
+          },
+        );
+      } else await finish();
       router.replace(`/meetings/${meetingId}`);
     } catch (e) {
       setEndError(e instanceof Error ? e.message : "종료 실패");
+    } finally {
+      ending.current = false;
     }
   }
 
@@ -172,6 +246,39 @@ export function LiveScreen({
         )}
       </div>
 
+      {recovery && (
+        <div className="mx-auto w-full max-w-3xl space-y-2 border-b px-4 py-3 text-sm">
+          <p>
+            {fmtClock(recovery.elapsedMs)} 분량의 녹음이 이 기기에 남아 있어요.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            저장된 앞부분을 보존한 채 이어 녹음하거나, 지금까지의 내용으로
+            마무리할 수 있어요.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setRecovery(null);
+                void rec.current?.start();
+              }}
+            >
+              이어 녹음
+            </Button>
+            <Button size="sm" variant="outline" onClick={end}>
+              저장된 분량으로 마무리
+            </Button>
+          </div>
+        </div>
+      )}
+      {error && (
+        <p
+          role="alert"
+          className="mx-auto w-full max-w-3xl px-4 py-2 text-sm text-destructive"
+        >
+          {error}
+        </p>
+      )}
       <div
         className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
         style={{ fontSize }}

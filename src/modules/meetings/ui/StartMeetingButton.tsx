@@ -1,7 +1,7 @@
 "use client";
 import { Mic } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { startMeetingAction } from "../actions";
@@ -19,7 +19,10 @@ export function StartMeetingButton({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const starting = useRef(false);
   async function start() {
+    if (starting.current) return;
+    starting.current = true;
     setBusy(true);
     try {
       const mime =
@@ -36,11 +39,12 @@ export function StartMeetingButton({
       router.push(`/meetings/live/${m.id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "시작 실패");
+      starting.current = false;
       setBusy(false);
     }
   }
   return (
-    <Button size={size} onClick={start} disabled={busy}>
+    <Button type="button" size={size} onClick={start} disabled={busy}>
       <Mic className="size-4" /> {busy ? "준비 중…" : label}
     </Button>
   );

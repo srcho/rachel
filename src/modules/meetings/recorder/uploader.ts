@@ -38,23 +38,20 @@ export class Uploader {
     private readonly concurrency = 2,
   ) {
     if (typeof window !== "undefined")
-      window.addEventListener("online", () => this.pump());
+      window.addEventListener("online", this.onOnline);
   }
+
+  private onOnline = () => this.pump();
 
   async enqueue(seg: Segment): Promise<void> {
     const wav = encodeWav(seg.pcm, this.sampleRate);
-    try {
-      await audioStore.putPcm(
-        this.meetingId,
-        seg.seq,
-        seg.startMs,
-        seg.endMs,
-        wav,
-      );
-    } catch (e) {
-      // IndexedDB 실패(프라이빗 모드·용량)여도 전사는 계속한다 — 파이널 패스 오디오만 빠진다
-      console.warn("[uploader] PCM 저장 실패", seg.seq, e);
-    }
+    await audioStore.putPcm(
+      this.meetingId,
+      seg.seq,
+      seg.startMs,
+      seg.endMs,
+      wav,
+    );
     this.queue.push({ seg, wav, attempts: 0 });
     this.pump();
   }
@@ -66,6 +63,8 @@ export class Uploader {
 
   stop(): void {
     this.stopped = true;
+    if (typeof window !== "undefined")
+      window.removeEventListener("online", this.onOnline);
   }
 
   /** 모두 끝날 때까지 기다린다(종료 시). */

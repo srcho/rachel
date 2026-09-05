@@ -106,7 +106,8 @@ export function useFinalPass(meeting: MeetingRow) {
   useEffect(() => {
     if (startedRef.current) return;
     if (
-      meeting.final_pass_status === "pending" &&
+      (meeting.final_pass_status === "pending" ||
+        meeting.final_pass_status === "running") &&
       meeting.status !== "recording"
     ) {
       startedRef.current = true;

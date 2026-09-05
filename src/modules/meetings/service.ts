@@ -151,12 +151,27 @@ export function meetingsService(ctx: ServiceContext) {
   async function transcript(
     meetingId: string,
   ): Promise<{ pass: "live" | "final"; segments: SegmentRow[] }> {
+    const meeting = await repo.get(meetingId);
+    const edits = (meeting?.transcript_edits ?? {}) as Record<string, string>;
+    const hasLiveEdits = Object.keys(edits).some((k) => k.startsWith("live:"));
     const final = await repo.listSegments(meetingId, "final");
-    if (final.length > 0) return { pass: "final", segments: final };
-    const live = (await repo.listSegments(meetingId, "live")).filter(
-      (s) => s.status === "ok",
-    );
-    return { pass: "live", segments: live };
+    const pass =
+      final.length > 0 && !hasLiveEdits
+        ? ("final" as const)
+        : ("live" as const);
+    const source =
+      pass === "final"
+        ? final
+        : (await repo.listSegments(meetingId, "live")).filter(
+            (s) => s.status === "ok",
+          );
+    return {
+      pass,
+      segments: source.map((s) => ({
+        ...s,
+        text: edits[`${s.pass}:${s.seq}:${s.turn_id}`] ?? s.text,
+      })),
+    };
   }
 
   async function remove(meetingId: string): Promise<MeetingRow> {

@@ -36,6 +36,14 @@ export class MeetingRecorder {
   private pausedAt = 0;
   private tick?: ReturnType<typeof setInterval>;
   private recIndex = 0;
+  private offsetMs = 0;
+  private sessionId = crypto.randomUUID();
+  private cancelled = false;
+  private starting?: Promise<void>;
+  private stopping?: Promise<{ durationSec: number; mime: string }>;
+  private writes = new Set<Promise<void>>();
+  private writeError?: Error;
+  private releaseLock?: () => void;
   private wakeLock?: WakeLockSentinel;
   mime = "";
 
@@ -44,9 +52,43 @@ export class MeetingRecorder {
     private readonly ev: RecorderEvents,
   ) {}
 
-  async start(): Promise<void> {
+  start(): Promise<void> {
+    this.starting ??= this.startCapture();
+    return this.starting;
+  }
+
+  private async startCapture(): Promise<void> {
     this.setState("requesting");
     try {
+      if (navigator.locks) {
+        await new Promise<void>((resolve, reject) => {
+          void navigator.locks
+            .request(
+              `rachel-recording:${this.meetingId}`,
+              { ifAvailable: true },
+              async (lock) => {
+                if (!lock) {
+                  reject(new Error("이 회의가 다른 화면에서 녹음 중이에요"));
+                  return;
+                }
+                await new Promise<void>((release) => {
+                  this.releaseLock = release;
+                  resolve();
+                });
+              },
+            )
+            .catch(reject);
+        });
+      }
+      const resume = await audioStore.resumeInfo(this.meetingId);
+      this.offsetMs = resume.elapsedMs;
+      this.recIndex = resume.nextRecIndex;
+      this.segmenter = new Segmenter(DEFAULT_SEGMENTER, resume);
+      this.ev.onTick(this.offsetMs);
+      if (this.cancelled) {
+        await this.cleanup();
+        return;
+      }
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -54,10 +96,18 @@ export class MeetingRecorder {
           channelCount: 1,
         },
       });
+      if (this.cancelled) {
+        await this.cleanup();
+        return;
+      }
       this.ctx = new AudioContext({ sampleRate: TARGET_RATE });
       // iOS 는 제스처 밖에서 만든 컨텍스트를 suspended 로 둔다
       if (this.ctx.state !== "running") await this.ctx.resume().catch(() => {});
       await this.ctx.audioWorklet.addModule("/worklets/pcm-capture.js");
+      if (this.cancelled) {
+        await this.cleanup();
+        return;
+      }
       const src = this.ctx.createMediaStreamSource(this.stream);
       this.node = new AudioWorkletNode(this.ctx, "pcm-capture", {
         processorOptions: { targetRate: TARGET_RATE },
@@ -72,12 +122,17 @@ export class MeetingRecorder {
         TARGET_RATE,
         (seq, turns, err) => this.ev.onTurns(seq, turns, err),
       );
+      this.startedAt = Date.now();
       this.startMediaRecorder();
       await audioStore.persist();
       await this.requestWakeLock();
       document.addEventListener("visibilitychange", this.onVisibility);
 
-      this.startedAt = Date.now();
+      if (this.cancelled) {
+        await this.stopMedia();
+        await this.cleanup();
+        return;
+      }
       this.tick = setInterval(() => this.ev.onTick(this.elapsed()), 500);
       this.setState("recording");
     } catch (e) {
@@ -105,11 +160,18 @@ export class MeetingRecorder {
       this.mime = this.media.mimeType || this.mime;
       this.media.ondataavailable = (e) => {
         if (e.data.size > 0)
-          void audioStore.appendRec(
-            this.meetingId,
-            this.recIndex++,
-            e.data,
-            this.mime,
+          this.trackWrite(
+            audioStore.appendRec(
+              this.meetingId,
+              this.recIndex++,
+              e.data,
+              this.mime,
+              {
+                sessionId: this.sessionId,
+                startMs: this.offsetMs,
+                endMs: this.elapsed(),
+              },
+            ),
           );
       };
       this.media.start(10_000);
@@ -127,7 +189,7 @@ export class MeetingRecorder {
 
   private queue(seg: Segment) {
     this.ev.onSegmentQueued(seg.seq, seg.startMs, seg.endMs);
-    void this.uploader?.enqueue(seg);
+    if (this.uploader) this.trackWrite(this.uploader.enqueue(seg));
   }
 
   /** 일시정지: 전사 입력을 끊고(onBlock 무시) 오디오 컨텍스트를 재운다. 마이크 트랙은 유지(재개가 빨라야 한다). */
@@ -156,39 +218,76 @@ export class MeetingRecorder {
   }
 
   elapsed(): number {
-    if (!this.startedAt) return 0;
+    if (!this.startedAt) return this.offsetMs;
     const pausedNow = this.state === "paused" ? Date.now() - this.pausedAt : 0;
-    return Date.now() - this.startedAt - this.pausedAccum - pausedNow;
+    return (
+      this.offsetMs + Date.now() - this.startedAt - this.pausedAccum - pausedNow
+    );
   }
 
   /** 마지막 세그먼트를 내보내고 업로드가 끝날 때까지 기다린다. */
-  async stop(): Promise<{ durationSec: number; mime: string }> {
-    if (this.state === "done" || this.state === "ending")
-      return {
-        durationSec: Math.round(this.elapsed() / 1000),
-        mime: this.mime,
-      };
+  stop(): Promise<{ durationSec: number; mime: string }> {
+    this.cancelled = true;
+    this.stopping ??= this.finish();
+    return this.stopping;
+  }
+
+  private async finish(): Promise<{ durationSec: number; mime: string }> {
+    await this.starting;
     if (this.state === "paused") this.pausedAccum += Date.now() - this.pausedAt;
     await this.ctx?.resume().catch(() => {});
     this.setState("ending");
     const durationSec = Math.round(this.elapsed() / 1000);
     const last = this.segmenter.flush();
     if (last) this.queue(last);
-    await this.stopMedia();
-    await this.uploader?.drain();
-    this.uploader?.stop();
-    await this.cleanup();
-    this.setState("done");
-    return { durationSec, mime: this.mime };
+    try {
+      await this.stopMedia();
+      await Promise.all(this.writes);
+      if (this.writeError) throw this.writeError;
+      await this.uploader?.drain();
+      this.setState("done");
+      return { durationSec, mime: this.mime };
+    } catch (e) {
+      this.setState("error", e instanceof Error ? e.message : String(e));
+      throw e;
+    } finally {
+      this.uploader?.stop();
+      await this.cleanup();
+    }
+  }
+
+  private trackWrite(write: Promise<void>) {
+    const pending = write
+      .catch((e) => {
+        this.writeError = new Error(
+          `기기에 녹음을 저장하지 못했어요: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        void this.pause().then(() =>
+          this.ev.onState(this.state, this.writeError?.message),
+        );
+      })
+      .finally(() => this.writes.delete(pending));
+    this.writes.add(pending);
   }
 
   private stopMedia(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const m = this.media;
       if (!m || m.state === "inactive") return resolve();
-      m.onstop = () => resolve();
+      const timeout = setTimeout(
+        () =>
+          reject(
+            new Error(
+              "마지막 녹음 저장을 확인하지 못했어요. 저장된 분량은 이 기기에 남아 있어요.",
+            ),
+          ),
+        3000,
+      );
+      m.onstop = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
       m.stop();
-      setTimeout(resolve, 3000);
     });
   }
 
@@ -199,6 +298,8 @@ export class MeetingRecorder {
     for (const t of this.stream?.getTracks() ?? []) t.stop();
     await this.ctx?.close().catch(() => {});
     await this.wakeLock?.release().catch(() => {});
+    this.releaseLock?.();
+    this.releaseLock = undefined;
   }
 
   private async requestWakeLock() {

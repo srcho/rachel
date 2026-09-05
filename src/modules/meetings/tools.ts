@@ -3,6 +3,8 @@ import { type AnyAgentTool, defineTool } from "@/core/contracts";
 import { fmtClock, fmtDuration } from "./format";
 import { postprocessMeeting } from "./postprocess";
 import type { MeetingRow } from "./repository";
+import { createMeetingTasks } from "./review";
+import { meetingActionKey } from "./review-items";
 import type { MeetingSummary } from "./schema";
 import { meetingsService } from "./service";
 
@@ -122,34 +124,38 @@ export const meetingsTools: Record<string, AnyAgentTool> = {
       const m = await meetingsService(ctx).get(id);
       const s = m?.summary as MeetingSummary | null;
       if (!m || !s) throw new Error("요약이 없는 회의예요");
-      const create = ctx.registry.tools()["tasks.create"];
-      if (!create) throw new Error("tasks 모듈이 없어요");
       const chosen = s.actionItems.filter(
         (_, i) => !indexes || indexes.includes(i),
       );
-      const created: string[] = [];
-      for (const a of chosen) {
-        const card = (await create.execute(
-          {
-            title: a.title,
-            description: a.owner ? `담당: ${a.owner}` : "",
-            meetingId: id,
-            source: { type: "meeting", ref_id: id },
-          },
-          ctx,
-        )) as { id: string };
-        created.push(card.id);
-      }
+      const existing = await ctx.db
+        .from("cards")
+        .select("id, creation_key")
+        .eq("user_id", ctx.userId)
+        .eq("meeting_id", id);
+      if (existing.error) throw existing.error;
+      const results = await createMeetingTasks(
+        ctx,
+        id,
+        chosen.map((a) => ({
+          key: meetingActionKey(id, a),
+          title: a.title,
+        })),
+      );
+      const created = results.map((r) => r.id);
+      const newCardIds = created.filter(
+        (id) => !existing.data.some((c) => c.id === id),
+      );
       return {
         created: created.length,
         cardIds: created,
+        newCardIds,
         meeting: m.title,
         duration: fmtDuration(m.duration_sec),
       };
     },
     undo: async (output, ctx) => {
       const del = ctx.registry.tools()["tasks.delete"];
-      for (const id of output.cardIds) await del?.execute({ id }, ctx);
+      for (const id of output.newCardIds) await del?.execute({ id }, ctx);
     },
   }),
   delete: defineTool({

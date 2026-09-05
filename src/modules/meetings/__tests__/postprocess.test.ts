@@ -8,6 +8,7 @@ const meeting = {
 } as unknown as MeetingRow;
 const seg = (start: number, text: string, speaker?: string) =>
   ({
+    seq: start / 1000,
     start_ms: start,
     end_ms: start + 5000,
     text,
@@ -22,8 +23,8 @@ describe("postprocess helpers", () => {
       seg(60_000, "", "S1"),
     ]);
     expect(t.split("\n")).toEqual([
-      "[0:00] 김민수: 안녕하세요",
-      "[0:18] [중요] 화자 2: 예산 논의",
+      "[seq=0] [0:00] 김민수: 안녕하세요",
+      "[seq=18] [0:18] [중요] 화자 2: 예산 논의",
     ]);
   });
   it("renders summary markdown", () => {

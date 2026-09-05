@@ -19,6 +19,32 @@ export function meetingsRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
+    async listPage({
+      query = "",
+      page = 1,
+      pending = false,
+    }: {
+      query?: string;
+      page?: number;
+      pending?: boolean;
+    }) {
+      const size = 20;
+      const { data, error } = await db.rpc("list_meeting_records", {
+        p_query: query.trim(),
+        p_pending: pending,
+        p_offset: (page - 1) * size,
+      });
+      if (error) throw error;
+      return {
+        meetings: data.map((r) => ({
+          ...(r.meeting as unknown as MeetingRow),
+          pending_count: r.pending_count,
+        })),
+        total: data[0]?.total_count ?? 0,
+        page,
+        size,
+      };
+    },
     async get(id: string): Promise<MeetingRow | null> {
       const { data, error } = await own(db.from("meetings").select("*"))
         .eq("id", id)
