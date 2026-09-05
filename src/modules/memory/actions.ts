@@ -37,7 +37,7 @@ export async function rememberAction(content: string, kind: MemoryKind) {
 export async function archiveMemoryAction(id: string, archived: boolean) {
   await (await svc()).update(id, {
     status: archived ? "archived" : "active",
-  } as never);
+  });
   revalidatePath("/memory");
 }
 
@@ -54,11 +54,7 @@ export async function memoryReviewAction(
   choice: "replace" | "keep" | "discard",
 ) {
   const ctx = await userContext();
-  const { error } = await ctx.db.rpc("resolve_memory_review", {
-    p_id: id,
-    p_choice: choice,
-  });
-  if (error) throw error;
+  await memoryService(ctx).resolveReview(id, choice);
   revalidatePath("/memory");
 }
 export async function memoryReviewOriginalAction(id: string) {

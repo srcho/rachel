@@ -42,11 +42,14 @@ export const memoryModule: RachelModule = {
       on: "meeting.summarized",
       handle: async (e, ctx) => {
         // meetings 모듈을 import 하지 않는다 — 요약 텍스트는 이벤트 페이로드로 받는다
-        const text = (e.payload as { summaryText?: string }).summaryText;
-        if (!text) return;
+        const { summaryText: text, version } = e.payload as {
+          summaryText?: string;
+          version?: number;
+        };
+        if (!text || !version) return;
         await ctx.enqueue({
           type: "memory.extract",
-          payload: { meetingId: e.entity.id, text },
+          payload: { meetingId: e.entity.id, text, version },
           dedupeKey: `memory.extract:meeting:${e.entity.id}`,
         });
       },

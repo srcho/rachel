@@ -167,6 +167,21 @@ export function MemoryList({
                       직접 확인한 선호
                     </p>
                   )}
+                  {!m.confirmed_at && !m.invalidated_at && (
+                    <p className="text-xs text-muted-foreground">
+                      아직 직접 확인하지 않은 후보
+                    </p>
+                  )}
+                  {m.invalidated_at && (
+                    <p className="text-xs text-muted-foreground">
+                      원본 변경으로 보관됨 · 현재 사실로 사용하지 않아요
+                    </p>
+                  )}
+                  {m.index_status === "pending" && (
+                    <p className="text-xs text-muted-foreground">
+                      저장됨 · 의미 검색 준비 중
+                    </p>
+                  )}
                   <div className="flex items-start gap-2">
                     <Badge variant="secondary" className="mt-0.5 shrink-0">
                       {KIND_LABEL[m.kind as MemoryKind] ?? m.kind}
@@ -233,7 +248,9 @@ export function MemoryList({
                             ? "대화"
                             : s.type === "capture"
                               ? "캡처"
-                              : "직접";
+                              : s.type === "inference"
+                                ? "추론"
+                                : "직접";
                       return href ? (
                         <Link
                           key={`${s.type}-${s.id ?? i}`}
@@ -272,6 +289,7 @@ export function MemoryList({
                         variant="ghost"
                         className="size-6"
                         aria-label={archived ? "복구" : "보관"}
+                        disabled={archived && Boolean(m.invalidated_at)}
                         onClick={() =>
                           start(() => archiveMemoryAction(m.id, !archived))
                         }

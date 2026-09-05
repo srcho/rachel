@@ -39,8 +39,19 @@ export function memoryService(
       if (existing) return { memory: existing, merged: false };
     }
     const content = input.content.trim();
-    const vector = await embed(content);
-    const similar = await repo.match(vector, 3, MERGE_SIMILARITY);
+    // Persist first-class memory even while the optional vector index is unavailable.
+    const source: MemorySource = {
+      ...input.source,
+      evidence:
+        input.source.evidence ??
+        (input.source.type === "manual" && ctx.actor === "user"
+          ? "explicit_user"
+          : "model_inference"),
+    };
+    const vector = await embed(content).catch(() => null);
+    const similar = vector
+      ? await repo.match(vector, 3, MERGE_SIMILARITY)
+      : await repo.keyword(content, 3);
     const top = similar[0];
     if (top) {
       const existing = await repo.get(top.id);
@@ -57,7 +68,10 @@ export function memoryService(
           embedding:
             content.length > existing.content.length ? vector : undefined,
           importance: Math.max(existing.importance, input.importance ?? 3),
-          source: mergeSources(existing.source, input.source),
+          source: mergeSources(existing.source, source),
+          ...(source.evidence === "explicit_user"
+            ? { confirmed_at: ctx.now.toISOString() }
+            : {}),
         });
         await ctx.emit({
           type: MEMORY_EVENTS.updated,
@@ -71,14 +85,15 @@ export function memoryService(
       creation_key: input.creationKey,
       review_against: top?.id,
       confirmed_at:
-        !top && input.source.type === "manual"
+        !top && source.evidence === "explicit_user"
           ? ctx.now.toISOString()
           : undefined,
       kind: input.kind,
       content,
       embedding: vector,
       importance: input.importance ?? 3,
-      source: input.source as unknown as Json,
+      source: source as unknown as Json,
+      index_status: vector ? "ready" : "pending",
     });
     await ctx.emit({
       type: MEMORY_EVENTS.created,
@@ -88,37 +103,48 @@ export function memoryService(
     return { memory, merged: false };
   }
 
-  async function recall(
-    query: string,
-    k = 8,
-  ): Promise<
-    Array<{
-      id: string;
-      kind: string;
-      content: string;
-      similarity: number;
-      pinned: boolean;
-      updatedAt: string;
-      confirmedAt: string | null;
-    }>
-  > {
-    if (!query.trim()) return [];
-    const vector = await embed(query);
-    const matches = await repo.match(vector, k, 0.3);
-    return Promise.all(
-      matches.map(async (m) => {
-        const row = await repo.get(m.id);
-        return {
-          id: m.id,
-          kind: m.kind,
-          content: m.content,
-          similarity: m.similarity,
-          pinned: m.pinned,
-          updatedAt: row?.updated_at ?? "",
-          confirmedAt: row?.confirmed_at ?? null,
-        };
-      }),
-    );
+  async function recallWithStatus(query: string, k = 8) {
+    let degraded = false;
+    let rows: Array<MemoryRow & { similarity: number }> = [];
+    if (query.trim()) {
+      try {
+        const matches = await repo.match(await embed(query), k, 0.3);
+        rows = (
+          await Promise.all(
+            matches.map(async (m) => {
+              const row = await repo.get(m.id);
+              return row ? { ...row, similarity: m.similarity } : null;
+            }),
+          )
+        ).filter((m): m is MemoryRow & { similarity: number } => m !== null);
+      } catch {
+        degraded = true;
+        rows = (await repo.keyword(query.trim(), k)).map((m) => ({
+          ...m,
+          similarity: 0,
+        }));
+      }
+    }
+    return {
+      status: degraded ? ("keyword_only" as const) : ("semantic" as const),
+      notice: degraded
+        ? "의미 검색을 사용할 수 없어 키워드로만 찾았어요. 관련 기억이 빠질 수 있어요."
+        : null,
+      memories: rows.map((m) => ({
+        id: m.id,
+        kind: m.kind,
+        content: m.content,
+        similarity: m.similarity,
+        pinned: m.pinned,
+        updatedAt: m.updated_at,
+        confirmedAt: m.confirmed_at,
+        source: m.source,
+      })),
+    };
+  }
+
+  async function recall(query: string, k = 8) {
+    return (await recallWithStatus(query, k)).memories;
   }
 
   async function update(
@@ -128,14 +154,37 @@ export function memoryService(
       kind?: MemoryKind;
       importance?: number;
       pinned?: boolean;
+      status?: "active" | "archived";
     },
   ): Promise<MemoryRow> {
-    const embedding = patch.content ? await embed(patch.content) : undefined;
+    const before = await repo.get(id);
+    if (!before) throw new Error("기억을 찾을 수 없어요");
+    if (patch.status === "active" && before.invalidated_at)
+      throw new Error(
+        "원본이 변경된 기억이에요. 내용을 확인하고 새 기억으로 저장해 주세요",
+      );
+    const embedding = patch.content
+      ? await embed(patch.content).catch(() => null)
+      : undefined;
     const memory = await repo.update(id, {
       ...patch,
       embedding,
+      ...(patch.status
+        ? {
+            valid_until:
+              patch.status === "archived" ? ctx.now.toISOString() : null,
+          }
+        : {}),
       ...(patch.content !== undefined
-        ? { confirmed_at: ctx.now.toISOString() }
+        ? {
+            confirmed_at: ctx.actor === "user" ? ctx.now.toISOString() : null,
+            source: {
+              type: ctx.actor === "user" ? "manual" : "inference",
+              evidence:
+                ctx.actor === "user" ? "explicit_user" : "model_inference",
+            } as Json,
+            index_status: embedding ? ("ready" as const) : ("pending" as const),
+          }
         : {}),
     });
     await ctx.emit({
@@ -149,7 +198,7 @@ export function memoryService(
   async function forget(id: string): Promise<MemoryRow | null> {
     const before = await repo.get(id);
     if (!before) return null;
-    await repo.delete(id);
+    await repo.delete(id, ctx.approvedVersions?.[`memories:${id}`]);
     await ctx.emit({
       type: MEMORY_EVENTS.forgotten,
       entity: { type: "memory", id },
@@ -178,11 +227,12 @@ export function memoryService(
     let created = 0;
     let merged = 0;
     for (const m of output.memories) {
+      if (!m.evidence.trim() || !text.includes(m.evidence.trim())) continue;
       const r = await remember({
         kind: m.kind,
         content: m.content,
         importance: m.importance,
-        source: { ...source, excerpt: m.evidence },
+        source: { ...source, excerpt: m.evidence, evidence: "model_inference" },
       });
       if (r.merged) merged++;
       else created++;
@@ -193,6 +243,31 @@ export function memoryService(
   return {
     remember,
     recall,
+    recallWithStatus,
+    reviewList: async () => repo.list({ reviewOnly: true }),
+    resolveReview: async (
+      id: string,
+      choice: "replace" | "keep" | "discard",
+    ) => {
+      const before = await repo.get(id);
+      if (!before?.review_against)
+        throw new Error("검토할 기억을 찾을 수 없어요");
+      const { error } = await ctx.db.rpc("resolve_memory_review", {
+        p_id: id,
+        p_choice: choice,
+      });
+      if (error) throw error;
+      for (const memoryId of [id, before.review_against])
+        await ctx.emit({
+          type: MEMORY_EVENTS.updated,
+          entity: { type: "memory", id: memoryId },
+          payload: { review: choice },
+        });
+      return {
+        memory: await repo.get(id),
+        original: await repo.get(before.review_against),
+      };
+    },
     update,
     forget,
     extractFrom,
@@ -216,7 +291,10 @@ function mergeSources(existing: Json, incoming: MemorySource): Json {
       typeof s === "object" &&
       s &&
       (s as MemorySource).type === incoming.type &&
-      (s as MemorySource).id === incoming.id,
+      (s as MemorySource).id === incoming.id &&
+      (s as MemorySource).messageId === incoming.messageId &&
+      (s as MemorySource).version === incoming.version &&
+      (s as MemorySource).evidence === incoming.evidence,
   );
   return (has ? arr : [...arr, incoming].slice(-5)) as Json;
 }

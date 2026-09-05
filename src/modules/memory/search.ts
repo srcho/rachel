@@ -30,20 +30,26 @@ export async function reindexSource(
   if (!indexer) return 0;
   const chunks = await indexer.chunks(sourceId, ctx);
   const rows = [];
+  let indexError: unknown;
   for (const c of chunks) {
-    const { embedding } = await llmEmbed({
+    const embedding = await llmEmbed({
       db: ctx.db,
       userId: ctx.userId,
       value: c.content,
       feature: "embed",
-    });
+    })
+      .then((r) => r.embedding)
+      .catch((error) => {
+        indexError = error;
+        return null;
+      });
     rows.push({
       user_id: ctx.userId,
       source_type: sourceType,
       source_id: sourceId,
       chunk_index: c.index,
       content: c.content,
-      embedding: JSON.stringify(embedding),
+      embedding: embedding ? JSON.stringify(embedding) : null,
       metadata: (c.metadata ?? {}) as Json,
       updated_at: new Date().toISOString(),
     });
@@ -65,31 +71,76 @@ export async function reindexSource(
     del = del.not("chunk_index", "in", `(${keep.join(",")})`);
   const { error } = await del;
   if (error) throw error;
+  const firstRow = rows[0];
+  if (sourceType === "memory" && firstRow) {
+    const { error: memoryError } = await ctx.db
+      .from("memories")
+      .update({
+        embedding: firstRow.embedding,
+        index_status: indexError ? "pending" : "ready",
+      })
+      .eq("id", sourceId)
+      .eq("user_id", ctx.userId)
+      .eq("content", firstRow.content);
+    if (memoryError) throw memoryError;
+  }
+  // The worker retries embeddings; corrected text is already searchable by keyword.
+  if (indexError) throw indexError;
   return rows.length;
 }
 
-export async function searchAll(
+export async function searchAllWithStatus(
   ctx: ServiceContext,
   query: string,
   opts: { types?: string[]; k?: number } = {},
-): Promise<SearchHit[]> {
+) {
   const q = query.trim();
-  if (!q) return [];
-  const { embedding } = await llmEmbed({
-    db: ctx.db,
-    userId: ctx.userId,
-    value: q,
-    feature: "embed",
-  });
-  const { data, error } = await ctx.db.rpc("search_chunks_hybrid", {
-    p_user_id: ctx.userId,
-    p_embedding: JSON.stringify(embedding),
-    p_query: q,
-    p_k: opts.k ?? 12,
-    p_types: opts.types ?? undefined,
-  });
-  if (error) throw error;
-  return (data ?? []).map((r) => {
+  if (!q)
+    return {
+      hits: [] as SearchHit[],
+      status: "semantic" as const,
+      notice: null,
+    };
+  let degraded = false;
+  let data: Array<{
+    id: string;
+    source_type: string;
+    source_id: string;
+    content: string;
+    metadata: Json;
+    score: number;
+  }>;
+  try {
+    const { embedding } = await llmEmbed({
+      db: ctx.db,
+      userId: ctx.userId,
+      value: q,
+      feature: "embed",
+    });
+    const result = await ctx.db.rpc("search_chunks_hybrid", {
+      p_user_id: ctx.userId,
+      p_embedding: JSON.stringify(embedding),
+      p_query: q,
+      p_k: opts.k ?? 12,
+      p_types: opts.types ?? undefined,
+    });
+    if (result.error) throw result.error;
+    data = result.data ?? [];
+  } catch {
+    degraded = true;
+    let request = ctx.db
+      .from("search_chunks")
+      .select("*")
+      .eq("user_id", ctx.userId)
+      .ilike("content", `%${q.replace(/[\\%_]/g, "\\$&")}%`);
+    if (opts.types?.length) request = request.in("source_type", opts.types);
+    const result = await request
+      .order("updated_at", { ascending: false })
+      .limit(opts.k ?? 12);
+    if (result.error) throw result.error;
+    data = (result.data ?? []).map((r) => ({ ...r, score: 0 }));
+  }
+  const hits: SearchHit[] = data.map((r) => {
     const meta = (r.metadata ?? {}) as Record<string, unknown>;
     return {
       id: r.id,
@@ -102,6 +153,21 @@ export async function searchAll(
       metadata: meta,
     };
   });
+  return {
+    hits,
+    status: degraded ? ("keyword_only" as const) : ("semantic" as const),
+    notice: degraded
+      ? "의미 검색을 사용할 수 없어 키워드로만 검색했어요. 관련 자료가 빠질 수 있어요."
+      : null,
+  };
+}
+
+export async function searchAll(
+  ctx: ServiceContext,
+  query: string,
+  opts: { types?: string[]; k?: number } = {},
+): Promise<SearchHit[]> {
+  return (await searchAllWithStatus(ctx, query, opts)).hits;
 }
 
 function snippetAround(content: string, q: string, width = 140): string {

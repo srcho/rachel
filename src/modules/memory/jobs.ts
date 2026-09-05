@@ -9,11 +9,13 @@ export const extractJob: JobHandler<{
   meetingId?: string;
   /** 회의: 요약 텍스트(meeting.summarized 페이로드) */
   text?: string;
+  version?: number;
 }> = {
   schema: z.object({
     threadId: z.string().uuid().optional(),
     meetingId: z.string().uuid().optional(),
     text: z.string().optional(),
+    version: z.number().int().positive().optional(),
   }),
   timeoutSec: 120,
   run: async (payload, ctx) => {
@@ -21,12 +23,13 @@ export const extractJob: JobHandler<{
       const messages = await agentService(ctx).loadMessages(payload.threadId);
       const text = messages
         .slice(-30)
+        .filter((m) => m.role === "user")
         .map((m) => {
           const t = (m.parts as Array<{ type: string; text?: string }>)
             .filter((p) => p.type === "text" && p.text)
             .map((p) => p.text)
             .join(" ");
-          return t ? `${m.role === "user" ? "사용자" : "레이첼"}: ${t}` : null;
+          return t ? `사용자: ${t}` : null;
         })
         .filter(Boolean)
         .join("\n");
@@ -37,10 +40,18 @@ export const extractJob: JobHandler<{
       );
       console.info("[memory.extract] thread", payload.threadId, r);
     }
-    if (payload.meetingId && payload.text) {
+    if (payload.meetingId && payload.text && payload.version) {
+      const { data: meeting, error } = await ctx.db
+        .from("meetings")
+        .select("content_version")
+        .eq("id", payload.meetingId)
+        .eq("user_id", ctx.userId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!meeting || meeting.content_version !== payload.version) return;
       const r = await memoryService(ctx).extractFrom(
         payload.text,
-        { type: "meeting", id: payload.meetingId },
+        { type: "meeting", id: payload.meetingId, version: payload.version },
         { type: "meeting", id: payload.meetingId },
       );
       console.info("[memory.extract] meeting", payload.meetingId, r);

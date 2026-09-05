@@ -18,6 +18,7 @@ export function memoryRepository(db: Db, userId: string) {
         q?: string;
         status?: "active" | "archived";
         limit?: number;
+        reviewOnly?: boolean;
       } = {},
     ): Promise<MemoryRow[]> {
       let q = own(db.from("memories").select("*")).eq(
@@ -25,11 +26,24 @@ export function memoryRepository(db: Db, userId: string) {
         opts.status ?? "active",
       );
       if (opts.kind) q = q.eq("kind", opts.kind);
+      if (opts.reviewOnly) q = q.not("review_against", "is", null);
       if (opts.q) q = q.ilike("content", `%${opts.q}%`);
       const { data, error } = await q
         .order("pinned", { ascending: false })
         .order("updated_at", { ascending: false })
         .limit(opts.limit ?? 100);
+      if (error) throw error;
+      return data;
+    },
+    async keyword(query: string, limit = 8): Promise<MemoryRow[]> {
+      const { data, error } = await own(db.from("memories").select("*"))
+        .eq("status", "active")
+        .is("review_against", null)
+        .is("invalidated_at", null)
+        .ilike("content", `%${query.replace(/[\\%_]/g, "\\$&")}%`)
+        .order("pinned", { ascending: false })
+        .order("importance", { ascending: false })
+        .limit(limit);
       if (error) throw error;
       return data;
     },
@@ -45,6 +59,7 @@ export function memoryRepository(db: Db, userId: string) {
         .eq("status", "active")
         .eq("pinned", true)
         .is("review_against", null)
+        .is("invalidated_at", null)
         .limit(20);
       if (error) throw error;
       return data;
@@ -65,6 +80,7 @@ export function memoryRepository(db: Db, userId: string) {
       embedding: number[] | null;
       importance: number;
       source: Json;
+      index_status?: "ready" | "pending";
     }): Promise<MemoryRow> {
       const { data, error } = await db
         .from("memories")
@@ -78,6 +94,7 @@ export function memoryRepository(db: Db, userId: string) {
           embedding: row.embedding ? toVector(row.embedding) : null,
           importance: row.importance,
           source: row.source,
+          index_status: row.index_status,
         })
         .select("*")
         .single();
@@ -97,12 +114,16 @@ export function memoryRepository(db: Db, userId: string) {
       id: string,
       patch: {
         content?: string;
-        embedding?: number[];
+        embedding?: number[] | null;
         importance?: number;
         kind?: MemoryKind;
         source?: Json;
         pinned?: boolean;
-        confirmed_at?: string;
+        confirmed_at?: string | null;
+        review_against?: string | null;
+        invalidated_at?: string | null;
+        valid_until?: string | null;
+        index_status?: "ready" | "pending";
         status?: "active" | "archived";
       },
     ): Promise<MemoryRow> {
@@ -110,7 +131,9 @@ export function memoryRepository(db: Db, userId: string) {
       const { data, error } = await own(
         db.from("memories").update({
           ...rest,
-          ...(embedding && { embedding: toVector(embedding) }),
+          ...(embedding !== undefined && {
+            embedding: embedding ? toVector(embedding) : null,
+          }),
         }),
       )
         .eq("id", id)
@@ -119,9 +142,13 @@ export function memoryRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
-    async delete(id: string): Promise<void> {
-      const { error } = await own(db.from("memories").delete()).eq("id", id);
+    async delete(id: string, expectedVersion?: string): Promise<void> {
+      let query = own(db.from("memories").delete()).eq("id", id);
+      if (expectedVersion) query = query.eq("updated_at", expectedVersion);
+      const { data, error } = await query.select("id");
       if (error) throw error;
+      if (expectedVersion && !data?.length)
+        throw new Error("기억이 변경됐어요. 다시 확인해 주세요");
     },
     async match(
       embedding: number[],
@@ -143,7 +170,8 @@ export function memoryRepository(db: Db, userId: string) {
           "id",
           data.map((m) => m.id),
         )
-        .is("review_against", null);
+        .is("review_against", null)
+        .is("invalidated_at", null);
       if (activeError) throw activeError;
       const allowed = new Set(active?.map((m) => m.id));
       return data.filter((m) => allowed.has(m.id)).slice(0, k);

@@ -4,9 +4,12 @@ import { MEMORY_KINDS, type MemoryKind } from "./constants";
 export { MEMORY_KINDS, type MemoryKind };
 
 export const memorySourceSchema = z.object({
-  type: z.enum(["thread", "meeting", "capture", "manual"]),
+  type: z.enum(["thread", "meeting", "capture", "manual", "inference"]),
   id: z.string().optional(),
   excerpt: z.string().max(300).optional(),
+  evidence: z.enum(["explicit_user", "model_inference"]).optional(),
+  messageId: z.string().optional(),
+  version: z.number().int().positive().optional(),
 });
 export type MemorySource = z.infer<typeof memorySourceSchema>;
 
