@@ -1,5 +1,6 @@
 import type { Db } from "@/core/contracts";
 import type { Database, Json } from "@/core/db/types.generated";
+import { canonicalSummaryMarkdown } from "./content";
 
 export type MeetingRow = Database["public"]["Tables"]["meetings"]["Row"];
 export type MeetingUpdate = Database["public"]["Tables"]["meetings"]["Update"];
@@ -9,6 +10,10 @@ export type SegmentInsert =
   Database["public"]["Tables"]["transcript_segments"]["Insert"];
 
 export function meetingsRepository(db: Db, userId: string) {
+  const canonical = (m: MeetingRow): MeetingRow => ({
+    ...m,
+    summary_md: canonicalSummaryMarkdown(m.summary, m.summary_md),
+  });
   const own = <T extends { eq: (col: string, val: string) => T }>(q: T) =>
     q.eq("user_id", userId);
   return {
@@ -17,7 +22,7 @@ export function meetingsRepository(db: Db, userId: string) {
         .order("started_at", { ascending: false })
         .limit(limit);
       if (error) throw error;
-      return data;
+      return data.map(canonical);
     },
     async listPage({
       query = "",
@@ -37,7 +42,7 @@ export function meetingsRepository(db: Db, userId: string) {
       if (error) throw error;
       return {
         meetings: data.map((r) => ({
-          ...(r.meeting as unknown as MeetingRow),
+          ...canonical(r.meeting as unknown as MeetingRow),
           pending_count: r.pending_count,
         })),
         total: data[0]?.total_count ?? 0,
@@ -50,7 +55,7 @@ export function meetingsRepository(db: Db, userId: string) {
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data ? canonical(data) : null;
     },
     async insert(row: {
       title: string;
@@ -65,7 +70,7 @@ export function meetingsRepository(db: Db, userId: string) {
         .select("*")
         .single();
       if (error) throw error;
-      return data;
+      return canonical(data);
     },
     async update(id: string, patch: MeetingUpdate): Promise<MeetingRow> {
       const { data, error } = await own(db.from("meetings").update(patch))
@@ -73,11 +78,15 @@ export function meetingsRepository(db: Db, userId: string) {
         .select("*")
         .single();
       if (error) throw error;
-      return data;
+      return canonical(data);
     },
-    async delete(id: string): Promise<void> {
-      const { error } = await own(db.from("meetings").delete()).eq("id", id);
+    async delete(id: string, expectedVersion?: number): Promise<void> {
+      let query = own(db.from("meetings").delete()).eq("id", id);
+      if (expectedVersion !== undefined)
+        query = query.eq("content_version", expectedVersion);
+      const { data, error } = await query.select("id");
       if (error) throw error;
+      if (!data.length) throw new Error("회의가 변경되었거나 이미 삭제됐어요");
     },
     async listSegments(
       meetingId: string,
@@ -88,12 +97,18 @@ export function meetingsRepository(db: Db, userId: string) {
         meetingId,
       );
       if (pass) q = q.eq("pass", pass);
-      const { data, error } = await q
-        .order("start_ms")
-        .order("seq")
-        .limit(5000);
-      if (error) throw error;
-      return data;
+      const rows: SegmentRow[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await q
+          .order("start_ms")
+          .order("seq")
+          .order("turn_id")
+          .order("id")
+          .range(offset, offset + 999);
+        if (error) throw error;
+        rows.push(...data);
+        if (data.length < 1000) return rows;
+      }
     },
     async maxSeq(meetingId: string): Promise<number> {
       const { data, error } = await own(
@@ -161,7 +176,7 @@ export function meetingsRepository(db: Db, userId: string) {
         .order("started_at", { ascending: false })
         .limit(limit);
       if (error) throw error;
-      return data;
+      return data.map(canonical);
     },
   };
 }

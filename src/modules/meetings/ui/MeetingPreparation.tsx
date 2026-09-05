@@ -74,7 +74,7 @@ export function MeetingPreparation({
             </div>
             <div>
               <h3 className="mb-1 text-xs text-muted-foreground">
-                같은 제목의 이전 회의 결정
+                연결된 이전 회의 결정
               </h3>
               {data.previous.length ? (
                 data.previous.map((m) => (
@@ -93,9 +93,23 @@ export function MeetingPreparation({
                   </div>
                 ))
               ) : (
-                <p>이전 회의가 없어요.</p>
+                <p>실제로 연결된 이전 회의를 찾지 못했어요.</p>
               )}
             </div>
+            {data.unverifiedTitleMatches.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                같은 제목의 기록이 있지만 관련 회의인지는 확인되지 않았어요.
+                {data.unverifiedTitleMatches.map((m) => (
+                  <Link
+                    key={m.id}
+                    className="block underline"
+                    href={`/meetings/${m.id}`}
+                  >
+                    {m.title}
+                  </Link>
+                ))}
+              </div>
+            )}
             <div>
               <h3 className="mb-1 text-xs text-muted-foreground">
                 미완료 후속 할 일

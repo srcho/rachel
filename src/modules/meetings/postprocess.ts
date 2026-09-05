@@ -3,6 +3,10 @@ import type { Json } from "@/core/db/types.generated";
 import { llmGenerate } from "@/core/llm/client";
 import { MODEL_IDS } from "@/core/llm/models";
 import { meetingSummaryPrompt } from "@/core/llm/prompts/meeting-summary";
+import { summaryToMarkdown } from "./content";
+
+export { summaryToMarkdown } from "./content";
+
 import { fmtClock } from "./format";
 import type { MeetingRow, SegmentRow } from "./repository";
 import {
@@ -61,24 +65,6 @@ export function attachSummarySources(
   };
 }
 
-export function summaryToMarkdown(s: MeetingSummary): string {
-  const li = (xs: string[]) => xs.map((x) => `- ${x}`).join("\n");
-  const parts = [`**요약** ${s.tldr}`];
-  if (s.keyPoints.length) parts.push(`**핵심**\n${li(s.keyPoints)}`);
-  if (s.decisions.length) parts.push(`**결정**\n${li(s.decisions)}`);
-  if (s.actionItems.length)
-    parts.push(
-      `**액션 아이템**\n${li(s.actionItems.map((a) => `${a.title}${a.owner ? ` — ${a.owner}` : ""}${a.due ? ` (${a.due})` : ""}`))}`,
-    );
-  if (s.openQuestions.length)
-    parts.push(`**열린 질문**\n${li(s.openQuestions)}`);
-  if (s.followups.length)
-    parts.push(
-      `**후속**\n${li(s.followups.map((f) => `${f.title}${f.when ? ` (${f.when})` : ""}`))}`,
-    );
-  return parts.join("\n\n");
-}
-
 /**
  * 요약 생성. pass='live' 는 종료 직후(빠르게), 'final' 은 화자 분리 후(정확하게).
  * 전사가 너무 짧으면 요약 없이 ready 처리.
@@ -87,25 +73,22 @@ export async function postprocessMeeting(
   ctx: ServiceContext,
   meetingId: string,
   pass: "live" | "final",
-): Promise<void> {
+) {
   const svc = meetingsService(ctx);
   const meeting = await svc.get(meetingId);
-  if (!meeting) return;
+  if (!meeting) throw new Error("회의를 찾을 수 없어요");
+  if (meeting.note_text !== null)
+    return {
+      status: "unsupported" as const,
+      reason: "manual_note",
+      preserved: true,
+    };
   const { pass: used, segments } = await svc.transcript(meetingId);
   if (pass === "final" && used !== "final") return; // 파이널 전사가 없으면 건너뜀
   const text = assembleTranscript(meeting, segments);
   if (text.length < 40) {
-    await svc.update(meetingId, {
-      status: "ready",
-      summary_md: "전사된 내용이 너무 짧아 요약을 만들지 않았어요.",
-      summary_version: meeting.summary_version + 1,
-    });
-    await ctx.emit({
-      type: MEETING_EVENTS.summarized,
-      entity: { type: "meeting", id: meetingId },
-      payload: { pass, empty: true },
-    });
-    return;
+    await svc.update(meetingId, { status: "ready" });
+    return { status: "insufficient_content" as const, preserved: true };
   }
   const context = meeting.calendar_event_id
     ? `회의 제목: ${meeting.title}\n`
@@ -135,26 +118,24 @@ export async function postprocessMeeting(
       },
       segments,
     );
-    await svc.update(meetingId, {
+    const updated = await svc.update(meetingId, {
       status: "ready",
       summary: output as unknown as Json,
       summary_md: summaryToMarkdown(output),
       summary_version: meeting.summary_version + 1,
       summary_model: MODEL_IDS.summarize,
-      title:
-        meeting.title.startsWith("회의 ") && output.tldr
-          ? meeting.title
-          : meeting.title,
     });
     await ctx.emit({
       type: MEETING_EVENTS.summarized,
       entity: { type: "meeting", id: meetingId },
       payload: {
         pass,
+        version: updated.content_version,
         actionItems: output.actionItems.length,
         summaryText: `${output.tldr}\n${output.decisions.join("\n")}`,
       },
     });
+    return { status: "summarized" as const, version: updated.content_version };
   } catch (e) {
     await svc.update(meetingId, { status: "failed" });
     throw e;

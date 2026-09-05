@@ -29,6 +29,7 @@ export const meetingContextProvider: ContextProvider = {
     return [
       `[회의: ${meeting.title} ${fmtDateTime(meeting.started_at, ctx.timezone, "date")}]`,
       meeting.summary_md ? `요약:\n${meeting.summary_md}` : "요약 없음",
+      meeting.note_text ? `메모 원문:\n${meeting.note_text}` : "",
       `전사 발췌:\n${lines.join("\n")}`,
     ].join("\n");
   },

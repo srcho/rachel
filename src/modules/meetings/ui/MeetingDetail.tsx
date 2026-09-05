@@ -347,13 +347,13 @@ export function MeetingDetail({
                 summary={summary}
                 canRegenerate={!isNote}
               />
-              {!meeting.audio_local_key && meeting.summary_md && (
-                <details className="rounded-md border p-3">
+              {meeting.note_text && (
+                <details id="note-original" className="rounded-md border p-3">
                   <summary className="cursor-pointer text-xs">
                     메모 원문 전체
                   </summary>
                   <p className="mt-2 whitespace-pre-wrap">
-                    {meeting.summary_md}
+                    {meeting.note_text}
                   </p>
                 </details>
               )}

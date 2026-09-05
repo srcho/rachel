@@ -1,11 +1,22 @@
 import { z } from "zod";
 import { type AnyAgentTool, defineTool } from "@/core/contracts";
-import { fmtClock, fmtDuration } from "./format";
+import {
+  createMeetingNote,
+  editMeetingSummary,
+  editTranscript,
+  summaryEdits,
+} from "./editing";
 import { postprocessMeeting } from "./postprocess";
+import { meetingPreparation } from "./preparation";
 import type { MeetingRow } from "./repository";
-import { createMeetingTasks } from "./review";
+import {
+  createMeetingTasks,
+  reviewChoiceSchema,
+  undoMeetingFollowups,
+} from "./review";
 import { meetingActionKey } from "./review-items";
 import type { MeetingSummary } from "./schema";
+import { searchMeetingContent } from "./search";
 import { meetingsService } from "./service";
 
 function summarize(m: MeetingRow) {
@@ -13,6 +24,8 @@ function summarize(m: MeetingRow) {
   return {
     id: m.id,
     title: m.title,
+    version: m.content_version,
+    href: `/meetings/${m.id}`,
     startedAt: m.started_at,
     durationMin: m.duration_sec ? Math.round(m.duration_sec / 60) : null,
     status: m.status,
@@ -44,6 +57,12 @@ export const meetingsTools: Record<string, AnyAgentTool> = {
       return {
         ...summarize(m),
         summary: m.summary,
+        actionItems:
+          (m.summary as MeetingSummary | null)?.actionItems.map((a) => ({
+            ...a,
+            actionKey: meetingActionKey(id, a),
+          })) ?? [],
+        hasNote: m.note_text !== null,
         transcriptPass: pass,
         segmentCount: segments.length,
         speakerMap: m.speaker_map,
@@ -51,50 +70,139 @@ export const meetingsTools: Record<string, AnyAgentTool> = {
       };
     },
   }),
-  search: defineTool({
+  createNote: defineTool({
     description:
-      "회의 전사·요약에서 키워드를 찾는다(부분 일치). 결과는 회의·시각·문장. '지난번에 예산 얘기' 같은 질문에 쓴다.",
+      "녹음 없는 회의 메모를 원문 전체로 보존한다. 재시도에는 같은 id를 사용한다.",
     inputSchema: z.object({
-      query: z.string().min(1),
-      limit: z.number().int().min(1).max(30).default(10),
+      id: z.string().uuid(),
+      title: z.string().trim().min(1).max(200),
+      text: z.string().trim().min(1).max(10000),
+    }),
+    risk: "write",
+    execute: async (input, ctx) =>
+      summarize(await createMeetingNote(ctx, input)),
+  }),
+  readContent: defineTool({
+    description:
+      "회의의 교정된 원문/요약/전사를 페이지로 읽는다. 전사 segmentId를 교정에 사용. nextOffset이 있으면 다음 페이지가 남아 있다.",
+    inputSchema: z.object({
+      id: z.string().uuid(),
+      section: z.enum(["note", "summary", "transcript"]),
+      offset: z.number().int().min(0).default(0),
+      limit: z.number().int().min(1).max(100).default(30),
     }),
     risk: "read",
-    execute: async ({ query, limit }, ctx) => {
-      const { data, error } = await ctx.db
-        .from("transcript_segments")
-        .select("meeting_id, start_ms, text, speaker, pass")
-        .eq("user_id", ctx.userId)
-        .ilike("text", `%${query}%`)
-        .order("start_ms")
-        .limit(limit * 3);
-      if (error) throw error;
-      const rows = (data ?? [])
-        .filter(
-          (r, i, arr) =>
-            !arr.some(
-              (o, j) =>
-                j < i &&
-                o.meeting_id === r.meeting_id &&
-                Math.abs(o.start_ms - r.start_ms) < 1000,
-            ),
-        )
-        .slice(0, limit);
-      const ids = [...new Set(rows.map((r) => r.meeting_id))];
-      const { data: meetings } = await ctx.db
-        .from("meetings")
-        .select("id, title, started_at")
-        .eq("user_id", ctx.userId)
-        .in("id", ids);
-      const titleOf = (id: string) => meetings?.find((m) => m.id === id);
-      return rows.map((r) => ({
-        meetingId: r.meeting_id,
-        meeting: titleOf(r.meeting_id)?.title,
-        date: titleOf(r.meeting_id)?.started_at,
-        at: fmtClock(r.start_ms),
-        speaker: r.speaker,
-        text: r.text,
-      }));
+    execute: async ({ id, section, offset, limit }, ctx) => {
+      const svc = meetingsService(ctx);
+      const m = await svc.get(id);
+      if (!m) throw new Error("회의를 찾을 수 없어요");
+      const { pass, segments } = await svc.transcript(id);
+      const names = (m.speaker_map ?? {}) as Record<string, string>;
+      const all =
+        section === "transcript"
+          ? segments.map((s) => ({
+              segmentId: s.id,
+              text: s.text,
+              startMs: s.start_ms,
+              speaker: s.speaker,
+              speakerName: s.speaker ? (names[s.speaker] ?? s.speaker) : null,
+              href: `/meetings/${id}?at=${s.start_ms}`,
+            }))
+          : ((section === "note" ? (m.note_text ?? "") : (m.summary_md ?? ""))
+              .match(/[\s\S]{1,1000}/g)
+              ?.map((text, index) => ({
+                text,
+                offset: index * 1000,
+                href: `/meetings/${id}${section === "note" ? "#note-original" : ""}`,
+              })) ?? []);
+      const items = all.slice(offset, offset + limit);
+      const hasMore = offset + items.length < all.length;
+      return {
+        id,
+        version: m.content_version,
+        section,
+        pass,
+        items,
+        total: all.length,
+        hasMore,
+        nextOffset: hasMore ? offset + items.length : null,
+      };
     },
+  }),
+  editTitle: defineTool({
+    description: "회의 제목을 교정한다.",
+    inputSchema: z.object({
+      id: z.string().uuid(),
+      title: z.string().trim().min(1).max(200),
+    }),
+    risk: "write",
+    execute: async ({ id, title }, ctx) =>
+      summarize(await meetingsService(ctx).rename(id, title)),
+  }),
+  editSpeaker: defineTool({
+    description: "회의의 화자 식별자에 올바른 이름을 지정한다.",
+    inputSchema: z.object({
+      id: z.string().uuid(),
+      speaker: z.string().min(1),
+      name: z.string().trim().min(1).max(60),
+    }),
+    risk: "write",
+    execute: async ({ id, speaker, name }, ctx) => {
+      await meetingsService(ctx).setSpeakerName(id, speaker, name);
+      return {
+        id,
+        speaker,
+        name,
+        version: (await meetingsService(ctx).get(id))?.content_version,
+      };
+    },
+  }),
+  editSummary: defineTool({
+    description:
+      "회의 요약과 결정을 교정한다. 현재 get 결과를 먼저 읽어 보존할 내용도 함께 전달한다.",
+    inputSchema: summaryEdits.extend({ id: z.string().uuid() }),
+    risk: "write",
+    execute: async ({ id, ...patch }, ctx) =>
+      summarize(await editMeetingSummary(ctx, id, patch)),
+  }),
+  editTranscript: defineTool({
+    description: "readContent에서 읽은 segmentId의 전사를 교정한다.",
+    inputSchema: z.object({
+      id: z.string().uuid(),
+      segmentId: z.string().uuid(),
+      text: z.string().trim().min(1).max(10000),
+    }),
+    risk: "write",
+    execute: async ({ id, segmentId, text }, ctx) => {
+      await editTranscript(ctx, id, segmentId, text);
+      return {
+        id,
+        segmentId,
+        text,
+        version: (await meetingsService(ctx).get(id))?.content_version,
+      };
+    },
+  }),
+  prepare: defineTool({
+    description:
+      "일정에 실제 연결된 이전 회의와 후속 할 일로 회의를 준비한다. 제목만 같은 후보는 확인되지 않은 별도 목록으로 반환한다.",
+    inputSchema: z.object({ eventId: z.string().uuid() }),
+    risk: "read",
+    execute: async ({ eventId }, ctx) => meetingPreparation(ctx, eventId),
+  }),
+  search: defineTool({
+    description:
+      "교정된 전사·요약 결정·메모 원문·제목을 검색하고 위치 링크를 반환한다.",
+    inputSchema: z.object({
+      query: z.string().trim().min(1),
+      limit: z.number().int().min(1).max(30).default(10),
+      offset: z.number().int().min(0).default(0),
+      meetingId: z.string().uuid().optional(),
+      from: z.string().datetime({ offset: true }).optional(),
+      to: z.string().datetime({ offset: true }).optional(),
+    }),
+    risk: "read",
+    execute: async (input, ctx) => searchMeetingContent(ctx, input),
   }),
   summarize: defineTool({
     description:
@@ -104,59 +212,78 @@ export const meetingsTools: Record<string, AnyAgentTool> = {
     execute: async ({ id }, ctx) => {
       const svc = meetingsService(ctx);
       const { pass } = await svc.transcript(id);
-      await postprocessMeeting(ctx, id, pass);
+      const result = await postprocessMeeting(ctx, id, pass);
       const m = await svc.get(id);
-      return { id, summary: m?.summary ?? null, version: m?.summary_version };
+      return {
+        id,
+        ...result,
+        summary: m?.summary ?? null,
+        version: m?.content_version,
+      };
     },
+  }),
+  reviewActionItems: defineTool({
+    description:
+      "명시적으로 선택한 회의 후속 항목을 담당·기한·분류 수정 후 확정한다. get의 actionKey 사용. 종류별 신규/재사용을 구분한다.",
+    inputSchema: z.object({
+      id: z.string().uuid(),
+      choices: z.array(reviewChoiceSchema).min(1).max(15),
+    }),
+    risk: "write",
+    execute: async ({ id, choices }, ctx) => {
+      const results = await createMeetingTasks(ctx, id, choices);
+      return {
+        meetingId: id,
+        results,
+        created: results.filter((r) => r.createdNow).length,
+        reused: results.filter((r) => !r.createdNow).length,
+      };
+    },
+    undo: async (output, ctx) =>
+      undoMeetingFollowups(ctx, output.meetingId, output.results),
   }),
   createTasksFromActionItems: defineTool({
     description:
-      "회의 요약의 액션 아이템(인덱스 목록 또는 전부)을 할 일 카드로 만든다. 먼저 어떤 항목인지 사용자에게 보여 주고 실행한다.",
+      "명시한 인덱스의 후속 항목을 확정한다. 생략 시 담당이 '나/저/본인/me'인 항목만 선택한다. 담당 미정은 선택하지 않는다. 분류 수정은 reviewActionItems 사용.",
     inputSchema: z.object({
       id: z.string().uuid(),
-      indexes: z
-        .array(z.number().int().min(0))
-        .optional()
-        .describe("없으면 전부"),
+      indexes: z.array(z.number().int().min(0)).optional(),
     }),
     risk: "write",
     execute: async ({ id, indexes }, ctx) => {
       const m = await meetingsService(ctx).get(id);
       const s = m?.summary as MeetingSummary | null;
       if (!m || !s) throw new Error("요약이 없는 회의예요");
-      const chosen = s.actionItems.filter(
-        (_, i) => !indexes || indexes.includes(i),
+      if (indexes?.some((i) => i >= s.actionItems.length))
+        throw new Error("후속 항목 번호를 확인해 주세요");
+      const chosen = s.actionItems.filter((a, i) =>
+        indexes
+          ? indexes.includes(i)
+          : /^(나|저|본인|me)$/i.test(a.owner?.trim() ?? ""),
       );
-      const existing = await ctx.db
-        .from("cards")
-        .select("id, creation_key")
-        .eq("user_id", ctx.userId)
-        .eq("meeting_id", id);
-      if (existing.error) throw existing.error;
       const results = await createMeetingTasks(
         ctx,
         id,
         chosen.map((a) => ({
           key: meetingActionKey(id, a),
           title: a.title,
+          owner: a.owner,
+          kind: /^(나|저|본인|me)$/i.test(a.owner?.trim() ?? "")
+            ? ("task" as const)
+            : a.owner
+              ? ("waiting" as const)
+              : ("reference" as const),
         })),
       );
-      const created = results.map((r) => r.id);
-      const newCardIds = created.filter(
-        (id) => !existing.data.some((c) => c.id === id),
-      );
       return {
-        created: created.length,
-        cardIds: created,
-        newCardIds,
-        meeting: m.title,
-        duration: fmtDuration(m.duration_sec),
+        meetingId: id,
+        results,
+        created: results.filter((r) => r.createdNow).length,
+        reused: results.filter((r) => !r.createdNow).length,
       };
     },
-    undo: async (output, ctx) => {
-      const del = ctx.registry.tools()["tasks.delete"];
-      for (const id of output.newCardIds) await del?.execute({ id }, ctx);
-    },
+    undo: async (output, ctx) =>
+      undoMeetingFollowups(ctx, output.meetingId, output.results),
   }),
   delete: defineTool({
     description:

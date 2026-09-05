@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const MEETING_EVENTS = {
+  changed: "meeting.changed",
   started: "meeting.started",
   ended: "meeting.ended",
   transcribed: "meeting.transcribed",

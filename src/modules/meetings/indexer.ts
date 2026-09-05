@@ -8,13 +8,23 @@ const CHUNK_CHARS = 700; // ≈ 400~500 토큰(한국어)
 /** 회의 = 요약 청크 1개 + 전사 청크 N개(발화 경계 유지) */
 export const meetingsIndexer: Indexer = {
   sourceType: "meeting",
-  on: ["meeting.summarized", "meeting.transcribed", "meeting.deleted"],
+  on: [
+    "meeting.changed",
+    "meeting.summarized",
+    "meeting.transcribed",
+    "meeting.deleted",
+  ],
   chunks: async (id, ctx) => {
     const svc = meetingsService(ctx);
     const m = await svc.get(id);
     if (!m) return [];
     const date = fmtDateTime(m.started_at, ctx.timezone, "date");
-    const meta = { title: m.title, href: `/meetings/${id}`, date };
+    const meta = {
+      version: m.content_version,
+      title: m.title,
+      href: `/meetings/${id}`,
+      date,
+    };
     const out: IndexChunk[] = [];
     if (m.summary_md)
       out.push({
@@ -22,6 +32,14 @@ export const meetingsIndexer: Indexer = {
         content: `${m.title} (${date})\n${m.summary_md}`.slice(0, 3000),
         metadata: { ...meta, part: "summary" },
       });
+    if (m.note_text)
+      for (let offset = 0; offset < m.note_text.length; offset += CHUNK_CHARS) {
+        out.push({
+          index: out.length,
+          content: `${m.title} (${date})\n${m.note_text.slice(offset, offset + CHUNK_CHARS)}`,
+          metadata: { ...meta, part: "note", offset },
+        });
+      }
     const { segments } = await svc.transcript(id);
     const speakerMap = (m.speaker_map as Record<string, string>) ?? {};
     let buf = "";

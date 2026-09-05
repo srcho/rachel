@@ -82,6 +82,7 @@ function ReviewForm({
         chosen.map((r) => ({
           key: r.key,
           kind: r.kind,
+          owner: r.owner,
           title: r.title,
           dueAt: r.dateChanged
             ? (meetingDue(r.due, startedAt, timezone)?.dueAt ?? null)

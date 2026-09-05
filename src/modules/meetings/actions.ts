@@ -40,7 +40,7 @@ export async function bookmarkAction(id: string, atMs: number, note?: string) {
 }
 
 export async function renameMeetingAction(id: string, title: string) {
-  await (await svc()).update(id, { title: title.trim() || "회의" });
+  await (await svc()).rename(id, title);
   revalidatePath(`/meetings/${id}`);
 }
 

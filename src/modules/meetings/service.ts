@@ -1,7 +1,10 @@
+import { z } from "zod";
 import type { ServiceContext } from "@/core/contracts";
 import type { Json } from "@/core/db/types.generated";
 import type { TranscriptTurn } from "@/core/transcription";
+import { meetingChanged } from "./changed";
 import { buildKeywords } from "./hints";
+import type { MeetingUpdate } from "./repository";
 import {
   type MeetingRow,
   meetingsRepository,
@@ -12,6 +15,16 @@ import { MEETING_EVENTS, startMeetingSchema } from "./schema";
 export function meetingsService(ctx: ServiceContext) {
   const repo = meetingsRepository(ctx.db, ctx.userId);
 
+  async function update(id: string, patch: MeetingUpdate) {
+    const meeting = await repo.update(id, patch);
+    await meetingChanged(ctx, meeting, "updated");
+    return meeting;
+  }
+  async function rename(id: string, title: string) {
+    return update(id, {
+      title: z.string().trim().min(1).max(200).parse(title),
+    });
+  }
   async function start(raw: {
     title?: string;
     calendarEventId?: string;
@@ -30,13 +43,15 @@ export function meetingsService(ctx: ServiceContext) {
       audio_mime: input.audioMime ?? null,
       audio_local_key: null,
     });
-    await repo.update(meeting.id, { audio_local_key: `rec:${meeting.id}` });
+    const saved = await repo.update(meeting.id, {
+      audio_local_key: `rec:${meeting.id}`,
+    });
     await ctx.emit({
       type: MEETING_EVENTS.started,
       entity: { type: "meeting", id: meeting.id },
       payload: { title },
     });
-    return { ...meeting, audio_local_key: `rec:${meeting.id}` };
+    return saved;
   }
 
   async function titleFromEvent(id?: string): Promise<string | null> {
@@ -144,7 +159,7 @@ export function meetingsService(ctx: ServiceContext) {
       ...((m.speaker_map as Record<string, string>) ?? {}),
       [speaker]: name,
     };
-    await repo.update(meetingId, { speaker_map: map as unknown as Json });
+    await update(meetingId, { speaker_map: map as unknown as Json });
   }
 
   /** 화면·요약용 전사: final 이 있으면 final, 없으면 live(ok 만) */
@@ -177,7 +192,11 @@ export function meetingsService(ctx: ServiceContext) {
   async function remove(meetingId: string): Promise<MeetingRow> {
     const m = await repo.get(meetingId);
     if (!m) throw new Error("회의를 찾을 수 없어요");
-    await repo.delete(meetingId);
+    const approved = ctx.approvedVersions?.[`meetings:${meetingId}`];
+    await repo.delete(
+      meetingId,
+      approved === undefined ? undefined : Number(approved),
+    );
     await ctx.emit({
       type: MEETING_EVENTS.deleted,
       entity: { type: "meeting", id: meetingId },
@@ -199,7 +218,8 @@ export function meetingsService(ctx: ServiceContext) {
     list: repo.list,
     listRecent: repo.listRecent,
     maxSeq: repo.maxSeq,
-    update: repo.update,
+    update,
+    rename,
     repo,
   };
 }

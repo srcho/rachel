@@ -88,8 +88,13 @@ describe.skipIf(!available)("meeting follow-up creation", () => {
       createMeetingTasks(ctx, meetingId, choices),
       createMeetingTasks(ctx, meetingId, choices),
     ]);
-    expect(a).toEqual(b);
-    expect(await createMeetingTasks(ctx, meetingId, choices)).toEqual(a);
+    expect(a.map((r) => r.id)).toEqual(b.map((r) => r.id));
+    expect([...a, ...b].filter((r) => r.createdNow)).toHaveLength(2);
+    expect(
+      (await createMeetingTasks(ctx, meetingId, choices)).every(
+        (r) => !r.createdNow,
+      ),
+    ).toBe(true);
     const cards = await tasksService(ctx).listCards({});
     expect(cards).toHaveLength(2);
     expect(
@@ -130,7 +135,7 @@ describe.skipIf(!available)("meeting follow-up creation", () => {
     const b = await createMeetingTasks(ctx, m.data.id, [
       { key, title: "다시 시도", kind: "task" },
     ]);
-    expect(b).toEqual(a);
+    expect(b).toEqual(a.map((r) => ({ ...r, createdNow: false })));
     const cards = await user.db
       .from("cards")
       .select("id")
