@@ -1,56 +1,95 @@
 "use client";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { encodeWav } from "@/core/transcription/wav";
 
 const RATE = 16_000;
 const MAX_SEC = 60;
+type ClipSession = {
+  stream?: MediaStream;
+  ctx?: AudioContext;
+  node?: AudioWorkletNode;
+  chunks: Int16Array[];
+};
 
 /** 길게 누르는 동안 PCM 을 모아 WAV 로 만든다(워클릿 재사용). */
 export function useVoiceClip() {
   const [recording, setRecording] = useState(false);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunks = useRef<Int16Array[]>([]);
+  const sessionRef = useRef<ClipSession | null>(null);
+
+  const release = useCallback(async (session: ClipSession) => {
+    if (session.node) session.node.port.onmessage = null;
+    for (const track of session.stream?.getTracks() ?? []) track.stop();
+    await session.ctx?.close().catch(() => {});
+  }, []);
 
   const start = useCallback(async () => {
-    if (recording) return;
-    chunks.current = [];
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        channelCount: 1,
-      },
-    });
-    const ctx = new AudioContext({ sampleRate: RATE });
-    await ctx.audioWorklet.addModule("/worklets/pcm-capture.js");
-    const node = new AudioWorkletNode(ctx, "pcm-capture", {
-      processorOptions: { targetRate: RATE },
-    });
-    node.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-      if (chunks.current.reduce((n, c) => n + c.length, 0) < MAX_SEC * RATE)
-        chunks.current.push(new Int16Array(e.data));
-    };
-    ctx.createMediaStreamSource(stream).connect(node);
-    ctxRef.current = ctx;
-    streamRef.current = stream;
-    setRecording(true);
-  }, [recording]);
+    if (sessionRef.current) return;
+    const session: ClipSession = { chunks: [] };
+    sessionRef.current = session;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          channelCount: 1,
+        },
+      });
+      session.stream = stream;
+      if (sessionRef.current !== session) {
+        await release(session);
+        return;
+      }
+      const ctx = new AudioContext({ sampleRate: RATE });
+      session.ctx = ctx;
+      await ctx.audioWorklet.addModule("/worklets/pcm-capture.js");
+      if (sessionRef.current !== session) return;
+      const node = new AudioWorkletNode(ctx, "pcm-capture", {
+        processorOptions: { targetRate: RATE },
+      });
+      session.node = node;
+      node.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
+        if (
+          sessionRef.current === session &&
+          session.chunks.reduce((n, c) => n + c.length, 0) < MAX_SEC * RATE
+        )
+          session.chunks.push(new Int16Array(e.data));
+      };
+      ctx.createMediaStreamSource(stream).connect(node);
+      setRecording(true);
+    } catch (error) {
+      if (sessionRef.current !== session) return;
+      sessionRef.current = null;
+      await release(session);
+      setRecording(false);
+      throw error;
+    }
+  }, [release]);
 
   const stop = useCallback(async (): Promise<Blob | null> => {
+    const session = sessionRef.current;
+    sessionRef.current = null;
     setRecording(false);
-    for (const t of streamRef.current?.getTracks() ?? []) t.stop();
-    await ctxRef.current?.close().catch(() => {});
-    const total = chunks.current.reduce((n, c) => n + c.length, 0);
-    if (total < RATE * 0.7) return null; // 0.7초 미만은 무시
+    if (!session) return null;
+    await release(session);
+    const total = session.chunks.reduce((n, c) => n + c.length, 0);
+    if (total < RATE * 0.7) return null;
     const pcm = new Int16Array(total);
-    let o = 0;
-    for (const c of chunks.current) {
-      pcm.set(c, o);
-      o += c.length;
+    let offset = 0;
+    for (const chunk of session.chunks) {
+      pcm.set(chunk, offset);
+      offset += chunk.length;
     }
     return encodeWav(pcm, RATE);
-  }, []);
+  }, [release]);
+
+  useEffect(
+    () => () => {
+      const session = sessionRef.current;
+      sessionRef.current = null;
+      if (session) void release(session);
+    },
+    [release],
+  );
 
   return { recording, start, stop };
 }

@@ -23,10 +23,13 @@ export const captureTools: Record<string, AnyAgentTool> = {
   add: defineTool({
     description:
       "분류 없이 남기는 메모를 수집함에 넣는다. 분류는 나중에 제안한다.",
-    inputSchema: z.object({ text: z.string().min(1).max(4000) }),
+    inputSchema: z.object({
+      id: z.string().uuid().optional(),
+      text: z.string().min(1).max(4000),
+    }),
     risk: "write",
-    execute: async ({ text }, ctx) =>
-      view(await captureService(ctx).add({ text })),
+    execute: async ({ id, text }, ctx) =>
+      view(await captureService(ctx).add({ id, text })),
     undo: async (output, ctx) => {
       await captureService(ctx).dismiss(output.id);
     },

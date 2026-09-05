@@ -45,19 +45,36 @@ export function CaptureReview({
       if (type === "task")
         override.task = {
           title: title.trim(),
-          due: date ? new Date(date).toISOString() : null,
-          dueHasTime: !!date,
+          due: date
+            ? date === local(original?.task?.due)
+              ? original?.task?.due
+              : new Date(date).toISOString()
+            : null,
+          dueHasTime:
+            !!date &&
+            (date === local(original?.task?.due)
+              ? (original?.task?.dueHasTime ??
+                Boolean(
+                  original?.task?.due && !original.task.due.includes("T23:59"),
+                ))
+              : true),
           priority: original?.task?.priority ?? 2,
         };
       if (type === "event") {
-        const startAt = new Date(date).toISOString();
+        const startAt =
+          date === local(original?.event?.startAt) && original?.event?.startAt
+            ? original.event.startAt
+            : new Date(date).toISOString();
         override.event = {
           title: title.trim(),
           startAt,
           endAt: end
-            ? new Date(end).toISOString()
+            ? end === local(original?.event?.endAt)
+              ? (original?.event?.endAt ?? new Date(end).toISOString())
+              : new Date(end).toISOString()
             : new Date(Date.parse(startAt) + 3600000).toISOString(),
-          allDay: false,
+          allDay: original?.event?.allDay ?? false,
+          location: original?.event?.location,
         };
       }
       if (type === "memory")

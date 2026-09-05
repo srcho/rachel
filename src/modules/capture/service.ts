@@ -19,15 +19,37 @@ export function captureService(ctx: ServiceContext) {
     q.eq("user_id", ctx.userId);
 
   async function add(input: {
+    id?: string;
     text: string;
     origin?: "text" | "voice" | "share";
     url?: string | null;
   }): Promise<CaptureRow> {
     const text = input.text.trim();
     if (!text) throw new Error("내용이 비어 있어요");
+    const reuse = async (existing: CaptureRow) => {
+      if (
+        existing.raw_text !== text.slice(0, 4000) ||
+        existing.origin !== (input.origin ?? "text") ||
+        existing.url !== (input.url ?? null)
+      )
+        throw new Error("같은 요청 ID의 메모 내용이 달라요");
+      if (existing.status === "inbox")
+        await ctx.enqueue({
+          type: "capture.triage",
+          payload: { captureId: existing.id },
+          dedupeKey: `capture.triage:${existing.id}`,
+        });
+      return existing;
+    };
+    if (input.id) {
+      z.string().uuid().parse(input.id);
+      const existing = await get(input.id);
+      if (existing) return reuse(existing);
+    }
     const { data, error } = await ctx.db
       .from("captures")
       .insert({
+        ...(input.id ? { id: input.id } : {}),
         user_id: ctx.userId,
         raw_text: text.slice(0, 4000),
         origin: input.origin ?? "text",
@@ -35,7 +57,13 @@ export function captureService(ctx: ServiceContext) {
       })
       .select("*")
       .single();
-    if (error) throw error;
+    if (error) {
+      if (input.id && error.code === "23505") {
+        const existing = await get(input.id);
+        if (existing) return reuse(existing);
+      }
+      throw error;
+    }
     await ctx.emit({
       type: CAPTURE_EVENTS.added,
       entity: { type: "capture", id: data.id },
@@ -170,6 +198,16 @@ export function captureService(ctx: ServiceContext) {
     return { tool, input: tool.inputSchema.parse(input), type };
   }
 
+  function validateMemoryEvidence(c: CaptureRow, t: Triage) {
+    if (
+      t.type === "memory" &&
+      t.memory &&
+      ctx.actor !== "user" &&
+      !c.raw_text.includes(t.memory.content.trim())
+    )
+      throw new Error("원문에 없는 기억 해석은 직접 확인 후 확정해 주세요");
+  }
+
   // Earlier versions froze malformed ISO dates before validation. Such a plan
   // cannot execute; release it only after verifying no destination was created.
   async function recoverInvalid(c: CaptureRow): Promise<CaptureRow> {
@@ -241,6 +279,7 @@ export function captureService(ctx: ServiceContext) {
         ...(merged.type === "event" ? { event: merged.event } : {}),
         ...(merged.type === "memory" ? { memory: merged.memory } : {}),
       });
+      validateMemoryEvidence(c, proposed);
       command(id, proposed);
       const { data, error } = await ctx.db
         .from("captures")
@@ -259,6 +298,7 @@ export function captureService(ctx: ServiceContext) {
         throw new Error("메모 상태가 바뀌었어요. 다시 확인해 주세요");
     }
     const t = triageSchema.parse(c.triage);
+    validateMemoryEvidence(c, t);
     const prepared = command(id, t);
     // Once execution starts, errors may mean the destination exists. Keep the
     // frozen command and creation key so retries reconcile rather than recreate.
@@ -272,7 +312,10 @@ export function captureService(ctx: ServiceContext) {
               source: {
                 type: "capture",
                 id,
-                excerpt: c.raw_text.slice(0, 300),
+                excerpt:
+                  ctx.actor === "user"
+                    ? c.raw_text.slice(0, 300)
+                    : t.memory.content,
                 evidence: "explicit_user",
               },
             })

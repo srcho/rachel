@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ServiceContext } from "@/core/contracts";
+import type { Json } from "@/core/db/types.generated";
 import { createRegistry } from "@/core/registry/registry";
+import { memoryModule } from "@/modules/memory/module";
 import { tasksModule } from "@/modules/tasks/module";
 import { tasksService } from "@/modules/tasks/service";
 import { localSupabaseAvailable, testUser } from "@/test/supabase";
@@ -321,5 +323,104 @@ describe.skipIf(!available)("captureService", () => {
     expect(
       await tasksService(ctx).listCards({ q: "삭제 후에도 남는 작업" }),
     ).toHaveLength(1);
+  });
+  it("reuses an uncertain add by stable ID and rejects changed content", async () => {
+    const id = crypto.randomUUID();
+    const interrupted = captureService({
+      ...ctx,
+      emit: async (e) => {
+        if (e.type === "capture.added") throw new Error("lost add response");
+      },
+    });
+    await expect(
+      interrupted.add({ id, text: "재시도할 메모" }),
+    ).rejects.toThrow("lost add response");
+    const [a, b] = await Promise.all([
+      captureService(ctx).add({ id, text: "재시도할 메모" }),
+      captureService(ctx).add({ id, text: "재시도할 메모" }),
+    ]);
+    expect(a.id).toBe(id);
+    expect(b.id).toBe(id);
+    await expect(
+      captureService(ctx).add({ id, text: "다른 내용" }),
+    ).rejects.toThrow("내용이 달라요");
+    expect(
+      (await captureService(ctx).listPage({ q: "재시도할 메모" })).total,
+    ).toBe(1);
+  });
+  it("rejects delayed index writes after source edits and deletion", async () => {
+    const svc = captureService(ctx);
+    const c = await svc.add({ text: "검색 원본" });
+    const chunk = (await captureIndexer.chunks(c.id, ctx))[0];
+    if (!chunk) throw new Error("missing chunk");
+    const stale = {
+      user_id: user.id,
+      source_type: "capture",
+      source_id: c.id,
+      chunk_index: 0,
+      content: chunk.content,
+      metadata: chunk.metadata as Json,
+    };
+    expect(
+      (await user.db.from("search_chunks").insert(stale)).error,
+    ).toBeNull();
+    await svc.edit(c.id, "검색 수정본", c.updated_at);
+    expect(
+      (await user.db.from("search_chunks").select("id").eq("source_id", c.id))
+        .data,
+    ).toEqual([]);
+    expect(
+      (await user.db.from("search_chunks").insert(stale)).error?.message,
+    ).toContain("source version conflict");
+    const fresh = (await captureIndexer.chunks(c.id, ctx))[0];
+    if (!fresh) throw new Error("missing updated chunk");
+    const current = {
+      ...stale,
+      content: fresh.content,
+      metadata: fresh.metadata as Json,
+    };
+    expect(
+      (await user.db.from("search_chunks").insert(current)).error,
+    ).toBeNull();
+    const row = await svc.get(c.id);
+    await svc.remove(c.id, row?.updated_at ?? "");
+    expect(
+      (await user.db.from("search_chunks").select("id").eq("source_id", c.id))
+        .data,
+    ).toEqual([]);
+    expect(
+      (await user.db.from("search_chunks").insert(current)).error?.message,
+    ).toContain("source version conflict");
+  });
+  it("requires user review before confirming an agent interpretation as explicit memory", async () => {
+    const registry = createRegistry(() => [tasksModule, memoryModule]);
+    const agent = captureService({ ...ctx, registry, actor: "agent" });
+    const c = await agent.add({ text: "회의에서 오전 집중시간 얘기함" });
+    await expect(
+      agent.resolve(c.id, {
+        type: "memory",
+        memory: { kind: "preference", content: "오전 회의를 피한다" },
+      }),
+    ).rejects.toThrow("직접 확인");
+    expect((await agent.get(c.id))?.status).toBe("inbox");
+    expect(
+      (
+        await user.db
+          .from("memories")
+          .select("id")
+          .eq("creation_key", `capture:${c.id}`)
+      ).data,
+    ).toEqual([]);
+    const explicit = await agent.add({ text: "오전 회의를 피한다" });
+    const accepted = await agent.resolve(explicit.id, {
+      type: "memory",
+      memory: { kind: "preference", content: "오전 회의를 피한다" },
+    });
+    expect(accepted.status).toBe("resolved");
+    const reviewed = await captureService({ ...ctx, registry }).resolve(c.id, {
+      type: "memory",
+      memory: { kind: "preference", content: "오전 회의를 피한다" },
+    });
+    expect(reviewed.status).toBe("resolved");
   });
 });
