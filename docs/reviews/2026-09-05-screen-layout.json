@@ -1,0 +1,602 @@
+[
+  {
+    "route": "/today",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/tasks",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=month",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=week",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=agenda",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/memory",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/insights",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/settings",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 499,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/more",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/1824a1e5-1ba7-4403-be91-6e65d20e2e47",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture/98eb8a6f-f32c-4c7b-a0dd-989110bd52cd",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/live/c04136e3-ee62-4ca2-8f06-8002ca86aae4",
+    "width": 1440,
+    "height": 900,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/today",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 126,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/tasks",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=month",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=week",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [
+      {
+        "tag": "DIV",
+        "h": 500,
+        "sh": 726,
+        "cl": "min-h-0 flex-1 overflow-auto px-3 pb-3"
+      }
+    ],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=agenda",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [
+      {
+        "tag": "DIV",
+        "h": 500,
+        "sh": 952,
+        "cl": "px-4 pb-6 md:min-h-0 md:flex-1 md:overflow-y-auto"
+      }
+    ],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/memory",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/insights",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 527,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/settings",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 779,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/more",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/1824a1e5-1ba7-4403-be91-6e65d20e2e47",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture/98eb8a6f-f32c-4c7b-a0dd-989110bd52cd",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/live/c04136e3-ee62-4ca2-8f06-8002ca86aae4",
+    "width": 820,
+    "height": 620,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/today",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 75,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/tasks",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=month",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=week",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [
+      {
+        "tag": "DIV",
+        "h": 635,
+        "sh": 726,
+        "cl": "min-h-0 flex-1 overflow-auto px-3 pb-3"
+      }
+    ],
+    "horizontal": [
+      {
+        "tag": "DIV",
+        "w": 390,
+        "sw": 637
+      }
+    ]
+  },
+  {
+    "route": "/calendar?view=agenda",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 318,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/memory",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/insights",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 402,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/settings",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 805,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/more",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/1824a1e5-1ba7-4403-be91-6e65d20e2e47",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture/98eb8a6f-f32c-4c7b-a0dd-989110bd52cd",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/live/c04136e3-ee62-4ca2-8f06-8002ca86aae4",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/today",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 351,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/tasks",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=month",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 106,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/calendar?view=week",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [
+      {
+        "tag": "DIV",
+        "h": 359,
+        "sh": 726,
+        "cl": "min-h-0 flex-1 overflow-auto px-3 pb-3"
+      }
+    ],
+    "horizontal": [
+      {
+        "tag": "DIV",
+        "w": 320,
+        "sw": 637
+      }
+    ]
+  },
+  {
+    "route": "/calendar?view=agenda",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 594,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/memory",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 32,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/insights",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 631,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/settings",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 1158,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/more",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/1824a1e5-1ba7-4403-be91-6e65d20e2e47",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/capture/98eb8a6f-f32c-4c7b-a0dd-989110bd52cd",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  },
+  {
+    "route": "/meetings/live/c04136e3-ee62-4ca2-8f06-8002ca86aae4",
+    "width": 320,
+    "height": 568,
+    "status": 200,
+    "x": 0,
+    "y": 0,
+    "inner": [],
+    "horizontal": []
+  }
+]
