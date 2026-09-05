@@ -27,6 +27,7 @@ playwright-report/
 test-results/
 
 # misc
+.omx/
 .DS_Store
 *.pem
 *.log
