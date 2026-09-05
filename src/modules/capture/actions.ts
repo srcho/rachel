@@ -15,7 +15,7 @@ export async function captureAction(
   url?: string,
 ) {
   const c = await (await svc()).add({ text, origin, url });
-  revalidatePath("/capture");
+  revalidatePath("/capture", "layout");
   revalidatePath("/today");
   return { id: c.id };
 }
@@ -24,16 +24,17 @@ export async function resolveCaptureAction(
   override?: Partial<Triage>,
 ) {
   const r = await (await svc()).resolve(id, override);
-  revalidatePath("/capture");
+  revalidatePath("/capture", "layout");
   return r;
 }
 export async function dismissCaptureAction(id: string) {
-  await (await svc()).dismiss(id);
-  revalidatePath("/capture");
+  const result = await (await svc()).dismiss(id);
+  revalidatePath("/capture", "layout");
+  return result;
 }
 export async function retriageAction(id: string) {
   await (await svc()).triage(id);
-  revalidatePath("/capture");
+  revalidatePath("/capture", "layout");
 }
 
 export async function quickTaskAction(text: string, creationKey: string) {
@@ -51,5 +52,25 @@ export async function quickTaskAction(text: string, creationKey: string) {
     ctx,
   );
   revalidatePath("/today");
+  return result;
+}
+
+export async function editCaptureAction(
+  id: string,
+  text: string,
+  expectedVersion: string,
+) {
+  const result = await (await svc()).edit(id, text, expectedVersion);
+  revalidatePath("/capture", "layout");
+  return result;
+}
+export async function restoreCaptureAction(id: string) {
+  const result = await (await svc()).restore(id);
+  revalidatePath("/capture", "layout");
+  return result;
+}
+export async function deleteCaptureAction(id: string, expectedVersion: string) {
+  const result = await (await svc()).remove(id, expectedVersion);
+  revalidatePath("/capture", "layout");
   return result;
 }

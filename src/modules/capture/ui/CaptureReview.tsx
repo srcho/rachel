@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormDialog } from "@/core/ui/FormDialog";
 import { resolveCaptureAction } from "../actions";
-import type { Triage } from "../schema";
+import { type Triage, triageSchema } from "../schema";
 import type { CaptureRow } from "../service";
 
 const field = "min-h-10 w-full rounded-md border bg-background px-2 text-sm";
@@ -79,8 +79,23 @@ export function CaptureReview({
       <Button
         size="sm"
         variant="ghost"
-        disabled={capture.status === "resolving"}
-        onClick={() => setOpen(true)}
+        disabled={
+          capture.status === "resolving" &&
+          triageSchema.safeParse(capture.triage).success
+        }
+        onClick={() => {
+          setType(original?.type ?? "task");
+          setTitle(
+            original?.task?.title ??
+              original?.event?.title ??
+              original?.memory?.content ??
+              capture.raw_text,
+          );
+          setDate(local(original?.event?.startAt ?? original?.task?.due));
+          setEnd(local(original?.event?.endAt));
+          setError("");
+          setOpen(true);
+        }}
       >
         수정 후 확정
       </Button>
