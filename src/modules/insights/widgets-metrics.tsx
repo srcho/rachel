@@ -72,6 +72,7 @@ export const throughputWidget: DashboardWidget<{
         title={title}
         sub={sub}
         source="one rung = one card · faint = created · ink = completed"
+        empty={created === 0 && completed === 0}
       >
         <PairedRungs
           label="주별 생성·완료 카드"
@@ -126,6 +127,7 @@ export const cycleWidget: DashboardWidget<
         title={title}
         sub={`${rangeLabel(data.length)} · 만든 뒤 완료까지 걸린 시간의 주별 중앙값 · 큰 점 = 가장 오래 걸린 두 주`}
         source="one dot = one week · hollow = no completions that week"
+        empty={withData.length === 0}
       >
         <HairlineLine
           label="주별 완료 소요 시간 중앙값"
@@ -189,6 +191,7 @@ export const slotWidget: DashboardWidget<{ grid: number[][]; weeks: number }> =
           title={title}
           sub={sub}
           source="dot area = hours · dashed ring = the peak"
+          empty={total === 0}
         >
           <DotHeat
             grid={data.grid}
@@ -241,6 +244,7 @@ export const meetingShareWidget: DashboardWidget<
         title={title}
         sub={`${rangeLabel(data.length)} · 회의 ${Math.round(meet)}시간 · 주당 평균 ${perWeek.toFixed(1)}시간 · 진함 = 회의(녹음), 옅음 = 그 외 일정`}
         source="one rung = one hour · ink = recorded meetings"
+        empty={all === 0}
       >
         <StackedRungs
           label="주별 회의·기타 일정 시간"
@@ -296,6 +300,7 @@ export const captureConversionWidget: DashboardWidget<{
         title={title}
         sub={`${rangeLabel(data.weeks)} · 캡처 ${data.captured} · 정리 ${data.resolved} · 버림 ${data.dismissed}`}
         source="one tick = 1% · inked = resolved"
+        empty={data.captured === 0}
       >
         <TickGauge
           percent={pct}
@@ -346,6 +351,7 @@ export const overdueWidget: DashboardWidget<{
         title={title}
         sub={`지금 기준 · 마감이 지났는데 안 끝난 카드${urgent ? ` · 그중 P0·P1 ${urgent}장` : ""}`}
         source="one tick = one overdue card · rows = labels"
+        empty={data.total === 0}
       >
         {rows.length === 0 ? (
           <p className="flex h-full min-h-24 items-center text-sm text-muted-foreground">

@@ -8,11 +8,13 @@ export function ChartCard({
   title,
   sub,
   source,
+  empty = false,
   children,
 }: {
   title: ReactNode;
   sub?: ReactNode;
   source?: ReactNode;
+  empty?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -23,8 +25,8 @@ export function ChartCard({
       {sub && (
         <p className="mt-0.5 text-[11.5px] text-muted-foreground">{sub}</p>
       )}
-      <div className="mt-2 min-h-0 flex-1">{children}</div>
-      {source && (
+      {!empty && <div className="mt-2 min-h-0 flex-1">{children}</div>}
+      {!empty && source && (
         <p className="mt-2 text-[9.5px] font-medium tracking-[.08em] text-muted-foreground/70 uppercase">
           {source}
         </p>

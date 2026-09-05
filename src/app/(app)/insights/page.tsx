@@ -80,7 +80,7 @@ export default async function InsightsPage({
         }
       />
       <Page width="content" className="space-y-4">
-        <WidgetGrid items={loaded} range={range} />
+        <WidgetGrid items={loaded} range={range} rowsMode="auto" />
         <ReviewList
           reviews={reviews.map((r) => ({
             id: r.id,
