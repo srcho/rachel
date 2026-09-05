@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { safeLocalRedirect } from "@/core/auth/policy";
 import { requireUser } from "@/core/auth/session";
 import { buildAuthUrl } from "@/modules/calendar/google";
 
@@ -12,10 +13,9 @@ export async function GET(req: Request) {
   const state = randomBytes(16).toString("hex");
   const raw = new URL(req.url).searchParams.get("next");
   // 열린 리다이렉트 방지: 같은 사이트의 경로만
-  const next =
-    raw?.startsWith("/") && !raw.startsWith("//") ? raw : "/settings";
+  const next = safeLocalRedirect(raw, new URL(req.url).origin, "/settings");
   const store = await cookies();
-  store.set(STATE_COOKIE, `${state}:${next}`, {
+  store.set(STATE_COOKIE, JSON.stringify({ state, next }), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

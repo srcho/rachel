@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeLocalRedirect } from "@/core/auth/policy";
 import { isAllowedEmail } from "@/core/auth/session";
 import { createServerSupabase } from "@/core/db/server";
 
@@ -20,7 +21,6 @@ export async function GET(request: Request) {
     await supabase.auth.signOut();
     return NextResponse.redirect(`${origin}/login?error=not-allowed`);
   }
-  const safeNext =
-    next.startsWith("/") && !next.startsWith("//") ? next : "/today";
+  const safeNext = safeLocalRedirect(next, origin);
   return NextResponse.redirect(`${origin}${safeNext}`);
 }

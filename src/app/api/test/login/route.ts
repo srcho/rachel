@@ -6,7 +6,15 @@ import { createServerSupabase } from "@/core/db/server";
  */
 export async function POST(req: Request) {
   const secret = process.env.E2E_TEST_SECRET;
-  if (!secret || req.headers.get("x-e2e-secret") !== secret)
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(
+    new URL(req.url).hostname,
+  );
+  if (
+    process.env.NODE_ENV === "production" ||
+    !local ||
+    !secret ||
+    req.headers.get("x-e2e-secret") !== secret
+  )
     return NextResponse.json({ error: "not found" }, { status: 404 });
   const { email, password } = (await req.json()) as {
     email: string;

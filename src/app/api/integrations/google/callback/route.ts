@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { safeLocalRedirect } from "@/core/auth/policy";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
@@ -15,9 +16,22 @@ export async function GET(req: Request) {
   const store = await cookies();
   const saved = store.get(STATE_COOKIE)?.value ?? "";
   store.delete(STATE_COOKIE);
-  const [state, next = "/settings"] = saved.split(":");
-  const back = (q: string) =>
-    NextResponse.redirect(new URL(`${next}?${q}`, url.origin));
+  let state: string | undefined;
+  let next = "/settings";
+  try {
+    const value = JSON.parse(saved) as { state?: unknown; next?: unknown };
+    if (typeof value.state === "string") state = value.state;
+    if (typeof value.next === "string")
+      next = safeLocalRedirect(value.next, url.origin, "/settings");
+  } catch {
+    // An expired or pre-upgrade cookie requires a new connection request.
+  }
+  const back = (query: string) => {
+    const target = new URL(next, url.origin);
+    for (const [key, value] of new URLSearchParams(query))
+      target.searchParams.set(key, value);
+    return NextResponse.redirect(target);
+  };
 
   if (url.searchParams.get("error")) return back(`google=denied`);
   const code = url.searchParams.get("code");

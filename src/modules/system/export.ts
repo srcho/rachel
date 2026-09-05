@@ -12,6 +12,7 @@ const TABLES = [
   "calendar_events",
   "meetings",
   "transcript_segments",
+  "meeting_followups",
   "chat_threads",
   "chat_messages",
   "memories",

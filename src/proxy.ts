@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { isAllowedEmail } from "@/core/auth/policy";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -41,7 +42,9 @@ export async function proxy(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getClaims();
-  const signedIn = Boolean(data?.claims?.sub);
+  const signedIn =
+    Boolean(data?.claims?.sub) &&
+    isAllowedEmail(data?.claims?.email as string | undefined);
 
   if (!signedIn && !isPublic) {
     const login = request.nextUrl.clone();

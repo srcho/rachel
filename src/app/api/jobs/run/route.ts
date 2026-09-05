@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { isAllowedEmail } from "@/core/auth/policy";
 import { createContext } from "@/core/context";
 import { createAdminSupabase } from "@/core/db/admin";
 import { env } from "@/core/env";
@@ -25,8 +26,13 @@ export async function POST(req: Request) {
   const stats = await runJobs({
     store: createSupabaseJobStore(admin),
     registry,
-    contextFor: async (job) =>
-      createContext({
+    contextFor: async (job) => {
+      if (!job.user_id) throw new Error("잡의 사용자가 없어요");
+      const account = await admin.auth.admin.getUserById(job.user_id);
+      if (account.error) throw account.error;
+      if (!account.data.user || !isAllowedEmail(account.data.user.email))
+        throw new Error("허용되지 않은 계정의 작업이에요");
+      return createContext({
         db: admin,
         userId: job.user_id ?? "",
         timezone: job.user_id
@@ -34,7 +40,8 @@ export async function POST(req: Request) {
           : "Asia/Seoul",
         actor: "system",
         registry,
-      }),
+      });
+    },
   });
   return NextResponse.json(stats);
 }
