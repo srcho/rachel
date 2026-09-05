@@ -139,6 +139,24 @@ export function meetingsRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
+    async replaceFinalChunk(
+      meetingId: string,
+      chunkIndex: number,
+      turns: Array<
+        Pick<
+          SegmentInsert,
+          "turn_id" | "start_ms" | "end_ms" | "raw_speaker" | "text"
+        >
+      >,
+    ): Promise<SegmentRow[]> {
+      const { data, error } = await db.rpc("replace_final_transcript_chunk", {
+        p_meeting_id: meetingId,
+        p_chunk_index: chunkIndex,
+        p_turns: turns as Json,
+      });
+      if (error) throw error;
+      return data;
+    },
     async deleteSegments(
       meetingId: string,
       pass: "live" | "final",

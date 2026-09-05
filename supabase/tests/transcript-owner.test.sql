@@ -1,0 +1,18 @@
+begin;
+select plan(5);
+insert into auth.users (id,email) values ('11111111-1111-1111-1111-111111111191','transcript-a@test.local'),('22222222-2222-2222-2222-222222222292','transcript-b@test.local');
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"11111111-1111-1111-1111-111111111191","role":"authenticated"}';
+insert into public.meetings(id,user_id) values ('aaaaaaaa-0000-0000-0000-000000000091','11111111-1111-1111-1111-111111111191');
+insert into public.transcript_segments(id,meeting_id,user_id,pass,seq,turn_id,start_ms,end_ms,text) values ('cccccccc-0000-0000-0000-000000000091','aaaaaaaa-0000-0000-0000-000000000091','11111111-1111-1111-1111-111111111191','final',0,0,0,100,'A');
+set local request.jwt.claims to '{"sub":"22222222-2222-2222-2222-222222222292","role":"authenticated"}';
+insert into public.meetings(id,user_id) values ('bbbbbbbb-0000-0000-0000-000000000092','22222222-2222-2222-2222-222222222292');
+select throws_ok($$ insert into public.transcript_segments(meeting_id,user_id,pass,seq,turn_id,start_ms,end_ms,text) values ('aaaaaaaa-0000-0000-0000-000000000091','22222222-2222-2222-2222-222222222292','final',1,0,0,100,'poison') $$,'P0001','meeting not found','Own child cannot reference another user meeting');
+insert into public.transcript_segments(id,meeting_id,user_id,pass,seq,turn_id,start_ms,end_ms,text) values ('dddddddd-0000-0000-0000-000000000092','bbbbbbbb-0000-0000-0000-000000000092','22222222-2222-2222-2222-222222222292','final',0,0,0,100,'B');
+select throws_ok($$ update public.transcript_segments set meeting_id='aaaaaaaa-0000-0000-0000-000000000091' where id='dddddddd-0000-0000-0000-000000000092' $$,'P0001','meeting not found','Cannot move owned child into foreign meeting');
+select is((select count(*) from public.transcript_segments),1::bigint,'Foreign transcript remains invisible');
+set local request.jwt.claims to '{"sub":"11111111-1111-1111-1111-111111111191","role":"authenticated"}';
+select lives_ok($$ insert into public.transcript_segments(meeting_id,user_id,pass,seq,turn_id,start_ms,end_ms,text) values ('aaaaaaaa-0000-0000-0000-000000000091','11111111-1111-1111-1111-111111111191','final',1,0,0,100,'A second') $$,'Rejected foreign insert cannot reserve owner unique tuple');
+select is((select count(*) from public.transcript_segments),2::bigint,'Owner retains their transcript rows');
+select * from finish();
+rollback;

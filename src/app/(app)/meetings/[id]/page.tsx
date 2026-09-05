@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { registry } from "@/modules";
 import { meetingsService } from "@/modules/meetings/service";
 import { MeetingDetail } from "@/modules/meetings/ui/MeetingDetail";
@@ -16,7 +17,13 @@ export default async function MeetingPage({
   const { id } = await params;
   const user = await requireUser();
   const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    actor: "user",
+    registry,
+    timezone: await getUserTimezone(db, user.id),
+  });
   const svc = meetingsService(ctx);
   const meeting = await svc.get(id);
   if (!meeting) notFound();
@@ -65,6 +72,7 @@ export default async function MeetingPage({
       linkedCards={cards ?? []}
       reviewedFollowups={followups.data ?? []}
       userId={user.id}
+      timezone={ctx.timezone}
     />
   );
 }

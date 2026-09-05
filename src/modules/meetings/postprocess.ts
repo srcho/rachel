@@ -3,6 +3,7 @@ import type { Json } from "@/core/db/types.generated";
 import { llmGenerate } from "@/core/llm/client";
 import { MODEL_IDS } from "@/core/llm/models";
 import { meetingSummaryPrompt } from "@/core/llm/prompts/meeting-summary";
+import { meetingChanged } from "./changed";
 import { summaryToMarkdown } from "./content";
 
 export { summaryToMarkdown } from "./content";
@@ -105,9 +106,8 @@ export async function postprocessMeeting(
       output: meetingSummarySchema,
       maxOutputTokens: 2000,
     });
-    // Apply explicit edits after generation, including edits saved while the model ran.
-    const latest = await svc.get(meetingId);
-    const edits = (latest?.summary_edits ?? {}) as Partial<
+    // Generated content may only commit against the source snapshot it read.
+    const edits = (meeting.summary_edits ?? {}) as Partial<
       Pick<MeetingSummary, "tldr" | "decisions">
     >;
     const output = attachSummarySources(
@@ -118,13 +118,23 @@ export async function postprocessMeeting(
       },
       segments,
     );
-    const updated = await svc.update(meetingId, {
-      status: "ready",
-      summary: output as unknown as Json,
-      summary_md: summaryToMarkdown(output),
-      summary_version: meeting.summary_version + 1,
-      summary_model: MODEL_IDS.summarize,
-    });
+    const { data: updated, error } = await ctx.db
+      .from("meetings")
+      .update({
+        status: "ready",
+        summary: output as unknown as Json,
+        summary_md: summaryToMarkdown(output),
+        summary_version: meeting.summary_version + 1,
+        summary_model: MODEL_IDS.summarize,
+      })
+      .eq("id", meetingId)
+      .eq("user_id", ctx.userId)
+      .eq("content_version", meeting.content_version)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    if (!updated) return { status: "source_changed" as const, preserved: true };
+    await meetingChanged(ctx, updated, "updated");
     await ctx.emit({
       type: MEETING_EVENTS.summarized,
       entity: { type: "meeting", id: meetingId },
@@ -137,7 +147,12 @@ export async function postprocessMeeting(
     });
     return { status: "summarized" as const, version: updated.content_version };
   } catch (e) {
-    await svc.update(meetingId, { status: "failed" });
+    await ctx.db
+      .from("meetings")
+      .update({ status: "failed" })
+      .eq("id", meetingId)
+      .eq("user_id", ctx.userId)
+      .eq("content_version", meeting.content_version);
     throw e;
   }
 }

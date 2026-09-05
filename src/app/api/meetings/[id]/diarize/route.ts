@@ -4,6 +4,7 @@ import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import type { Json } from "@/core/db/types.generated";
 import { TRANSCRIPTION } from "@/core/llm/models";
+import { getUserTimezone } from "@/core/settings/assistant";
 import {
   assertMuseWav,
   parseWavHeader,
@@ -28,14 +29,28 @@ export async function POST(
   const form = await req.formData();
   const metaRaw = form.get("meta");
   const audio = form.get("audio");
-  const meta = chunkMetaSchema.safeParse(
-    typeof metaRaw === "string" ? JSON.parse(metaRaw) : null,
-  );
-  if (!meta.success || !(audio instanceof Blob))
+  let parsedMeta: unknown;
+  try {
+    parsedMeta = typeof metaRaw === "string" ? JSON.parse(metaRaw) : null;
+  } catch {
+    return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
+  }
+  const meta = chunkMetaSchema.safeParse(parsedMeta);
+  if (
+    !meta.success ||
+    !(audio instanceof Blob) ||
+    meta.data.chunkIndex >= meta.data.chunkCount
+  )
     return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
 
   const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    timezone: await getUserTimezone(db, user.id),
+    actor: "user",
+    registry,
+  });
   const svc = meetingsService(ctx);
   const meeting = await svc.get(id);
   if (!meeting)
@@ -43,18 +58,17 @@ export async function POST(
   const { chunkIndex, chunkCount, offsetTable } = meta.data;
 
   try {
-    if (chunkIndex === 0) await svc.repo.deleteSegments(id, "final");
+    const buf = await audio.arrayBuffer();
+    assertMuseWav(parseWavHeader(buf), buf.byteLength, {
+      maxSeconds: TRANSCRIPTION.maxSeconds,
+      maxBytes: TRANSCRIPTION.maxBytes,
+    });
     await svc.update(id, {
       final_pass_status: "running",
       final_pass_progress: {
         done: chunkIndex,
         total: chunkCount,
       } as unknown as Json,
-    });
-    const buf = await audio.arrayBuffer();
-    assertMuseWav(parseWavHeader(buf), buf.byteLength, {
-      maxSeconds: TRANSCRIPTION.maxSeconds,
-      maxBytes: TRANSCRIPTION.maxBytes,
     });
     const r = await transcription().transcribeFile(
       {
@@ -68,25 +82,24 @@ export async function POST(
       },
       new Blob([buf], { type: "audio/wav" }),
     );
-    await svc.repo.deleteSegments(id, "final", chunkIndex);
-    await svc.repo.insertSegments(
+    if (!r.turns.length)
+      throw new Error("전사 결과가 비어 있어 기존 기록을 유지했어요");
+    await svc.repo.replaceFinalChunk(
+      id,
+      chunkIndex,
       r.turns.map((t) => ({
-        meeting_id: id,
-        pass: "final" as const,
-        seq: chunkIndex,
-        chunk_index: chunkIndex,
         turn_id: t.turnId,
         start_ms: chunkToMeetingMs(offsetTable, t.startMs),
         end_ms: chunkToMeetingMs(offsetTable, t.endMs),
         raw_speaker: t.speaker ?? "A",
-        speaker: null,
         text: t.text,
-        status: "ok" as const,
       })),
     );
     const isLast = chunkIndex === chunkCount - 1;
     if (isLast) {
-      const rows = await svc.repo.listSegments(id, "final");
+      const rows = (await svc.repo.listSegments(id, "final")).filter(
+        (row) => (row.chunk_index ?? 0) < chunkCount,
+      );
       const turns: FinalTurn[] = rows.map((s) => ({
         chunkIndex: s.chunk_index ?? 0,
         rawSpeaker: s.raw_speaker ?? "A",
@@ -101,8 +114,14 @@ export async function POST(
       const drop = rows
         .filter((s) => !keep.has(`${s.chunk_index ?? 0}:${s.turn_id ?? 0}`))
         .map((s) => s.id);
-      if (drop.length)
-        await db.from("transcript_segments").delete().in("id", drop);
+      if (drop.length) {
+        const { error } = await db
+          .from("transcript_segments")
+          .delete()
+          .eq("user_id", user.id)
+          .in("id", drop);
+        if (error) throw error;
+      }
       await svc.repo.updateSpeakers(
         id,
         Object.entries(mapping).flatMap(([ci, m]) =>
@@ -113,6 +132,14 @@ export async function POST(
           })),
         ),
       );
+      const obsolete = await db
+        .from("transcript_segments")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("meeting_id", id)
+        .eq("pass", "final")
+        .gte("chunk_index", chunkCount);
+      if (obsolete.error) throw obsolete.error;
       await svc.update(id, {
         final_pass_status: "done",
         final_pass_progress: {

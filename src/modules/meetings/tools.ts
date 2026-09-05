@@ -74,13 +74,18 @@ export const meetingsTools: Record<string, AnyAgentTool> = {
     description:
       "녹음 없는 회의 메모를 원문 전체로 보존한다. 재시도에는 같은 id를 사용한다.",
     inputSchema: z.object({
-      id: z.string().uuid(),
+      id: z.string().uuid().optional(),
       title: z.string().trim().min(1).max(200),
       text: z.string().trim().min(1).max(10000),
     }),
     risk: "write",
     execute: async (input, ctx) =>
-      summarize(await createMeetingNote(ctx, input)),
+      summarize(
+        await createMeetingNote(ctx, {
+          ...input,
+          id: input.id ?? crypto.randomUUID(),
+        }),
+      ),
   }),
   readContent: defineTool({
     description:

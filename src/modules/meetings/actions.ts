@@ -101,6 +101,7 @@ export async function createMeetingNoteAction(input: {
 export async function regenerateMeetingSummaryAction(id: string) {
   const ctx = await userContext();
   const { pass } = await meetingsService(ctx).transcript(id);
-  await postprocessMeeting(ctx, id, pass);
+  const result = await postprocessMeeting(ctx, id, pass);
   revalidatePath(`/meetings/${id}`);
+  return result;
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
 import { Panel } from "@/core/ui/Panel";
@@ -34,7 +35,13 @@ export default async function MeetingsPage({
   );
   const user = await requireUser();
   const db = await createServerSupabase();
-  const ctx = createContext({ db, userId: user.id, actor: "user", registry });
+  const ctx = createContext({
+    db,
+    userId: user.id,
+    actor: "user",
+    registry,
+    timezone: await getUserTimezone(db, user.id),
+  });
   const svc = meetingsService(ctx);
   const { meetings, total, size } = await svc.repo.listPage({
     query: sp.q?.slice(0, 200),

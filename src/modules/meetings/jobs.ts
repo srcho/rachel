@@ -13,6 +13,14 @@ export const postprocessJob: JobHandler<{
   timeoutSec: 180,
   maxAttempts: 2,
   run: async (payload, ctx) => {
-    await postprocessMeeting(ctx, payload.meetingId, payload.pass);
+    const result = await postprocessMeeting(
+      ctx,
+      payload.meetingId,
+      payload.pass,
+    );
+    if (result?.status === "source_changed")
+      throw new Error(
+        "회의 원문이 변경되어 최신 내용으로 요약을 다시 시도해요",
+      );
   },
 };

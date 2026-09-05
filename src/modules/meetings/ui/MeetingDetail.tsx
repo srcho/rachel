@@ -11,7 +11,7 @@ import { FEATURE_LABEL } from "@/core/llm/features";
 import { useTableChanges } from "@/core/realtime/useTableChanges";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
-import { DEFAULT_TZ, fmtDateTime } from "@/core/utils/date";
+import { fmtDateTime } from "@/core/utils/date";
 import { formatCost } from "@/core/utils/format";
 import { cn } from "@/lib/utils";
 import { useDock } from "@/modules/agent/dock/store";
@@ -44,6 +44,7 @@ interface Props {
   }>;
   reviewedFollowups: Database["public"]["Tables"]["meeting_followups"]["Row"][];
   userId: string;
+  timezone: string;
 }
 
 export function MeetingDetail({
@@ -54,6 +55,7 @@ export function MeetingDetail({
   linkedCards,
   reviewedFollowups,
   userId,
+  timezone,
 }: Props) {
   const router = useRouter();
   const search = useSearchParams();
@@ -203,7 +205,7 @@ export function MeetingDetail({
       />
       <Page width="narrow" className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span>{fmtDateTime(meeting.started_at, DEFAULT_TZ, "short")}</span>
+          <span>{fmtDateTime(meeting.started_at, timezone, "short")}</span>
           {meeting.duration_sec ? (
             <span>{fmtDuration(meeting.duration_sec)}</span>
           ) : null}
@@ -588,7 +590,7 @@ export function MeetingDetail({
           onClose={() => setReview(false)}
           meetingId={meeting.id}
           startedAt={meeting.started_at}
-          timezone={DEFAULT_TZ}
+          timezone={timezone}
           createdKeys={[
             ...linkedCards.flatMap((c) =>
               c.creation_key ? [c.creation_key] : [],

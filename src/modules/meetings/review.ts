@@ -164,9 +164,21 @@ export async function createMeetingTasks(
       if (!startAt) throw new Error("일정으로 추가할 날짜를 먼저 정해 주세요");
       const eventTool = ctx.registry.tools()["calendar.createEvent"];
       if (!eventTool) throw new Error("캘린더 기능을 사용할 수 없어요");
+      const prior = await ctx.db
+        .from("calendar_events")
+        .select("deleted_at")
+        .eq("user_id", ctx.userId)
+        .eq("creation_key", choice.key)
+        .maybeSingle();
+      if (prior.error) throw prior.error;
+      // A new confirmation after Undo needs a new event; retries of this
+      // confirmation keep the same persisted followup generation.
+      const creationKey = prior.data?.deleted_at
+        ? `${choice.key}:confirmation:${saved.data.id}`
+        : choice.key;
       const event = (await eventTool.execute(
         {
-          creationKey: choice.key,
+          creationKey,
           title: choice.title,
           startAt,
           allDay: !(choice.dueHasTime ?? parsed?.hasTime),

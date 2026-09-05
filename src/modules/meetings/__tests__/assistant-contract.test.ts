@@ -13,6 +13,7 @@ import {
   editTranscript,
 } from "../editing";
 import { meetingsIndexer } from "../indexer";
+import { postprocessJob } from "../jobs";
 import { postprocessMeeting } from "../postprocess";
 import { meetingPreparation } from "../preparation";
 import { createMeetingTasks, undoMeetingFollowups } from "../review";
@@ -123,6 +124,86 @@ describe.skipIf(!available)(
       expect((await meetingsService(ctx).get(failed.id))?.status).toBe(
         "failed",
       );
+    });
+
+    it("rejects generated summaries when the source changes during generation", async () => {
+      const m = await meeting();
+      const svc = meetingsService(ctx);
+      await svc.appendLiveTurns(m.id, 0, 0, [
+        {
+          turnId: 0,
+          startMs: 0,
+          endMs: 1000,
+          text: "요약 생성 전에 기록된 예산은 오백만 원입니다. 원문이 바뀌면 이 내용이 다시 저장되면 안 됩니다.",
+        },
+      ]);
+      const segment = (await svc.transcript(m.id)).segments[0];
+      if (!segment) throw new Error("missing transcript");
+      generate.mockImplementationOnce(async () => {
+        await editTranscript(
+          ctx,
+          m.id,
+          segment.id,
+          "예산은 칠백만 원으로 수정했습니다.",
+        );
+        return { output: { ...summary, tldr: "잘못된 오백만 원" } };
+      });
+      const beforeEvents = emit.mock.calls.length;
+      expect(await postprocessMeeting(ctx, m.id, "live")).toMatchObject({
+        status: "source_changed",
+        preserved: true,
+      });
+      expect((await svc.get(m.id))?.summary).toEqual(summary);
+      expect(
+        emit.mock.calls
+          .slice(beforeEvents)
+          .some(([e]) => e.type === "meeting.summarized"),
+      ).toBe(false);
+      expect((await svc.transcript(m.id)).segments[0]?.text).toBe(
+        "예산은 칠백만 원으로 수정했습니다.",
+      );
+    });
+
+    it("retries a background summary after its source changes", async () => {
+      const m = await meeting();
+      const svc = meetingsService(ctx);
+      await svc.appendLiveTurns(m.id, 0, 0, [
+        {
+          turnId: 0,
+          startMs: 0,
+          endMs: 1000,
+          text: "서버에서 요약할 회의 내용을 충분히 길게 기록합니다. 처리 중 수정되면 작업이 최신 내용을 다시 읽어야 합니다.",
+        },
+      ]);
+      generate.mockImplementationOnce(async () => {
+        await svc.rename(m.id, "처리 중 바뀐 제목");
+        return { output: summary };
+      });
+      await expect(
+        postprocessJob.run({ meetingId: m.id, pass: "live" }, ctx),
+      ).rejects.toThrow("최신 내용");
+      expect((await svc.get(m.id))?.summary).toEqual(summary);
+    });
+    it("commits a generated summary once when its source version is still current", async () => {
+      const m = await meeting();
+      const svc = meetingsService(ctx);
+      await svc.appendLiveTurns(m.id, 0, 0, [
+        {
+          turnId: 0,
+          startMs: 0,
+          endMs: 1000,
+          text: "수정되지 않은 회의 내용을 충분히 길게 기록합니다. 이 원문으로 생성한 요약은 정상적으로 저장되어야 합니다.",
+        },
+      ]);
+      generate.mockResolvedValueOnce({
+        output: { ...summary, tldr: "현재 원문의 요약" },
+      });
+      expect(await postprocessMeeting(ctx, m.id, "live")).toMatchObject({
+        status: "summarized",
+      });
+      expect((await svc.get(m.id))?.summary).toMatchObject({
+        tldr: "현재 원문의 요약",
+      });
     });
     it("A05/A19/A20 shares corrected title, decisions, speaker and transcript across tools/context/index/search", async () => {
       const m = await meeting();

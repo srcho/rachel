@@ -62,10 +62,19 @@ export function SummaryEditor({
             onClick={async () => {
               setBusy(true);
               try {
-                await regenerateMeetingSummaryAction(id);
-                toast.success(
-                  "요약했어요 · 직접 수정한 요약과 결정은 유지했어요",
-                );
+                const result = await regenerateMeetingSummaryAction(id);
+                if (result?.status === "source_changed")
+                  toast.error(
+                    "요약 중 회의 내용이 변경됐어요. 최신 내용으로 다시 요약해 주세요.",
+                  );
+                else if (result?.status === "summarized")
+                  toast.success(
+                    "요약했어요 · 직접 수정한 요약과 결정은 유지했어요",
+                  );
+                else
+                  toast.info(
+                    "요약할 전사가 충분하지 않아 기존 내용을 유지했어요.",
+                  );
               } catch {
                 toast.error("요약하지 못했어요. 기존 내용은 유지돼요.");
               } finally {
