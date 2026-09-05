@@ -22,14 +22,14 @@ export interface StripEvent {
 export function TodayStrip({ events }: { events: StripEvent[] }) {
   if (events.length === 0) return null;
   return (
-    <div className="flex shrink-0 items-center gap-2 overflow-x-auto px-3 pt-2 text-xs md:px-4 md:pt-3">
+    <div className="flex flex-wrap items-center gap-2 px-3 pt-3 text-xs md:px-5">
       <span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">
         <CalendarDays className="size-3.5" /> 오늘
       </span>
       {events.map((e) => (
         <Chip key={e.id} event={e} time={e.label} />
       ))}
-      <span className="shrink-0 text-muted-foreground/70">
+      <span className="text-muted-foreground">
         상태에 끌어다 놓으면 오늘 할 일이 돼요
       </span>
     </div>
@@ -48,7 +48,7 @@ function Chip({ event, time }: { event: StripEvent; time: string }) {
       {...attributes}
       {...listeners}
       className={cn(
-        "inline-flex h-7 shrink-0 select-none items-center gap-1.5 rounded-md border bg-card px-2 whitespace-nowrap",
+        "inline-flex min-h-7 max-w-full select-none items-center gap-1.5 rounded-md border bg-card px-2 whitespace-nowrap",
         event.linked
           ? "text-muted-foreground"
           : "cursor-grab hover:border-foreground/25 active:cursor-grabbing",
@@ -58,8 +58,10 @@ function Chip({ event, time }: { event: StripEvent; time: string }) {
         event.linked ? "이미 연결된 할 일이 있어요" : "컬럼으로 끌어다 놓기"
       }
     >
-      <span className="tabular-nums text-muted-foreground">{time}</span>
-      <span className="max-w-[14rem] truncate">{event.title}</span>
+      <span className="shrink-0 tabular-nums text-muted-foreground">
+        {time}
+      </span>
+      <span className="min-w-0 max-w-[14rem] truncate">{event.title}</span>
       {event.linked && <Check className="size-3" />}
     </span>
   );

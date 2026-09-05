@@ -15,7 +15,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -155,7 +155,7 @@ export function Board({
     }
     setOpen(card);
   }
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<boolean | string>(false);
   const [mobileView, setMobileView] = useState<"list" | "board">("list");
   const [statusColumn, setStatusColumn] = useState("");
   const [filter, setFilter] = useState("all");
@@ -434,6 +434,10 @@ export function Board({
     );
   });
   const visibleIds = new Set(visible.map((card) => card.id));
+  const listCards = visible.filter(
+    (card) => !statusColumn || card.column_id === statusColumn,
+  );
+  const activeFilters = Number(!!priorityFilter) + Number(!!labelFilter);
   const openCount = allCards.filter((c) => !c.completed_at).length;
   return (
     <>
@@ -454,31 +458,52 @@ export function Board({
           </Button>
         }
       />
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b px-3 py-1.5 md:px-4">
-        {[
-          ["all", "전체"],
-          ["today", "오늘"],
-          ["overdue", "지연"],
-        ].map(([value, label]) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={filter === value ? "secondary" : "ghost"}
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value ?? "all")}
-          >
-            {label}
-          </Button>
-        ))}
-        <input
-          aria-label="할 일 검색"
-          placeholder="할 일 검색"
-          className="h-9 min-w-24 flex-1 rounded-md border bg-background px-2 text-sm"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div className="flex flex-wrap items-center gap-2 px-3 py-3 md:px-5">
+        <div className="flex items-center rounded-lg bg-muted/50 p-1">
+          {[
+            ["all", "전체"],
+            ["today", "오늘"],
+            ["overdue", "지연"],
+          ].map(([value, label]) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={filter === value ? "secondary" : "ghost"}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value ?? "all")}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+        <div className="relative order-last w-full sm:order-none sm:w-60">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            aria-label="할 일 검색"
+            placeholder="할 일 검색"
+            className="h-10 w-full rounded-lg border bg-background pr-10 pl-9 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
+              aria-label="검색 지우기"
+              onClick={() => setQuery("")}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
         <details className="relative text-xs">
-          <summary className="cursor-pointer px-2 py-3">필터</summary>
+          <summary className="cursor-pointer rounded-md px-2 py-3 hover:bg-muted">
+            필터{activeFilters > 0 && ` ${activeFilters}`}
+          </summary>
           <div className="absolute right-0 z-20 flex w-44 flex-col gap-2 rounded-md border bg-background p-2">
             <select
               aria-label="우선순위 필터"
@@ -504,10 +529,22 @@ export function Board({
                 <option key={label}>{label}</option>
               ))}
             </select>
+            {activeFilters > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setPriorityFilter("");
+                  setLabelFilter("");
+                }}
+              >
+                필터 초기화
+              </Button>
+            )}
           </div>
         </details>
         <Link
-          className="px-2 py-3 text-xs text-muted-foreground"
+          className="ml-auto px-2 py-3 text-xs text-muted-foreground hover:text-foreground"
           href={archived ? "?" : "?archived=1"}
         >
           {archived ? "보드로" : "보관함"}
@@ -527,7 +564,8 @@ export function Board({
       </div>
       <NewCardDialog
         timezone={timezone}
-        open={adding}
+        open={Boolean(adding)}
+        defaultColumnId={typeof adding === "string" ? adding : undefined}
         columns={columns}
         onClose={() => setAdding(false)}
         onCreate={({ columnId, ...input }) => add(columnId, input)}
@@ -544,7 +582,7 @@ export function Board({
           setDragFrom(null);
         }}
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div>
           {calendarError && (
             <p role="alert" className="px-3 pt-2 text-xs">
               오늘 일정을 불러오지 못했어요.
@@ -559,10 +597,10 @@ export function Board({
           )}
           <TodayStrip events={todayEvents} />
           {mobileView === "list" && (
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 md:hidden">
+            <div className="px-3 md:hidden">
               <nav
                 aria-label="할 일 상태"
-                className="sticky top-0 z-10 flex gap-1 overflow-x-auto border-b bg-background py-1"
+                className="flex flex-wrap gap-1 border-b py-1"
               >
                 <button
                   type="button"
@@ -590,44 +628,40 @@ export function Board({
                 ))}
               </nav>
               <ul className="divide-y">
-                {visible
-                  .filter(
-                    (card) => !statusColumn || card.column_id === statusColumn,
-                  )
-                  .map((card) => (
-                    <li key={card.id} className="flex items-center gap-1 py-1">
-                      <button
-                        type="button"
-                        disabled={
-                          !!card.completed_at || card.id.startsWith("temp-")
-                        }
-                        className="min-h-11 w-11 shrink-0 text-lg disabled:text-muted-foreground"
-                        aria-label={`${card.title} 완료`}
-                        onClick={() =>
-                          void run("완료", () => completeCardAction(card.id))
-                        }
-                      >
-                        {card.completed_at ? "✓" : "□"}
-                      </button>
-                      <button
-                        type="button"
-                        className="min-w-0 flex-1 py-2 text-left"
-                        onClick={() => openCard(card)}
-                      >
-                        <span className="block truncate text-sm">
-                          {card.title}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {columns.find((c) => c.id === card.column_id)?.name}
-                          {card.due_at
-                            ? ` · ${localYmd(new Date(card.due_at), timezone)} 마감`
-                            : ""}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                {listCards.map((card) => (
+                  <li key={card.id} className="flex items-center gap-1 py-1">
+                    <button
+                      type="button"
+                      disabled={
+                        !!card.completed_at || card.id.startsWith("temp-")
+                      }
+                      className="min-h-11 w-11 shrink-0 text-lg disabled:text-muted-foreground"
+                      aria-label={`${card.title} 완료`}
+                      onClick={() =>
+                        void run("완료", () => completeCardAction(card.id))
+                      }
+                    >
+                      {card.completed_at ? "✓" : "□"}
+                    </button>
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 py-2 text-left"
+                      onClick={() => openCard(card)}
+                    >
+                      <span className="block truncate text-sm">
+                        {card.title}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {columns.find((c) => c.id === card.column_id)?.name}
+                        {card.due_at
+                          ? ` · ${localYmd(new Date(card.due_at), timezone)} 마감`
+                          : ""}
+                      </span>
+                    </button>
+                  </li>
+                ))}
               </ul>
-              {visible.length === 0 && (
+              {listCards.length === 0 && (
                 <p className="py-6 text-sm text-muted-foreground">
                   조건에 맞는 할 일이 없어요.
                 </p>
@@ -644,7 +678,7 @@ export function Board({
           )}
           <div
             className={cn(
-              "min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2 px-3 py-2 md:flex md:gap-3 md:overflow-x-auto md:overflow-y-hidden md:px-4 md:py-3",
+              "grid-cols-2 items-start gap-3 px-3 py-2 md:grid md:px-5 md:py-3 xl:grid-cols-4",
               mobileView === "board" ? "grid" : "hidden",
             )}
           >
@@ -657,6 +691,7 @@ export function Board({
                 )}
                 dragFrom={dragFrom}
                 onOpen={openCard}
+                onAdd={() => setAdding(col.id)}
                 footer={
                   col.is_done ? (
                     showAllDone ? (
