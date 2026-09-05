@@ -3,7 +3,7 @@ import { type AnyAgentTool, defineTool } from "@/core/contracts";
 import type { MemoryRow } from "./repository";
 import { MEMORY_KINDS } from "./schema";
 import { searchAllWithStatus } from "./search";
-import { memoryService } from "./service";
+import { type MemoryUndoPatch, memoryService } from "./service";
 
 export const memoryTools: Record<string, AnyAgentTool> = {
   searchAll: defineTool({
@@ -38,7 +38,7 @@ export const memoryTools: Record<string, AnyAgentTool> = {
   }),
   remember: defineTool({
     description:
-      "사용자가 '기억해'라고 하거나 앞으로 유용할 선호·사람·결정·목표를 말했을 때 저장한다. 한 문장으로.",
+      "사용자가 '기억해'라고 하거나 앞으로 유용할 선호·사람·결정·목표를 말했을 때 장기 기억으로 저장한다. 한 문장으로. 일정 추천의 오전 회의 회피·기본 길이·시간대 같은 실제 동작 설정은 바꾸지 않는다. 동작 적용 요청은 agent.updatePreferences를 사용한다.",
     inputSchema: z.object({
       creationKey: z.string().min(1).max(2000).optional(),
       content: z.string().min(1).max(300),
@@ -47,7 +47,9 @@ export const memoryTools: Record<string, AnyAgentTool> = {
         .min(1)
         .max(300)
         .optional()
-        .describe("현재 사용자 메시지에서 직접 인용한 근거. 추론이면 생략"),
+        .describe(
+          "현재 사용자 메시지에서 직접 인용한 근거. 명시적 기억은 content에도 같은 발언을 그대로 저장하고 3인칭으로 바꾸지 않는다. 추론이면 생략",
+        ),
       kind: z.enum(MEMORY_KINDS).default("fact"),
       importance: z.number().int().min(1).max(5).default(3),
     }),
@@ -57,7 +59,7 @@ export const memoryTools: Record<string, AnyAgentTool> = {
       const evidence = ctx.latestUserMessage;
       if (userQuote && (!evidence || !evidence.text.includes(userQuote)))
         throw new Error("현재 사용자 발언에서 기억의 근거를 확인할 수 없어요");
-      const { memory, merged } = await memoryService(ctx).remember({
+      const { memory, merged, createdNow } = await memoryService(ctx).remember({
         ...memoryInput,
         source:
           userQuote && evidence
@@ -77,6 +79,12 @@ export const memoryTools: Record<string, AnyAgentTool> = {
         content: memory.content,
         kind: memory.kind,
         merged,
+        createdNow,
+        operationalSettingsChanged: false,
+        ...(memory.kind === "preference"
+          ? { nextTool: "agent.updatePreferences" }
+          : {}),
+        _version: memory.updated_at,
         needsReview: Boolean(memory.review_against),
         confirmedAt: memory.confirmed_at,
         source: memory.source,
@@ -84,7 +92,8 @@ export const memoryTools: Record<string, AnyAgentTool> = {
       };
     },
     undo: async (output, ctx) => {
-      if (!output.merged) await memoryService(ctx).forget(output.id);
+      if (output.createdNow)
+        await memoryService(ctx).forget(output.id, output._version);
     },
   }),
   recall: defineTool({
@@ -99,28 +108,20 @@ export const memoryTools: Record<string, AnyAgentTool> = {
       memoryService(ctx).recallWithStatus(query, k),
   }),
   list: defineTool({
-    description: "저장된 기억 목록(유형·검색어로 필터).",
+    description:
+      "저장된 기억 목록(유형·검색어·상태로 필터). hasMore이면 nextOffset으로 이어 조회해 전체를 확인한다.",
     inputSchema: z.object({
       kind: z.enum(MEMORY_KINDS).optional(),
       q: z.string().optional(),
       status: z.enum(["active", "archived"]).default("active"),
-      limit: z.number().int().min(1).max(100).default(30),
+      limit: z.number().int().min(1).max(200).default(30),
+      offset: z.number().int().min(0).default(0),
     }),
     risk: "read",
-    execute: async (input, ctx) =>
-      (await memoryService(ctx).list(input)).map((m) => ({
-        id: m.id,
-        kind: m.kind,
-        content: m.content,
-        importance: m.importance,
-        pinned: m.pinned,
-        status: m.status,
-        reviewAgainst: m.review_against,
-        source: m.source,
-        confirmedAt: m.confirmed_at,
-        invalidatedAt: m.invalidated_at,
-        indexStatus: m.index_status,
-      })),
+    execute: async (input, ctx) => {
+      const page = await memoryService(ctx).listPage(input);
+      return { ...page, items: page.items.map(memoryDetail) };
+    },
   }),
   get: defineTool({
     description:
@@ -131,11 +132,20 @@ export const memoryTools: Record<string, AnyAgentTool> = {
       memoryDetail(await memoryService(ctx).get(id)),
   }),
   reviewList: defineTool({
-    description: "기존 기억과 비교해야 할 새 후보를 조회한다.",
-    inputSchema: z.object({}),
+    description:
+      "기존 기억과 비교해야 할 새 후보를 조회한다. hasMore이면 nextOffset으로 이어 조회한다.",
+    inputSchema: z.object({
+      limit: z.number().int().min(1).max(200).default(30),
+      offset: z.number().int().min(0).default(0),
+    }),
     risk: "read",
-    execute: async (_, ctx) =>
-      (await memoryService(ctx).reviewList()).map(memoryDetail),
+    execute: async (input, ctx) => {
+      const page = await memoryService(ctx).listPage({
+        ...input,
+        reviewOnly: true,
+      });
+      return { ...page, items: page.items.map(memoryDetail) };
+    },
   }),
   resolveReview: defineTool({
     description:
@@ -181,24 +191,32 @@ export const memoryTools: Record<string, AnyAgentTool> = {
     execute: async ({ id, ...patch }, ctx) => {
       const before = await memoryService(ctx).get(id);
       if (!before) throw new Error("기억을 찾을 수 없어요");
-      const m = await memoryService(ctx).update(id, patch);
+      const m = await memoryService(ctx).update(id, patch, before.updated_at);
+      const undo: MemoryUndoPatch = {};
+      if (patch.content !== undefined) {
+        undo.content = before.content;
+        undo.source = before.source;
+        undo.confirmed_at = before.confirmed_at;
+        undo.embedding = before.embedding;
+        undo.index_status = before.index_status;
+      }
+      if (patch.kind !== undefined) undo.kind = before.kind;
+      if (patch.importance !== undefined) undo.importance = before.importance;
+      if (patch.pinned !== undefined) undo.pinned = before.pinned;
       return {
         id: m.id,
         content: m.content,
         kind: m.kind,
-        _before: {
-          content: before.content,
-          kind: before.kind,
-          importance: before.importance,
-          pinned: before.pinned,
-        },
+        _before: undo,
+        _version: m.updated_at,
       };
     },
     undo: async (output, ctx) => {
-      await memoryService(ctx).update(output.id, {
-        ...output._before,
-        kind: output._before.kind as never,
-      });
+      await memoryService(ctx).undoUpdate(
+        output.id,
+        output._before,
+        output._version,
+      );
     },
   }),
   forget: defineTool({
@@ -231,6 +249,6 @@ function memoryDetail(memory: MemoryRow | null) {
     invalidatedAt: memory.invalidated_at,
     indexStatus: memory.index_status,
     updatedAt: memory.updated_at,
-    href: `/memory#memory-${memory.id}`,
+    href: `/memory?id=${memory.id}#memory-${memory.id}`,
   };
 }

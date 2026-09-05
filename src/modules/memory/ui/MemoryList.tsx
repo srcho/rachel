@@ -1,7 +1,8 @@
 "use client";
 import { Archive, Pin, PinOff, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ import type { MemorySource } from "../schema";
 
 function sourceHref(s: MemorySource): string | null {
   if (s.type === "meeting" && s.id) return `/meetings/${s.id}`;
-  if (s.type === "capture") return "/capture";
+  if (s.type === "capture" && s.id) return `/capture/${s.id}`;
   return null;
 }
 
@@ -37,6 +38,12 @@ export function MemoryList({
   q: string;
   archived: boolean;
 }) {
+  const router = useRouter();
+  useEffect(() => {
+    const id = window.location.hash.match(/^#memory-([0-9a-f-]{36})$/i)?.[1];
+    if (id && !memories.some((m) => m.id === id))
+      router.replace(`/memory?id=${id}#memory-${id}`);
+  }, [memories, router]);
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");

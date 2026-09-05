@@ -84,6 +84,10 @@ describe.skipIf(!available)("memory evidence A25-A28", () => {
       importance: 3,
     };
     const inferred = await rememberTool.execute(input, ctx);
+    expect(inferred).toMatchObject({
+      operationalSettingsChanged: false,
+      nextTool: "agent.updatePreferences",
+    });
     expect(inferred.source.evidence).toBe("model_inference");
     expect(inferred.confirmedAt).toBeNull();
     expect(inferred.source.type).toBe("inference");
@@ -335,5 +339,80 @@ describe.skipIf(!available)("memory evidence A25-A28", () => {
     state.failEmbed = false;
     await reindexSource(ctx, "memory", created.memory.id);
     expect((await svc.get(created.memory.id))?.index_status).toBe("ready");
+  });
+  it("Undo skips reused creation keys and protects newly created memory versions", async () => {
+    const input = {
+      creationKey: crypto.randomUUID(),
+      kind: "fact",
+      content: "기억 재시도 고유 확인",
+      importance: 3,
+    };
+    const first = await rememberTool.execute(input, ctx);
+    const reused = await rememberTool.execute(input, ctx);
+    expect(first.createdNow).toBe(true);
+    expect(reused.createdNow).toBe(false);
+    await rememberTool.undo?.(reused, ctx);
+    expect(await memoryService(ctx).get(first.id)).not.toBeNull();
+    await memoryService({ ...ctx, actor: "user" }).update(first.id, {
+      content: "이후 사용자 수정",
+    });
+    await expect(rememberTool.undo?.(first, ctx)).rejects.toThrow("변경");
+    expect((await memoryService(ctx).get(first.id))?.content).toBe(
+      "이후 사용자 수정",
+    );
+  });
+
+  it("concurrent memory creation reports exactly one creator", async () => {
+    const input = {
+      creationKey: crypto.randomUUID(),
+      kind: "fact",
+      content: "동시 생성 고유 문장",
+      importance: 3,
+    };
+    const results = await Promise.all([
+      rememberTool.execute(input, ctx),
+      rememberTool.execute(input, ctx),
+    ]);
+    expect(results[0].id).toBe(results[1].id);
+    expect(results.filter((r) => r.createdNow)).toHaveLength(1);
+  });
+
+  it("memory update Undo is field-only, preserves evidence and rejects later changes", async () => {
+    const svc = memoryService({ ...ctx, actor: "user" });
+    const { memory } = await svc.remember({
+      creationKey: crypto.randomUUID(),
+      kind: "fact",
+      content: "직접 확인된 원래 기억",
+      source: { type: "manual", evidence: "explicit_user" },
+    });
+    const update = memoryTools.update;
+    if (!update) throw new Error("missing update tool");
+    const pinned = await update.execute({ id: memory.id, pinned: true }, ctx);
+    expect(Object.keys(pinned._before)).toEqual(["pinned"]);
+    await update.undo?.(pinned, ctx);
+    expect(await svc.get(memory.id)).toMatchObject({
+      pinned: false,
+      source: memory.source,
+      confirmed_at: memory.confirmed_at,
+    });
+    const changed = await update.execute(
+      { id: memory.id, content: "모델이 수정한 기억" },
+      ctx,
+    );
+    await update.undo?.(changed, ctx);
+    const restored = await svc.get(memory.id);
+    expect(restored).toMatchObject({
+      content: memory.content,
+      source: memory.source,
+      confirmed_at: memory.confirmed_at,
+      embedding: memory.embedding,
+      index_status: memory.index_status,
+    });
+    const stale = await update.execute({ id: memory.id, pinned: true }, ctx);
+    await svc.update(memory.id, { content: "Undo보다 나중에 바꾼 기억" });
+    await expect(update.undo?.(stale, ctx)).rejects.toThrow("변경");
+    expect((await svc.get(memory.id))?.content).toBe(
+      "Undo보다 나중에 바꾼 기억",
+    );
   });
 });

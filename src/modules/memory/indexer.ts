@@ -14,7 +14,7 @@ export const memoriesIndexer: Indexer = {
         content: m.content,
         metadata: {
           title: m.content.slice(0, 60),
-          href: `/memory#memory-${m.id}`,
+          href: `/memory?id=${m.id}#memory-${m.id}`,
           confirmedAt: m.confirmed_at,
           source: m.source,
           kind: m.kind,

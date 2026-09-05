@@ -13,6 +13,20 @@ import {
   type MemorySource,
 } from "./schema";
 
+export type MemoryUndoPatch = Partial<
+  Pick<
+    MemoryRow,
+    | "content"
+    | "kind"
+    | "importance"
+    | "pinned"
+    | "source"
+    | "confirmed_at"
+    | "embedding"
+    | "index_status"
+  >
+>;
+
 export type EmbedFn = (text: string, feature?: "embed") => Promise<number[]>;
 
 export function memoryService(
@@ -33,10 +47,11 @@ export function memoryService(
     content: string;
     importance?: number;
     source: MemorySource;
-  }): Promise<{ memory: MemoryRow; merged: boolean }> {
+  }): Promise<{ memory: MemoryRow; merged: boolean; createdNow: boolean }> {
     if (input.creationKey) {
       const existing = await repo.findCreated(input.creationKey);
-      if (existing) return { memory: existing, merged: false };
+      if (existing)
+        return { memory: existing, merged: false, createdNow: false };
     }
     const content = input.content.trim();
     // Persist first-class memory even while the optional vector index is unavailable.
@@ -78,10 +93,12 @@ export function memoryService(
           entity: { type: "memory", id: memory.id },
           payload: { merged: true },
         });
-        return { memory, merged: true };
+        return { memory, merged: true, createdNow: false };
       }
     }
+    const candidateId = crypto.randomUUID();
     const memory = await repo.insert({
+      id: candidateId,
       creation_key: input.creationKey,
       review_against: top?.id,
       confirmed_at:
@@ -95,12 +112,14 @@ export function memoryService(
       source: source as unknown as Json,
       index_status: vector ? "ready" : "pending",
     });
-    await ctx.emit({
-      type: MEMORY_EVENTS.created,
-      entity: { type: "memory", id: memory.id },
-      payload: { kind: input.kind },
-    });
-    return { memory, merged: false };
+    const createdNow = memory.id === candidateId;
+    if (createdNow)
+      await ctx.emit({
+        type: MEMORY_EVENTS.created,
+        entity: { type: "memory", id: memory.id },
+        payload: { kind: input.kind },
+      });
+    return { memory, merged: false, createdNow };
   }
 
   async function recallWithStatus(query: string, k = 8) {
@@ -156,6 +175,7 @@ export function memoryService(
       pinned?: boolean;
       status?: "active" | "archived";
     },
+    expectedVersion?: string,
   ): Promise<MemoryRow> {
     const before = await repo.get(id);
     if (!before) throw new Error("기억을 찾을 수 없어요");
@@ -166,27 +186,33 @@ export function memoryService(
     const embedding = patch.content
       ? await embed(patch.content).catch(() => null)
       : undefined;
-    const memory = await repo.update(id, {
-      ...patch,
-      embedding,
-      ...(patch.status
-        ? {
-            valid_until:
-              patch.status === "archived" ? ctx.now.toISOString() : null,
-          }
-        : {}),
-      ...(patch.content !== undefined
-        ? {
-            confirmed_at: ctx.actor === "user" ? ctx.now.toISOString() : null,
-            source: {
-              type: ctx.actor === "user" ? "manual" : "inference",
-              evidence:
-                ctx.actor === "user" ? "explicit_user" : "model_inference",
-            } as Json,
-            index_status: embedding ? ("ready" as const) : ("pending" as const),
-          }
-        : {}),
-    });
+    const memory = await repo.update(
+      id,
+      {
+        ...patch,
+        embedding,
+        ...(patch.status
+          ? {
+              valid_until:
+                patch.status === "archived" ? ctx.now.toISOString() : null,
+            }
+          : {}),
+        ...(patch.content !== undefined
+          ? {
+              confirmed_at: ctx.actor === "user" ? ctx.now.toISOString() : null,
+              source: {
+                type: ctx.actor === "user" ? "manual" : "inference",
+                evidence:
+                  ctx.actor === "user" ? "explicit_user" : "model_inference",
+              } as Json,
+              index_status: embedding
+                ? ("ready" as const)
+                : ("pending" as const),
+            }
+          : {}),
+      },
+      expectedVersion,
+    );
     await ctx.emit({
       type: MEMORY_EVENTS.updated,
       entity: { type: "memory", id },
@@ -195,10 +221,39 @@ export function memoryService(
     return memory;
   }
 
-  async function forget(id: string): Promise<MemoryRow | null> {
+  async function undoUpdate(
+    id: string,
+    patch: MemoryUndoPatch,
+    expectedVersion: string,
+  ) {
+    const { data, error } = await ctx.db
+      .from("memories")
+      .update(patch)
+      .eq("id", id)
+      .eq("user_id", ctx.userId)
+      .eq("updated_at", expectedVersion)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error("기억이 변경됐어요. 다시 확인해 주세요");
+    await ctx.emit({
+      type: MEMORY_EVENTS.updated,
+      entity: { type: "memory", id },
+      payload: { fields: Object.keys(patch), undo: true },
+    });
+    return data;
+  }
+
+  async function forget(
+    id: string,
+    expectedVersion?: string,
+  ): Promise<MemoryRow | null> {
     const before = await repo.get(id);
     if (!before) return null;
-    await repo.delete(id, ctx.approvedVersions?.[`memories:${id}`]);
+    await repo.delete(
+      id,
+      expectedVersion ?? ctx.approvedVersions?.[`memories:${id}`],
+    );
     await ctx.emit({
       type: MEMORY_EVENTS.forgotten,
       entity: { type: "memory", id },
@@ -242,6 +297,7 @@ export function memoryService(
 
   return {
     remember,
+    undoUpdate,
     recall,
     recallWithStatus,
     reviewList: async () => repo.list({ reviewOnly: true }),
@@ -272,6 +328,7 @@ export function memoryService(
     forget,
     extractFrom,
     list: repo.list,
+    listPage: repo.listPage,
     get: repo.get,
     pinned: repo.pinned,
     touch: repo.touch,

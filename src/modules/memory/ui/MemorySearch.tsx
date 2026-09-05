@@ -11,6 +11,8 @@ export function MemorySearch({ q }: { q: string }) {
       onSubmit={(e) => {
         e.preventDefault();
         const p = new URLSearchParams(sp.toString());
+        p.delete("offset");
+        p.delete("id");
         if (v.trim()) p.set("q", v.trim());
         else p.delete("q");
         router.push(`/memory?${p}`);

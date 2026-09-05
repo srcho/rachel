@@ -36,7 +36,7 @@ export const memoryContextProvider: ContextProvider = {
       seen.add(m.id);
       ctx.memoryReferences?.push({ id: m.id, title: m.content });
       lines.push(
-        `- (${KIND_LABEL[m.kind as MemoryKind] ?? m.kind}${m.confirmedAt ? " · 직접 확인" : " · 확인되지 않음"}, ${m.updatedAt?.slice(0, 10) ?? "날짜 미정"}) ${m.content} [기억 확인·정정](/memory#memory-${m.id})`,
+        `- (${KIND_LABEL[m.kind as MemoryKind] ?? m.kind}${m.confirmedAt ? " · 직접 확인" : " · 확인되지 않음"}, ${m.updatedAt?.slice(0, 10) ?? "날짜 미정"}) ${m.content} [기억 확인·정정](/memory?id=${m.id}#memory-${m.id})`,
       );
     }
     if (notice) lines.unshift(`[검색 제한: ${notice}]`);

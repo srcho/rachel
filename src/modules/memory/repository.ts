@@ -6,34 +6,53 @@ export type MemoryRow = Database["public"]["Tables"]["memories"]["Row"];
 export type MemoryMatch =
   Database["public"]["Functions"]["match_memories"]["Returns"][number];
 
+export interface MemoryListOptions {
+  kind?: MemoryKind;
+  q?: string;
+  status?: "active" | "archived";
+  limit?: number;
+  offset?: number;
+  reviewOnly?: boolean;
+}
+
 const toVector = (v: number[]) => JSON.stringify(v);
 
 export function memoryRepository(db: Db, userId: string) {
   const own = <T extends { eq: (col: string, val: string) => T }>(q: T) =>
     q.eq("user_id", userId);
+  async function listPage(opts: MemoryListOptions = {}) {
+    const limit = Math.min(200, Math.max(1, opts.limit ?? 100));
+    const offset = Math.max(0, opts.offset ?? 0);
+    let query = own(db.from("memories").select("*", { count: "exact" })).eq(
+      "status",
+      opts.status ?? "active",
+    );
+    if (opts.kind) query = query.eq("kind", opts.kind);
+    if (opts.reviewOnly) query = query.not("review_against", "is", null);
+    if (opts.q)
+      query = query.ilike("content", `%${opts.q.replace(/[\\%_]/g, "\\$&")}%`);
+    const { data, error, count } = await query
+      .order("pinned", { ascending: false })
+      .order("updated_at", { ascending: false })
+      .order("id")
+      .range(offset, offset + limit - 1);
+    if (error) throw error;
+    const total = count ?? 0;
+    const hasMore = offset + data.length < total;
+    return {
+      items: data,
+      total,
+      offset,
+      limit,
+      hasMore,
+      complete: !hasMore && offset === 0,
+      nextOffset: hasMore ? offset + data.length : null,
+    };
+  }
   return {
-    async list(
-      opts: {
-        kind?: MemoryKind;
-        q?: string;
-        status?: "active" | "archived";
-        limit?: number;
-        reviewOnly?: boolean;
-      } = {},
-    ): Promise<MemoryRow[]> {
-      let q = own(db.from("memories").select("*")).eq(
-        "status",
-        opts.status ?? "active",
-      );
-      if (opts.kind) q = q.eq("kind", opts.kind);
-      if (opts.reviewOnly) q = q.not("review_against", "is", null);
-      if (opts.q) q = q.ilike("content", `%${opts.q}%`);
-      const { data, error } = await q
-        .order("pinned", { ascending: false })
-        .order("updated_at", { ascending: false })
-        .limit(opts.limit ?? 100);
-      if (error) throw error;
-      return data;
+    listPage,
+    async list(opts: MemoryListOptions = {}): Promise<MemoryRow[]> {
+      return (await listPage(opts)).items;
     },
     async keyword(query: string, limit = 8): Promise<MemoryRow[]> {
       const { data, error } = await own(db.from("memories").select("*"))
@@ -72,6 +91,7 @@ export function memoryRepository(db: Db, userId: string) {
       return data;
     },
     async insert(row: {
+      id?: string;
       creation_key?: string;
       review_against?: string;
       confirmed_at?: string;
@@ -85,6 +105,7 @@ export function memoryRepository(db: Db, userId: string) {
       const { data, error } = await db
         .from("memories")
         .insert({
+          id: row.id,
           user_id: userId,
           creation_key: row.creation_key,
           review_against: row.review_against,
@@ -126,20 +147,21 @@ export function memoryRepository(db: Db, userId: string) {
         index_status?: "ready" | "pending";
         status?: "active" | "archived";
       },
+      expectedVersion?: string,
     ): Promise<MemoryRow> {
       const { embedding, ...rest } = patch;
-      const { data, error } = await own(
+      let query = own(
         db.from("memories").update({
           ...rest,
           ...(embedding !== undefined && {
             embedding: embedding ? toVector(embedding) : null,
           }),
         }),
-      )
-        .eq("id", id)
-        .select("*")
-        .single();
+      ).eq("id", id);
+      if (expectedVersion) query = query.eq("updated_at", expectedVersion);
+      const { data, error } = await query.select("*").maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error("기억이 변경됐어요. 다시 확인해 주세요");
       return data;
     },
     async delete(id: string, expectedVersion?: string): Promise<void> {

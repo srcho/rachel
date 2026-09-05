@@ -3,6 +3,7 @@ import type { ServiceContext } from "@/core/contracts";
 import { createRegistry } from "@/core/registry/registry";
 import { localSupabaseAvailable, testUser } from "@/test/supabase";
 import { memoryService } from "../service";
+import { memoryTools } from "../tools";
 
 const available = await localSupabaseAvailable();
 
@@ -125,5 +126,65 @@ describe.skipIf(!available)("memoryService", () => {
     expect((await svc.recall("출근")).map((m) => m.id)).toContain(
       next.memory.id,
     );
+  });
+  it("pages more than 200 memories with exact counts, filters, and direct old-ID access", async () => {
+    const marker = `page-${crypto.randomUUID()}`;
+    const rows = Array.from({ length: 205 }, (_, i) => ({
+      kind: "fact",
+      content: `${marker} item ${i}`,
+      updated_at: new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString(),
+      status: i === 204 ? "archived" : "active",
+    }));
+    const inserted = await user.db
+      .from("memories")
+      .insert(rows)
+      .select("id,content");
+    if (inserted.error) throw inserted.error;
+    const svc = memoryService(ctx, {
+      embed: async () => {
+        throw new Error("must not embed a list");
+      },
+    });
+    const first = await svc.listPage({ q: marker, limit: 200 });
+    expect(first).toMatchObject({
+      total: 204,
+      offset: 0,
+      hasMore: true,
+      complete: false,
+      nextOffset: 200,
+    });
+    expect(first.items).toHaveLength(200);
+    const second = await svc.listPage({ q: marker, limit: 200, offset: 200 });
+    expect(second).toMatchObject({
+      total: 204,
+      hasMore: false,
+      complete: false,
+      nextOffset: null,
+    });
+    expect(second.items).toHaveLength(4);
+    expect(
+      new Set([...first.items, ...second.items].map((m) => m.id)).size,
+    ).toBe(204);
+    const oldest = inserted.data.find((m) => m.content.endsWith("item 0"));
+    if (!oldest) throw new Error("missing oldest fixture");
+    expect(second.items.map((m) => m.id)).toContain(oldest.id);
+    const get = memoryTools.get;
+    const list = memoryTools.list;
+    if (!get || !list) throw new Error("missing memory tools");
+    expect(await get.execute({ id: oldest.id }, ctx)).toMatchObject({
+      href: `/memory?id=${oldest.id}#memory-${oldest.id}`,
+    });
+    const archived = await list.execute(
+      list.inputSchema.parse({ q: marker, status: "archived" }),
+      ctx,
+    );
+    expect(archived).toMatchObject({
+      total: 1,
+      hasMore: false,
+      complete: true,
+    });
+    expect(archived.items).toHaveLength(1);
+    expect((await svc.list({ q: marker, limit: 30 })).length).toBe(30);
+    expect((await svc.listPage({ q: `${marker}%` })).total).toBe(0);
   });
 });
