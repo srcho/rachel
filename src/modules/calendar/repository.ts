@@ -18,6 +18,13 @@ export function calendarRepository(db: Db, userId: string) {
   const own = <T extends { eq: (col: string, val: string) => T }>(q: T) =>
     q.eq("user_id", userId);
   return {
+    async getTaskCard(cardId: string) {
+      const { data, error } = await own(db.from("cards").select("*"))
+        .eq("id", cardId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
     // ── google_task_links (카드 ↔ Google Tasks) ──
     async getTaskLink(cardId: string): Promise<TaskLinkRow | null> {
       const { data, error } = await own(
@@ -226,6 +233,44 @@ export function calendarRepository(db: Db, userId: string) {
         .range(opts.offset ?? 0, (opts.offset ?? 0) + (opts.limit ?? 500) - 1);
       if (error) throw error;
       return data;
+    },
+    async listReconcileCandidates(
+      calendarId: string,
+      range: { from: string; to: string },
+    ) {
+      const rows: EventRow[] = [];
+      let after: string | undefined;
+      while (true) {
+        let query = own(db.from("calendar_events").select("*"))
+          .eq("calendar_id", calendarId)
+          .eq("sync_status", "synced")
+          .is("deleted_at", null)
+          .lt("start_at", range.to)
+          .gt("end_at", range.from)
+          .order("id")
+          .limit(500);
+        if (after) query = query.gt("id", after);
+        const { data, error } = await query;
+        if (error) throw error;
+        rows.push(...data);
+        if (data.length < 500) return rows;
+        after = data.at(-1)?.id;
+      }
+    },
+    async removeMissingMirror(row: EventRow, deletedAt: string) {
+      const { data, error } = await own(
+        db.from("calendar_events").update({
+          deleted_at: deletedAt,
+          status: "cancelled",
+        }),
+      )
+        .eq("id", row.id)
+        .eq("updated_at", row.updated_at)
+        .eq("sync_status", "synced")
+        .is("deleted_at", null)
+        .select("id");
+      if (error) throw error;
+      return data.length;
     },
     async getEvent(id: string): Promise<EventRow | null> {
       const { data, error } = await own(db.from("calendar_events").select("*"))

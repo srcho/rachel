@@ -141,21 +141,28 @@ export async function syncCalendars(ctx: ServiceContext): Promise<SyncResult> {
     let upserted = 0;
     const fullResync = !syncToken;
     const now = ctx.now;
+    const range = {
+      from: new Date(
+        now.getTime() - INITIAL_PAST_DAYS * 86_400_000,
+      ).toISOString(),
+      to: new Date(
+        now.getTime() + INITIAL_FUTURE_DAYS * 86_400_000,
+      ).toISOString(),
+    };
+    const candidates = fullResync
+      ? await repo.listReconcileCandidates(cal.id, range)
+      : [];
+    const seen = new Set<string>();
     do {
-      const query: Record<string, string | undefined> = syncToken
-        ? { syncToken, pageToken }
-        : {
-            pageToken,
-            singleEvents: "true",
-            showDeleted: "true",
-            timeMin: new Date(
-              now.getTime() - INITIAL_PAST_DAYS * 86_400_000,
-            ).toISOString(),
-            timeMax: new Date(
-              now.getTime() + INITIAL_FUTURE_DAYS * 86_400_000,
-            ).toISOString(),
-            maxResults: "250",
-          };
+      const query: Record<string, string | undefined> = {
+        pageToken,
+        singleEvents: "true",
+        showDeleted: "true",
+        maxResults: "250",
+        ...(fullResync
+          ? { timeMin: range.from, timeMax: range.to }
+          : { syncToken }),
+      };
       let page: Awaited<ReturnType<typeof google.listEvents>>;
       try {
         page = await google.listEvents(accessToken, cal.external_id, query);
@@ -166,11 +173,17 @@ export async function syncCalendars(ctx: ServiceContext): Promise<SyncResult> {
         }
         throw e;
       }
+      for (const item of page.items ?? []) seen.add(item.id);
       const rows = (page.items ?? []).map((e) => toRow(cal, e, ctx.timezone));
       upserted += await repo.upsertEvents(rows);
       pageToken = page.nextPageToken;
       if (page.nextSyncToken) syncToken = page.nextSyncToken;
     } while (pageToken);
+    // Missing remote rows are authoritative only after the entire full snapshot succeeds.
+    for (const row of candidates) {
+      if (!seen.has(row.external_id))
+        upserted += await repo.removeMissingMirror(row, now.toISOString());
+    }
     await repo.updateCalendar(cal.id, {
       sync_token: syncToken ?? null,
       last_synced_at: now.toISOString(),

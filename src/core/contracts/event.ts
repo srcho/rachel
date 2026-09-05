@@ -7,10 +7,12 @@ export interface DomainEventInput<T = unknown> {
   entity: { type: string; id: string };
   payload?: T;
   actor?: Actor;
+  /** Critical inbound sync must not checkpoint until handlers succeed. */
+  requireHandlersSuccess?: boolean;
 }
 
 export interface DomainEvent<T = unknown>
-  extends Required<DomainEventInput<T>> {
+  extends Required<Omit<DomainEventInput<T>, "requireHandlersSuccess">> {
   id: string;
   userId: string;
   occurredAt: string;

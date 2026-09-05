@@ -5,6 +5,8 @@ import type { Registry } from "@/core/registry/registry";
 export interface JobStore {
   claim(batch: number): Promise<JobRecord[]>;
   complete(id: string): Promise<void>;
+  /** Release an unstarted claim without consuming an execution attempt. */
+  defer(job: JobRecord, retryAt: Date): Promise<void>;
   fail(id: string, error: string, retryAt: Date | null): Promise<void>;
 }
 
@@ -28,6 +30,7 @@ export interface RunStats {
 
 const DEFAULT_BUDGET_MS = 250_000;
 const DEFAULT_TIMEOUT_SEC = 240;
+const COMPLETION_RESERVE_MS = 5_000;
 
 export function backoffMinutes(attempts: number): number {
   return 2 ** attempts; // 2, 4, 8 분
@@ -74,9 +77,15 @@ export async function runJobs(deps: RunnerDeps): Promise<RunStats> {
       continue;
     }
     const maxAttempts = handler.maxAttempts ?? job.max_attempts;
-    // 함수 시간 한도(300초) 안에서만: 남은 잡은 다음 틱에(claim 의 10분 회수보다 빠르게 pending 으로)
-    if (Date.now() - startedAt > (deps.budgetMs ?? DEFAULT_BUDGET_MS)) {
-      await deps.store.fail(job.id, "시간 예산 초과로 미룸", now());
+    // Do not start work that cannot finish within this invocation's remaining budget.
+    const requiredMs =
+      (handler.timeoutSec ?? DEFAULT_TIMEOUT_SEC) * 1000 +
+      COMPLETION_RESERVE_MS;
+    const insufficientTime = () =>
+      (deps.budgetMs ?? DEFAULT_BUDGET_MS) - (Date.now() - startedAt) <
+      requiredMs;
+    if (insufficientTime()) {
+      await deps.store.defer(job, now());
       stats.retried++;
       continue;
     }
@@ -94,8 +103,14 @@ export async function runJobs(deps: RunnerDeps): Promise<RunStats> {
       continue;
     }
     try {
+      const ctx = await deps.contextFor(job);
+      if (insufficientTime()) {
+        await deps.store.defer(job, now());
+        stats.retried++;
+        continue;
+      }
       await withTimeout(
-        handler.run(payload, await deps.contextFor(job)),
+        handler.run(payload, ctx),
         handler.timeoutSec ?? DEFAULT_TIMEOUT_SEC,
         job.type,
       );

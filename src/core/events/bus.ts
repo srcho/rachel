@@ -44,6 +44,7 @@ export function createEmitter(deps: EmitterDeps) {
           .single();
     if (error) {
       console.error("[events] insert failed", input.type, error.message);
+      if (input.requireHandlersSuccess) throw error;
     }
     const event: DomainEvent = {
       id: String(data?.id ?? ""),
@@ -56,9 +57,20 @@ export function createEmitter(deps: EmitterDeps) {
     };
     for (const handler of deps.registry.eventHandlers(event.type)) {
       try {
-        await handler.handle(event, deps.ctx());
+        const ctx = deps.ctx();
+        await handler.handle(
+          event,
+          input.requireHandlersSuccess
+            ? {
+                ...ctx,
+                emit: (nested) =>
+                  emit({ ...nested, requireHandlersSuccess: true }),
+              }
+            : ctx,
+        );
       } catch (err) {
         console.error("[events] handler failed", event.type, err);
+        if (input.requireHandlersSuccess) throw err;
       }
     }
   };

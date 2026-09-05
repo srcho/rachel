@@ -131,6 +131,10 @@ export function gtasksService(ctx: ServiceContext) {
   ): Promise<"skipped" | "created" | "updated" | "removed" | "none"> {
     const st = await status();
     if (!st.enabled || !st.hasScope || !st.connected) return "skipped";
+    const current = await repo.getTaskCard(card.id);
+    // Old retries never recreate deleted cards or overwrite a newer local revision.
+    if (!current && !card.archived) return "skipped";
+    if (current && current.updated_at !== card.updatedAt) return "skipped";
     const link = await repo.getTaskLink(card.id);
     // 마감이 있는 카드는 새로 비추고, 이미 연결된 카드(Google 에서 온 것 포함)는 마감이 없어져도 유지한다.
     // Google 항목이 사라지는 건 보관·삭제뿐.
@@ -229,6 +233,7 @@ export function gtasksService(ctx: ServiceContext) {
             continue;
           await ctx.emit({
             type: GTASK_EVENTS.changed,
+            requireHandlersSuccess: true,
             entity: { type: "card", id: l.card_id },
             payload: {
               cardId: l.card_id,
@@ -248,9 +253,11 @@ export function gtasksService(ctx: ServiceContext) {
         } else if (task.title?.trim()) {
           await ctx.emit({
             type: GTASK_EVENTS.created,
+            requireHandlersSuccess: true,
             entity: { type: "gtask", id: task.id },
             payload: {
               gtaskId: task.id,
+              listId,
               title: task.title.trim(),
               notes: task.notes ?? "",
               dueAt: task.due

@@ -55,7 +55,12 @@ export async function recordUsage(
     cost_usd: u.costUsd,
     ref: (u.ref ?? null) as unknown as Json,
     latency_ms: u.latencyMs ?? null,
-    meta: (u.meta ?? null) as unknown as Json,
+    // Older rows may count reasoning both in output_tokens and separately in cost estimates.
+    // This marker describes our accounting, not the provider's invoiced charge.
+    meta: {
+      ...(u.meta ?? {}),
+      tokenAccounting: "disjoint-v2",
+    } as unknown as Json,
   });
   if (error) console.error("[llm_usage] 기록 실패", u.feature, error.message);
 }
@@ -69,7 +74,8 @@ export function splitLanguageModelUsage(usage: {
 }) {
   const cached = usage.inputTokenDetails?.cacheReadTokens ?? 0;
   const input = Math.max(0, (usage.inputTokens ?? 0) - cached);
-  const output = usage.outputTokens ?? 0;
   const reasoning = usage.outputTokenDetails?.reasoningTokens ?? 0;
+  // AI SDK outputTokens is the total, including reasoning; ledger fields are disjoint.
+  const output = Math.max(0, (usage.outputTokens ?? 0) - reasoning);
   return { input, cached, output, reasoning };
 }

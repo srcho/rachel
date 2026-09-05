@@ -220,14 +220,15 @@ export function eventService(ctx: ServiceContext) {
     endIso: string | null,
     allDay: boolean,
     durationMinutes = 60,
+    timezone = ctx.timezone,
   ): { startAt: string; endAt: string } {
     const startAt = allDay
-      ? dayBounds(new Date(startIso), ctx.timezone).start
+      ? dayBounds(new Date(startIso), timezone).start
       : startIso;
     const endAt = allDay
       ? endIso
-        ? dayBounds(new Date(Date.parse(endIso) - 1), ctx.timezone).end
-        : dayBounds(new Date(startIso), ctx.timezone).end
+        ? dayBounds(new Date(Date.parse(endIso) - 1), timezone).end
+        : dayBounds(new Date(startIso), timezone).end
       : (endIso ??
         new Date(
           Date.parse(startIso) + durationMinutes * 60_000,
@@ -296,11 +297,19 @@ export function eventService(ctx: ServiceContext) {
     const cal = await repo.getCalendar(before.calendar_id);
     if (!cal?.writable) throw new Error("읽기 전용 캘린더의 일정이에요");
     const allDay = patch.allDay ?? before.all_day;
-    const { startAt, endAt } = normalizeRange(
-      patch.startAt ?? before.start_at,
-      patch.endAt ?? before.end_at,
-      allDay,
-    );
+    const changesTime =
+      patch.startAt !== undefined ||
+      patch.endAt !== undefined ||
+      patch.allDay !== undefined;
+    const { startAt, endAt } = changesTime
+      ? normalizeRange(
+          patch.startAt ?? before.start_at,
+          patch.endAt ?? before.end_at,
+          allDay,
+          60,
+          before.timezone ?? ctx.timezone,
+        )
+      : { startAt: before.start_at, endAt: before.end_at };
     let row: EventRow = await repo.writeEvent(
       {
         ...(patch.title !== undefined && { title: patch.title }),

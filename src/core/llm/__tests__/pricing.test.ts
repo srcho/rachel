@@ -50,6 +50,14 @@ describe("splitLanguageModelUsage", () => {
         inputTokenDetails: { cacheReadTokens: 3000 },
         outputTokenDetails: { reasoningTokens: 50 },
       }),
-    ).toEqual({ input: 2000, cached: 3000, output: 400, reasoning: 50 });
+    ).toEqual({ input: 2000, cached: 3000, output: 350, reasoning: 50 });
+  });
+  it("charges total completion tokens once when the SDK includes reasoning", () => {
+    const usage = splitLanguageModelUsage({
+      outputTokens: 400,
+      outputTokenDetails: { reasoningTokens: 50 },
+    });
+    expect(usage.output + usage.reasoning).toBe(400);
+    expect(costOfTokens("openai/gpt-5.6-luna", usage)).toBeCloseTo(0.00048, 6);
   });
 });

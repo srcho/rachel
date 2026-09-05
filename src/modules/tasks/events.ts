@@ -1,5 +1,5 @@
 import type { EventHandler } from "@/core/contracts";
-import { dayBounds, localYmd } from "@/core/utils/date";
+import { dateTimeInZone, localYmd } from "@/core/utils/date";
 import { tasksRepository } from "./repository";
 import { cardSnapshot, tasksService } from "./service";
 
@@ -33,10 +33,7 @@ export const gtaskChangedHandler: EventHandler = {
         patch.dueHasTime = false;
       } else {
         // 날짜만 바뀐 것 — 기존 시각은 버리고 그 날 자정(로컬)
-        patch.dueAt = dayBounds(
-          new Date(`${p.dueYmd}T12:00:00Z`),
-          ctx.timezone,
-        ).start;
+        patch.dueAt = dateTimeInZone(`${p.dueYmd}T00:00`, ctx.timezone);
         patch.dueHasTime = false;
       }
     }
@@ -53,6 +50,7 @@ export const gtaskCreatedHandler: EventHandler = {
   handle: async (event, ctx) => {
     const p = event.payload as {
       gtaskId: string;
+      listId?: string;
       title: string;
       notes: string;
       dueAt: string | null;
@@ -61,6 +59,7 @@ export const gtaskCreatedHandler: EventHandler = {
     const svc = tasksService(ctx);
     const card = await svc.createCard(
       {
+        creationKey: `google-task:${p.listId ?? "Rachel"}:${p.gtaskId}`,
         title: p.title,
         description: p.notes,
         dueAt: p.dueAt,
@@ -69,6 +68,18 @@ export const gtaskCreatedHandler: EventHandler = {
       },
       { origin: "google", gtaskId: p.gtaskId },
     );
+    // A failed link handler can leave the card created. Replay its link event on retry.
+    if (!card.createdNow)
+      await ctx.emit({
+        type: "task.created",
+        entity: { type: "card", id: card.id },
+        requireHandlersSuccess: true,
+        payload: {
+          card: cardSnapshot(card),
+          origin: "google",
+          gtaskId: p.gtaskId,
+        },
+      });
     if (p.completed) await svc.completeCard(card.id, { origin: "google" });
   },
 };
@@ -77,18 +88,23 @@ export const gtaskCreatedHandler: EventHandler = {
 export const gtasksEnabledHandler: EventHandler = {
   on: "gtasks.enabled",
   handle: async (_event, ctx) => {
-    const cards = await tasksService(ctx).listCards({
-      includeCompleted: false,
-      limit: 200,
-    });
-    // task.updated 를 다시 내면 인덱서가 카드마다 재임베딩한다 — push 잡만 직접 건다
-    for (const card of cards) {
-      if (!card.due_at) continue;
-      await ctx.enqueue({
-        type: "calendar.gtasks_push",
-        payload: { card: cardSnapshot(card) },
-        dedupeKey: `gtasks_push:${card.id}:backfill`,
+    const svc = tasksService(ctx);
+    for (let cursor = 0; ; cursor += 200) {
+      const cards = await svc.listCards({
+        includeCompleted: false,
+        limit: 200,
+        cursor,
       });
+      // Send only mirror jobs; replaying task.updated would re-embed every card.
+      for (const card of cards) {
+        if (!card.due_at) continue;
+        await ctx.enqueue({
+          type: "calendar.gtasks_push",
+          payload: { card: cardSnapshot(card) },
+          dedupeKey: `gtasks_push:${card.id}:backfill`,
+        });
+      }
+      if (cards.length < 200) break;
     }
   },
 };

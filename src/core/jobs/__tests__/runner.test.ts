@@ -25,6 +25,9 @@ function makeStore(jobs: JobRecord[]) {
   const calls: string[] = [];
   const store: JobStore = {
     claim: async () => jobs,
+    defer: async (job) => {
+      calls.push(`defer:${job.id}`);
+    },
     complete: async (id) => {
       calls.push(`done:${id}`);
     },
@@ -98,6 +101,35 @@ describe("runJobs", () => {
     });
     expect(calls[0]).toBe("fail:x:핸들러 없음: nope.job");
     expect(calls[1]?.startsWith("fail:y:")).toBe(true);
+  });
+
+  it("reserves the next handler timeout and completion time instead of exceeding the invocation budget", async () => {
+    let elapsed = 0;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => elapsed);
+    const run = vi.fn(async () => {
+      elapsed += 170_000;
+    });
+    const mod: RachelModule = {
+      manifest: { id: "hello", name: "h", icon: "x", schemaVersion: 1 },
+      jobs: { echo: { schema: z.object({}), timeoutSec: 180, run } },
+    };
+    const { store, calls } = makeStore([
+      makeJob({ id: "a" }),
+      makeJob({ id: "b", attempts: 3 }),
+    ]);
+    try {
+      const stats = await runJobs({
+        store,
+        registry: createRegistry(() => [mod]),
+        contextFor: () => ctx,
+        budgetMs: 250_000,
+      });
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(calls).toEqual(["done:a", "defer:b"]);
+      expect(stats).toMatchObject({ done: 1, retried: 1, failed: 0 });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("backoff doubles per attempt", () => {
