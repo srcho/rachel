@@ -1,0 +1,576 @@
+{
+  "startedAt": "2026-09-05T04:05:32.795Z",
+  "recordedAt": "2026-09-05T04:06:02.150Z",
+  "fixedNow": "2026-09-07T00:00:00.000Z",
+  "configuredModel": "gpt-5.6-luna",
+  "sourceHashes": {
+    "src/modules/agent/agent.ts": "8780a98a2eb76c284c1d57e36f1684a58519d762a31b4e63a3773f065d0c64bf",
+    "src/modules/agent/context.ts": "c03de819f9a265153ebfd93570f1cf756f442e299a02fc84f823fd740aec7d78",
+    "src/core/llm/prompts/persona.ts": "a9f173fd95f5e069ac5c1973cedd9fab50f94414f236189c31f8ed661c3ebbdd",
+    "src/core/llm/models.ts": "bf05ddf6bc22b04477f7716965f21f1e9cd64c54c4170d11092c2bd78bf4928d"
+  },
+  "repetitions": 3,
+  "realModel": true,
+  "realLocalDatabase": true,
+  "limitations": [
+    "No Google credentials; calendar writes remain pending",
+    "Event emission and job enqueue are suppressed; no external push",
+    "A36 injects persisted receipt interruptions; actual stream transport/browser/Google remain separate",
+    "Semantic final reports need human review in addition to fixed assertions"
+  ],
+  "results": [
+    {
+      "scenario": "A12",
+      "repeat": 1,
+      "trace": [
+        {
+          "prompt": "보관한 계약 검토 다시 꺼내줘.",
+          "text": "테스터님, 보관된 카드에서 **“계약”** 또는 **“검토”**를 검색했지만 현재 확인되는 항목이 없어요. 검색 결과는 전체 보드·모든 컬럼을 확인했고, 추가 페이지도 없었습니다.",
+          "latencyMs": 29112,
+          "finishReason": "stop",
+          "usage": {
+            "inputTokens": 108047,
+            "inputTokenDetails": {
+              "noCacheTokens": 15,
+              "cacheReadTokens": 85393,
+              "cacheWriteTokens": 22639
+            },
+            "outputTokens": 888,
+            "outputTokenDetails": {
+              "textTokens": 719,
+              "reasoningTokens": 169
+            },
+            "totalTokens": 108935
+          },
+          "steps": [
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:05:39.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_j5Xbm1vky0hLeVRYhVPmDlqJ",
+                  "toolName": "agent_getPreferences",
+                  "input": {},
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b95161dfc87d0b350cd0a628411a9"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_j5Xbm1vky0hLeVRYhVPmDlqJ",
+                  "toolName": "agent_getPreferences",
+                  "input": {},
+                  "output": {
+                    "honorific": "빈센트님",
+                    "timezone": "Asia/Seoul",
+                    "preferences": {
+                      "initiative": "important",
+                      "responseLength": "adaptive"
+                    },
+                    "defaults": {
+                      "defaultDurationMinutes": 60,
+                      "workStartHour": 9,
+                      "workEndHour": 19,
+                      "bufferMinutes": 0,
+                      "includeWeekends": false
+                    },
+                    "evidence": null,
+                    "href": "/settings"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b95161dfc87d0b350cd0a628411a9"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:05:43.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_Qoa6wJrpgimPd8M1Mf7N8jFW",
+                  "toolName": "tasks_listBoards",
+                  "input": {},
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9519f80887d093f77f15270bed9b"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_Qoa6wJrpgimPd8M1Mf7N8jFW",
+                  "toolName": "tasks_listBoards",
+                  "input": {},
+                  "output": [
+                    {
+                      "id": "fa459883-b50b-4f72-954a-129a7d1347db",
+                      "name": "Personal",
+                      "isDefault": true,
+                      "columns": [
+                        {
+                          "id": "b6e31812-f8cf-4408-87bd-787581752058",
+                          "name": "Backlog",
+                          "isDone": false,
+                          "cards": 0
+                        },
+                        {
+                          "id": "2d02df6b-2bd5-4dfc-9d70-9579ae534367",
+                          "name": "Todo",
+                          "isDone": false,
+                          "cards": 0
+                        },
+                        {
+                          "id": "be0f417a-9bb4-4631-a14b-39c4b9fecf0b",
+                          "name": "Doing",
+                          "isDone": false,
+                          "cards": 0
+                        },
+                        {
+                          "id": "a51e70b8-9a9c-4d02-9784-175d2d24f363",
+                          "name": "Done",
+                          "isDone": true,
+                          "cards": 0
+                        }
+                      ]
+                    }
+                  ],
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9519f80887d093f77f15270bed9b"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:05:47.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_RgfrChr66lAnQk3Qcpe9PwoX",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "b6e31812-f8cf-4408-87bd-787581752058",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d75487d085cce5db202dc435"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_yYLudkSlNaKcs8W0f1r9DOwx",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "2d02df6b-2bd5-4dfc-9d70-9579ae534367",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d77087d0969db4107511ed1a"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_LP2wIXYoK7Dt54YPuubNInnz",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "be0f417a-9bb4-4631-a14b-39c4b9fecf0b",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d78487d0a104be19f679786b"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_qBnrioG4MgphVbmenv4oD8VQ",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "a51e70b8-9a9c-4d02-9784-175d2d24f363",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d79087d0a1cf5f64e22dd7e5"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_RgfrChr66lAnQk3Qcpe9PwoX",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "b6e31812-f8cf-4408-87bd-787581752058",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "output": {
+                    "items": [],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                      "columnId": "b6e31812-f8cf-4408-87bd-787581752058",
+                      "due": "none",
+                      "planDate": "2026-09-07",
+                      "label": "",
+                      "priority": 0,
+                      "includeCompleted": true,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "계약",
+                      "limit": 200
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d75487d085cce5db202dc435"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_yYLudkSlNaKcs8W0f1r9DOwx",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "2d02df6b-2bd5-4dfc-9d70-9579ae534367",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "output": {
+                    "items": [],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                      "columnId": "2d02df6b-2bd5-4dfc-9d70-9579ae534367",
+                      "due": "none",
+                      "planDate": "2026-09-07",
+                      "label": "",
+                      "priority": 0,
+                      "includeCompleted": true,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "계약",
+                      "limit": 200
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d77087d0969db4107511ed1a"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_LP2wIXYoK7Dt54YPuubNInnz",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "be0f417a-9bb4-4631-a14b-39c4b9fecf0b",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "output": {
+                    "items": [],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                      "columnId": "be0f417a-9bb4-4631-a14b-39c4b9fecf0b",
+                      "due": "none",
+                      "planDate": "2026-09-07",
+                      "label": "",
+                      "priority": 0,
+                      "includeCompleted": true,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "계약",
+                      "limit": 200
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d78487d0a104be19f679786b"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_qBnrioG4MgphVbmenv4oD8VQ",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "a51e70b8-9a9c-4d02-9784-175d2d24f363",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "output": {
+                    "items": [],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                      "columnId": "a51e70b8-9a9c-4d02-9784-175d2d24f363",
+                      "due": "none",
+                      "planDate": "2026-09-07",
+                      "label": "",
+                      "priority": 0,
+                      "includeCompleted": true,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "계약",
+                      "limit": 200
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9520d79087d0a1cf5f64e22dd7e5"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:05:54.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_ydBVICdAbQaRLnj2fBZirxKU",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "b6e31812-f8cf-4408-87bd-787581752058",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "검토",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9525c87c87d0bd2fd89065e5c9dc"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_puRfw8OxLcjPQKJQ3pdbkuj8",
+                  "toolName": "memory_searchAll",
+                  "input": {
+                    "query": "보관한 계약 검토",
+                    "types": [
+                      "card",
+                      "capture",
+                      "memory",
+                      "meeting",
+                      "calendar_event"
+                    ],
+                    "k": 30
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9525c88c87d084539b0000090d0c"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_ydBVICdAbQaRLnj2fBZirxKU",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                    "columnId": "b6e31812-f8cf-4408-87bd-787581752058",
+                    "due": "none",
+                    "planDate": "2026-09-07",
+                    "label": "",
+                    "priority": 0,
+                    "includeCompleted": true,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "검토",
+                    "limit": 200,
+                    "column": ""
+                  },
+                  "output": {
+                    "items": [],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "boardId": "fa459883-b50b-4f72-954a-129a7d1347db",
+                      "columnId": "b6e31812-f8cf-4408-87bd-787581752058",
+                      "due": "none",
+                      "planDate": "2026-09-07",
+                      "label": "",
+                      "priority": 0,
+                      "includeCompleted": true,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "검토",
+                      "limit": 200
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9525c87c87d0bd2fd89065e5c9dc"
+                    }
+                  }
+                },
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_puRfw8OxLcjPQKJQ3pdbkuj8",
+                  "toolName": "memory_searchAll",
+                  "input": {
+                    "query": "보관한 계약 검토",
+                    "types": [
+                      "card",
+                      "capture",
+                      "memory",
+                      "meeting",
+                      "calendar_event"
+                    ],
+                    "k": 30
+                  },
+                  "output": {
+                    "status": "semantic",
+                    "notice": null,
+                    "hits": []
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_02e330e002d0ff07006a9b9525c88c87d084539b0000090d0c"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:05:59.000Z",
+              "toolCalls": [],
+              "toolResults": []
+            }
+          ]
+        }
+      ],
+      "status": "failed",
+      "error": "expected '2026-09-07T00:00:00+00:00' to be null",
+      "criticalFailure": false
+    }
+  ]
+}

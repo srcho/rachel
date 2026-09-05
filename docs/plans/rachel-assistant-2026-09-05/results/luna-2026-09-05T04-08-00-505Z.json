@@ -1,0 +1,640 @@
+{
+  "startedAt": "2026-09-05T04:08:00.505Z",
+  "recordedAt": "2026-09-05T04:08:18.061Z",
+  "fixedNow": "2026-09-07T00:00:00.000Z",
+  "configuredModel": "gpt-5.6-luna",
+  "sourceHashes": {
+    "src/modules/agent/agent.ts": "e583a3523e60237b88a51e5b38bbfba283665ab836209a1effb792e503083e00",
+    "src/modules/agent/context.ts": "c03de819f9a265153ebfd93570f1cf756f442e299a02fc84f823fd740aec7d78",
+    "src/core/llm/prompts/persona.ts": "a9f173fd95f5e069ac5c1973cedd9fab50f94414f236189c31f8ed661c3ebbdd",
+    "src/core/llm/models.ts": "bf05ddf6bc22b04477f7716965f21f1e9cd64c54c4170d11092c2bd78bf4928d",
+    "src/modules/agent/tool-adapter.ts": "0ee3a1aec81651b16e620343221fd54e4439cf8c2951a6d100d7a496c4a16c13",
+    "src/modules/agent/__tests__/evolution.integration.test.ts": "472e2dbdcf643eb96a79b51a91c867af458dd7b063b3c4c45d9c4521633462d9"
+  },
+  "repetitions": 3,
+  "realModel": true,
+  "realLocalDatabase": true,
+  "limitations": [
+    "No Google credentials; calendar writes remain pending",
+    "Event emission and job enqueue are suppressed; no external push",
+    "A36 injects persisted receipt interruptions; actual stream transport/browser/Google remain separate",
+    "Semantic final reports need human review in addition to fixed assertions"
+  ],
+  "results": [
+    {
+      "scenario": "A12",
+      "repeat": 1,
+      "trace": [
+        {
+          "prompt": "보관한 계약 검토 다시 꺼내줘.",
+          "text": "테스터님, 보관된 **‘계약 검토’**를 다시 꺼냈어요. 현재 Todo에서 확인할 수 있고, 마감일은 설정되어 있지 않아요.",
+          "latencyMs": 17291,
+          "finishReason": "stop",
+          "usage": {
+            "inputTokens": 85595,
+            "inputTokenDetails": {
+              "noCacheTokens": 12,
+              "cacheReadTokens": 63655,
+              "cacheWriteTokens": 21928
+            },
+            "outputTokens": 162,
+            "outputTokenDetails": {
+              "textTokens": 129,
+              "reasoningTokens": 33
+            },
+            "totalTokens": 85757
+          },
+          "steps": [
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:01.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_sFHwugrxvKfs7kdyTnl04yzI",
+                  "toolName": "agent_getPreferences",
+                  "input": {},
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_08e9a4ebce501e38006a9b95a3faa887d08bf1671c0fb736e4"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_sFHwugrxvKfs7kdyTnl04yzI",
+                  "toolName": "agent_getPreferences",
+                  "input": {},
+                  "output": {
+                    "honorific": "빈센트님",
+                    "timezone": "Asia/Seoul",
+                    "preferences": {
+                      "initiative": "important",
+                      "responseLength": "adaptive"
+                    },
+                    "defaults": {
+                      "defaultDurationMinutes": 60,
+                      "workStartHour": 9,
+                      "workEndHour": 19,
+                      "bufferMinutes": 0,
+                      "includeWeekends": false
+                    },
+                    "evidence": null,
+                    "href": "/settings"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_08e9a4ebce501e38006a9b95a3faa887d08bf1671c0fb736e4"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:05.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_qZuIdLTqyXsy5xJqPyMQUgVC",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "includeCompleted": false,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 50
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_08e9a4ebce501e38006a9b95aad19487d0b14816986834edde"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_qZuIdLTqyXsy5xJqPyMQUgVC",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "includeCompleted": false,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 50
+                  },
+                  "output": {
+                    "items": [
+                      {
+                        "id": "e47ccc9a-a266-445b-8242-e28bef2a9106",
+                        "title": "계약 검토",
+                        "description": "원문 보존",
+                        "column": "Todo",
+                        "columnId": "a30ab734-f0c4-4e93-bd02-1cd17a8d53b6",
+                        "priority": 2,
+                        "due": null,
+                        "dueAt": null,
+                        "dueHasTime": false,
+                        "planDate": null,
+                        "repeatRule": null,
+                        "calendarEventId": null,
+                        "meetingId": null,
+                        "checklist": [],
+                        "labels": [],
+                        "completed": false,
+                        "completedAt": null,
+                        "archived": true,
+                        "archivedAt": "2026-09-07T00:00:00+00:00",
+                        "boardId": "c80d6acb-e6fb-4fe9-b25c-b9d8833b0f2d",
+                        "source": {
+                          "type": "manual"
+                        },
+                        "repeatParentId": null,
+                        "version": "2026-09-05T04:08:00.716772+00:00",
+                        "updatedAt": "2026-09-05T04:08:00.716772+00:00",
+                        "createdAt": "2026-09-05T04:08:00.711068+00:00",
+                        "url": "/tasks/c80d6acb-e6fb-4fe9-b25c-b9d8833b0f2d?card=e47ccc9a-a266-445b-8242-e28bef2a9106"
+                      }
+                    ],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "includeCompleted": false,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "계약",
+                      "limit": 50
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_08e9a4ebce501e38006a9b95aad19487d0b14816986834edde"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:12.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_YBr5IHaJbuvbXaSYa52O8THh",
+                  "toolName": "tasks_restore",
+                  "input": {
+                    "id": "e47ccc9a-a266-445b-8242-e28bef2a9106"
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_08e9a4ebce501e38006a9b95ae69a487d0a8e01ff28b9a289e"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_YBr5IHaJbuvbXaSYa52O8THh",
+                  "toolName": "tasks_restore",
+                  "input": {
+                    "id": "e47ccc9a-a266-445b-8242-e28bef2a9106"
+                  },
+                  "output": {
+                    "id": "e47ccc9a-a266-445b-8242-e28bef2a9106",
+                    "title": "계약 검토",
+                    "description": "원문 보존",
+                    "column": "Todo",
+                    "columnId": "a30ab734-f0c4-4e93-bd02-1cd17a8d53b6",
+                    "priority": 2,
+                    "due": null,
+                    "dueAt": null,
+                    "dueHasTime": false,
+                    "planDate": null,
+                    "repeatRule": null,
+                    "calendarEventId": null,
+                    "meetingId": null,
+                    "checklist": [],
+                    "labels": [],
+                    "completed": false,
+                    "completedAt": null,
+                    "archived": false,
+                    "archivedAt": null,
+                    "boardId": "c80d6acb-e6fb-4fe9-b25c-b9d8833b0f2d",
+                    "source": {
+                      "type": "manual"
+                    },
+                    "repeatParentId": null,
+                    "version": "2026-09-05T04:08:15.235891+00:00",
+                    "updatedAt": "2026-09-05T04:08:15.235891+00:00",
+                    "createdAt": "2026-09-05T04:08:00.711068+00:00",
+                    "url": "/tasks/c80d6acb-e6fb-4fe9-b25c-b9d8833b0f2d?card=e47ccc9a-a266-445b-8242-e28bef2a9106",
+                    "changed": true,
+                    "_undo": "865ae6e9-4df1-468a-883b-5ef310d40dc3"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_08e9a4ebce501e38006a9b95ae69a487d0a8e01ff28b9a289e"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:15.000Z",
+              "toolCalls": [],
+              "toolResults": []
+            }
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "scenario": "A12",
+      "repeat": 3,
+      "trace": [
+        {
+          "prompt": "보관한 계약 검토 다시 꺼내줘.",
+          "text": "테스터님, 보관된 **‘계약 검토’**를 다시 꺼냈어요. 현재 Todo 컬럼에 복원됐고, 마감일은 설정되어 있지 않아요. [할 일 열기](/tasks/7276fa15-baf0-4a87-9a11-0d2112754ce3?card=4db32d59-dd58-4106-a9aa-f67cf9419cb4)",
+          "latencyMs": 10058,
+          "finishReason": "stop",
+          "usage": {
+            "inputTokens": 64229,
+            "inputTokenDetails": {
+              "noCacheTokens": 9,
+              "cacheReadTokens": 42423,
+              "cacheWriteTokens": 21797
+            },
+            "outputTokens": 190,
+            "outputTokenDetails": {
+              "textTokens": 170,
+              "reasoningTokens": 20
+            },
+            "totalTokens": 64419
+          },
+          "steps": [
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:01.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_0jhagLJ8LNa2nYQVwGHwuYie",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "includeCompleted": false,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 50
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_067d55daca7fa8cf006a9b95a4030c87d085b46901be34dd7d"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_0jhagLJ8LNa2nYQVwGHwuYie",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "includeCompleted": false,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 50
+                  },
+                  "output": {
+                    "items": [
+                      {
+                        "id": "4db32d59-dd58-4106-a9aa-f67cf9419cb4",
+                        "title": "계약 검토",
+                        "description": "원문 보존",
+                        "column": "Todo",
+                        "columnId": "32e921bb-d4c7-4aaf-93d3-475e9ed7af33",
+                        "priority": 2,
+                        "due": null,
+                        "dueAt": null,
+                        "dueHasTime": false,
+                        "planDate": null,
+                        "repeatRule": null,
+                        "calendarEventId": null,
+                        "meetingId": null,
+                        "checklist": [],
+                        "labels": [],
+                        "completed": false,
+                        "completedAt": null,
+                        "archived": true,
+                        "archivedAt": "2026-09-07T00:00:00+00:00",
+                        "boardId": "7276fa15-baf0-4a87-9a11-0d2112754ce3",
+                        "source": {
+                          "type": "manual"
+                        },
+                        "repeatParentId": null,
+                        "version": "2026-09-05T04:08:00.716683+00:00",
+                        "updatedAt": "2026-09-05T04:08:00.716683+00:00",
+                        "createdAt": "2026-09-05T04:08:00.711383+00:00",
+                        "url": "/tasks/7276fa15-baf0-4a87-9a11-0d2112754ce3?card=4db32d59-dd58-4106-a9aa-f67cf9419cb4"
+                      }
+                    ],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "includeCompleted": false,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "계약",
+                      "limit": 50
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_067d55daca7fa8cf006a9b95a4030c87d085b46901be34dd7d"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:05.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_4aJ7UkHsw29hfl9f0BS2eMYj",
+                  "toolName": "tasks_restore",
+                  "input": {
+                    "id": "4db32d59-dd58-4106-a9aa-f67cf9419cb4"
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_067d55daca7fa8cf006a9b95a6ca6c87d095d67f56395c2dfd"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_4aJ7UkHsw29hfl9f0BS2eMYj",
+                  "toolName": "tasks_restore",
+                  "input": {
+                    "id": "4db32d59-dd58-4106-a9aa-f67cf9419cb4"
+                  },
+                  "output": {
+                    "id": "4db32d59-dd58-4106-a9aa-f67cf9419cb4",
+                    "title": "계약 검토",
+                    "description": "원문 보존",
+                    "column": "Todo",
+                    "columnId": "32e921bb-d4c7-4aaf-93d3-475e9ed7af33",
+                    "priority": 2,
+                    "due": null,
+                    "dueAt": null,
+                    "dueHasTime": false,
+                    "planDate": null,
+                    "repeatRule": null,
+                    "calendarEventId": null,
+                    "meetingId": null,
+                    "checklist": [],
+                    "labels": [],
+                    "completed": false,
+                    "completedAt": null,
+                    "archived": false,
+                    "archivedAt": null,
+                    "boardId": "7276fa15-baf0-4a87-9a11-0d2112754ce3",
+                    "source": {
+                      "type": "manual"
+                    },
+                    "repeatParentId": null,
+                    "version": "2026-09-05T04:08:07.770698+00:00",
+                    "updatedAt": "2026-09-05T04:08:07.770698+00:00",
+                    "createdAt": "2026-09-05T04:08:00.711383+00:00",
+                    "url": "/tasks/7276fa15-baf0-4a87-9a11-0d2112754ce3?card=4db32d59-dd58-4106-a9aa-f67cf9419cb4",
+                    "changed": true,
+                    "_undo": "3ca072ef-58b2-4463-b248-54014595872d"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_067d55daca7fa8cf006a9b95a6ca6c87d095d67f56395c2dfd"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:08.000Z",
+              "toolCalls": [],
+              "toolResults": []
+            }
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "scenario": "A12",
+      "repeat": 2,
+      "trace": [
+        {
+          "prompt": "보관한 계약 검토 다시 꺼내줘.",
+          "text": "테스터님, 보관된 **‘계약 검토’**를 다시 꺼냈어요. 현재 Todo 컬럼에 복원됐고, 마감은 설정되어 있지 않아요. [할 일 열기](/tasks/ef41ccc2-cc45-4b1e-80ab-eeec7a017614?card=460b7331-6175-40b0-9ce6-c6906d62aeee)",
+          "latencyMs": 8362,
+          "finishReason": "stop",
+          "usage": {
+            "inputTokens": 64235,
+            "inputTokenDetails": {
+              "noCacheTokens": 9,
+              "cacheReadTokens": 42425,
+              "cacheWriteTokens": 21801
+            },
+            "outputTokens": 191,
+            "outputTokenDetails": {
+              "textTokens": 171,
+              "reasoningTokens": 20
+            },
+            "totalTokens": 64426
+          },
+          "steps": [
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:01.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_wPyJ1inARjyftRlWpNNSLxWl",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "includeCompleted": false,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 50
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_0411631e9f53f655006a9b95a373bc87d0babd1584e94710a4"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_wPyJ1inARjyftRlWpNNSLxWl",
+                  "toolName": "tasks_list",
+                  "input": {
+                    "includeCompleted": false,
+                    "state": "archived",
+                    "cursor": 0,
+                    "q": "계약",
+                    "limit": 50
+                  },
+                  "output": {
+                    "items": [
+                      {
+                        "id": "460b7331-6175-40b0-9ce6-c6906d62aeee",
+                        "title": "계약 검토",
+                        "description": "원문 보존",
+                        "column": "Todo",
+                        "columnId": "24ba99b3-5292-4e18-90ba-c8add5af6799",
+                        "priority": 2,
+                        "due": null,
+                        "dueAt": null,
+                        "dueHasTime": false,
+                        "planDate": null,
+                        "repeatRule": null,
+                        "calendarEventId": null,
+                        "meetingId": null,
+                        "checklist": [],
+                        "labels": [],
+                        "completed": false,
+                        "completedAt": null,
+                        "archived": true,
+                        "archivedAt": "2026-09-07T00:00:00+00:00",
+                        "boardId": "ef41ccc2-cc45-4b1e-80ab-eeec7a017614",
+                        "source": {
+                          "type": "manual"
+                        },
+                        "repeatParentId": null,
+                        "version": "2026-09-05T04:08:00.718111+00:00",
+                        "updatedAt": "2026-09-05T04:08:00.718111+00:00",
+                        "createdAt": "2026-09-05T04:08:00.712868+00:00",
+                        "url": "/tasks/ef41ccc2-cc45-4b1e-80ab-eeec7a017614?card=460b7331-6175-40b0-9ce6-c6906d62aeee"
+                      }
+                    ],
+                    "hasMore": false,
+                    "nextCursor": null,
+                    "scope": {
+                      "includeCompleted": false,
+                      "state": "archived",
+                      "cursor": 0,
+                      "q": "계약",
+                      "limit": 50
+                    },
+                    "completeness": "complete"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_0411631e9f53f655006a9b95a373bc87d0babd1584e94710a4"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:04.000Z",
+              "toolCalls": [
+                {
+                  "type": "tool-call",
+                  "toolCallId": "call_6Pq4mHUOlsAK5TktyaU8fmso",
+                  "toolName": "tasks_restore",
+                  "input": {
+                    "id": "460b7331-6175-40b0-9ce6-c6906d62aeee"
+                  },
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_0411631e9f53f655006a9b95a5868487d0b37e7a29a9ff1af6"
+                    }
+                  }
+                }
+              ],
+              "toolResults": [
+                {
+                  "type": "tool-result",
+                  "toolCallId": "call_6Pq4mHUOlsAK5TktyaU8fmso",
+                  "toolName": "tasks_restore",
+                  "input": {
+                    "id": "460b7331-6175-40b0-9ce6-c6906d62aeee"
+                  },
+                  "output": {
+                    "id": "460b7331-6175-40b0-9ce6-c6906d62aeee",
+                    "title": "계약 검토",
+                    "description": "원문 보존",
+                    "column": "Todo",
+                    "columnId": "24ba99b3-5292-4e18-90ba-c8add5af6799",
+                    "priority": 2,
+                    "due": null,
+                    "dueAt": null,
+                    "dueHasTime": false,
+                    "planDate": null,
+                    "repeatRule": null,
+                    "calendarEventId": null,
+                    "meetingId": null,
+                    "checklist": [],
+                    "labels": [],
+                    "completed": false,
+                    "completedAt": null,
+                    "archived": false,
+                    "archivedAt": null,
+                    "boardId": "ef41ccc2-cc45-4b1e-80ab-eeec7a017614",
+                    "source": {
+                      "type": "manual"
+                    },
+                    "repeatParentId": null,
+                    "version": "2026-09-05T04:08:06.354498+00:00",
+                    "updatedAt": "2026-09-05T04:08:06.354498+00:00",
+                    "createdAt": "2026-09-05T04:08:00.712868+00:00",
+                    "url": "/tasks/ef41ccc2-cc45-4b1e-80ab-eeec7a017614?card=460b7331-6175-40b0-9ce6-c6906d62aeee",
+                    "changed": true,
+                    "_undo": "2f0af37b-473b-4716-a88b-d27f06f26e25"
+                  },
+                  "dynamic": false,
+                  "providerMetadata": {
+                    "openai": {
+                      "itemId": "fc_0411631e9f53f655006a9b95a5868487d0b37e7a29a9ff1af6"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "modelId": "gpt-5.6-luna",
+              "timestamp": "2026-09-05T04:08:06.000Z",
+              "toolCalls": [],
+              "toolResults": []
+            }
+          ]
+        }
+      ],
+      "status": "passed"
+    }
+  ]
+}

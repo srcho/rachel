@@ -1,0 +1,471 @@
+{
+  "runs": [
+    {
+      "artifact": "luna-2026-09-05T04-05-32-795Z.json",
+      "startedAt": "2026-09-05T04:05:32.795Z",
+      "recordedAt": "2026-09-05T04:06:02.150Z",
+      "configuredModel": "gpt-5.6-luna",
+      "responseModelIds": ["gpt-5.6-luna"],
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "running": 0,
+      "criticalAssertions": 0,
+      "modelTurns": 1,
+      "inputTokens": 108047,
+      "cachedInputTokens": 85393,
+      "outputTokens": 888,
+      "p50CaseLatencyMs": 29112,
+      "p95CaseLatencyMs": 29112,
+      "scenarioResults": {
+        "A12": {
+          "passed": 0,
+          "failed": 1,
+          "running": 0
+        }
+      },
+      "estimatedAgentModelCostUsd": 0.007304
+    },
+    {
+      "artifact": "luna-2026-09-05T04-07-16-075Z.json",
+      "startedAt": "2026-09-05T04:07:16.075Z",
+      "recordedAt": "2026-09-05T04:07:28.125Z",
+      "configuredModel": "gpt-5.6-luna",
+      "responseModelIds": ["gpt-5.6-luna"],
+      "cases": 3,
+      "passed": 2,
+      "failed": 1,
+      "running": 0,
+      "criticalAssertions": 0,
+      "modelTurns": 2,
+      "inputTokens": 128509,
+      "cachedInputTokens": 84859,
+      "outputTokens": 336,
+      "p50CaseLatencyMs": 10179,
+      "p95CaseLatencyMs": 11772,
+      "scenarioResults": {
+        "A12": {
+          "passed": 2,
+          "failed": 1,
+          "running": 0
+        }
+      },
+      "estimatedAgentModelCostUsd": 0.01083
+    },
+    {
+      "artifact": "luna-2026-09-05T04-08-00-505Z.json",
+      "startedAt": "2026-09-05T04:08:00.505Z",
+      "recordedAt": "2026-09-05T04:08:18.061Z",
+      "configuredModel": "gpt-5.6-luna",
+      "responseModelIds": ["gpt-5.6-luna"],
+      "cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "running": 0,
+      "criticalAssertions": 0,
+      "modelTurns": 3,
+      "inputTokens": 214059,
+      "cachedInputTokens": 148503,
+      "outputTokens": 543,
+      "p50CaseLatencyMs": 10058,
+      "p95CaseLatencyMs": 17291,
+      "scenarioResults": {
+        "A12": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        }
+      },
+      "estimatedAgentModelCostUsd": 0.016733
+    },
+    {
+      "artifact": "luna-2026-09-05T04-08-24-899Z.json",
+      "startedAt": "2026-09-05T04:08:24.899Z",
+      "recordedAt": "2026-09-05T04:12:00.637Z",
+      "configuredModel": "gpt-5.6-luna",
+      "responseModelIds": ["gpt-5.6-luna"],
+      "cases": 54,
+      "passed": 50,
+      "failed": 4,
+      "running": 0,
+      "criticalAssertions": 0,
+      "modelTurns": 57,
+      "inputTokens": 3773579,
+      "cachedInputTokens": 2309501,
+      "outputTokens": 15229,
+      "p50CaseLatencyMs": 10556,
+      "p95CaseLatencyMs": 24240,
+      "scenarioResults": {
+        "A12": {
+          "passed": 2,
+          "failed": 1,
+          "running": 0
+        },
+        "A13": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-disconnected": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-unselected": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-stale": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-outside": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A18": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A19": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A20": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A21": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A23": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A25": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A29": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A30": {
+          "passed": 2,
+          "failed": 1,
+          "running": 0
+        },
+        "A31": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A33": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A35": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A36": {
+          "passed": 1,
+          "failed": 2,
+          "running": 0
+        }
+      },
+      "estimatedAgentModelCostUsd": 0.35728
+    },
+    {
+      "artifact": "luna-2026-09-05T04-13-10-254Z.json",
+      "startedAt": "2026-09-05T04:13:10.254Z",
+      "recordedAt": "2026-09-05T04:16:48.752Z",
+      "configuredModel": "gpt-5.6-luna",
+      "responseModelIds": ["gpt-5.6-luna"],
+      "cases": 54,
+      "passed": 47,
+      "failed": 7,
+      "running": 0,
+      "criticalAssertions": 0,
+      "modelTurns": 57,
+      "inputTokens": 3892647,
+      "cachedInputTokens": 2393360,
+      "outputTokens": 14939,
+      "p50CaseLatencyMs": 10449,
+      "p95CaseLatencyMs": 21255,
+      "scenarioResults": {
+        "A12": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A13": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-disconnected": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-unselected": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-stale": {
+          "passed": 2,
+          "failed": 1,
+          "running": 0
+        },
+        "A14-outside": {
+          "passed": 1,
+          "failed": 2,
+          "running": 0
+        },
+        "A18": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A19": {
+          "passed": 2,
+          "failed": 1,
+          "running": 0
+        },
+        "A20": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A21": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A23": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A25": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A29": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A30": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A31": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A33": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A35": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A36": {
+          "passed": 0,
+          "failed": 3,
+          "running": 0
+        }
+      },
+      "estimatedAgentModelCostUsd": 0.365651
+    },
+    {
+      "artifact": "luna-2026-09-05T04-17-16-964Z.json",
+      "startedAt": "2026-09-05T04:17:16.964Z",
+      "recordedAt": "2026-09-05T04:20:50.080Z",
+      "configuredModel": "gpt-5.6-luna",
+      "responseModelIds": ["gpt-5.6-luna"],
+      "cases": 54,
+      "passed": 54,
+      "failed": 0,
+      "running": 0,
+      "criticalAssertions": 0,
+      "modelTurns": 57,
+      "inputTokens": 3885618,
+      "cachedInputTokens": 2394772,
+      "outputTokens": 15287,
+      "p50CaseLatencyMs": 10016,
+      "p95CaseLatencyMs": 23682,
+      "scenarioResults": {
+        "A12": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A13": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-disconnected": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-unselected": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-stale": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A14-outside": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A18": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A19": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A20": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A21": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A23": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A25": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A29": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A30": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A31": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A33": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A35": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        },
+        "A36": {
+          "passed": 3,
+          "failed": 0,
+          "running": 0
+        }
+      },
+      "estimatedAgentModelCostUsd": 0.364409
+    }
+  ],
+  "pricing": {
+    "source": "src/core/llm/pricing.ts",
+    "sourceSha256": "1181a858a214a0cfa9bdbaa2ab6f39b6df932d6f84268615679d1d4d4a3cda20",
+    "inputUsdPerMillion": 0.2,
+    "cachedInputUsdPerMillion": 0.02,
+    "outputUsdPerMillion": 1.2,
+    "scope": "Repository pricing estimate for direct agent calls only; excludes nested embedding calls, infrastructure and invoice reconciliation"
+  },
+  "latencyMethod": "Nearest-rank percentile over case sum of measured agent turns; includes dynamic context and nested tool work; excludes initial fixture creation/cleanup",
+  "finalAdjudication": {
+    "artifact": "luna-2026-09-05T04-17-16-964Z.json",
+    "automatedPassed": 54,
+    "automatedTotal": 54,
+    "reviewedPassed": 53,
+    "reviewedTotal": 54,
+    "reviewedSuccessRatePercent": 98.15,
+    "observedCriticalFailures": 0,
+    "target": {
+      "successRatePercent": 95,
+      "criticalFailures": 0,
+      "metForThisRepresentativeSet": true
+    },
+    "reviewMethod": "Compared all final responses with recorded tools and deterministic state assertions; conservative manual downgrade retained even though automated predicates passed.",
+    "noncriticalFailures": [
+      {
+        "scenario": "A18",
+        "repeat": 2,
+        "reason": "Correctly refused unsupported weekly interval/monthly requests and performed no writes, but incorrectly said only weekly recurrence is supported; after_completion is also supported.",
+        "responseExcerpt": "현재 반복 할 일은 매주 반복만 지원"
+      }
+    ],
+    "qualityNotes": [
+      {
+        "scenario": "A14-outside",
+        "repeat": 3,
+        "reason": "Exposed internal complete=false terminology."
+      },
+      {
+        "scenario": "A33",
+        "repeat": 2,
+        "reason": "Exposed pending_push and technical connection terminology."
+      },
+      {
+        "scenario": "A36",
+        "repeat": 1,
+        "reason": "Inserted stray Gujarati word બંને in otherwise correct Korean completion report."
+      }
+    ],
+    "scope": "54 representative case repetitions across 15 acceptance IDs, not all A01-A36 nor production Google/voice/push/browser certification.",
+    "sourceHashDeltaAfterRun": {
+      "path": "src/modules/agent/context.ts",
+      "runSha256": "c03de819f9a265153ebfd93570f1cf756f442e299a02fc84f823fd740aec7d78",
+      "currentSha256": "d1c6c0cfe8d9a2291556e73d41e90d3d3ffe87a0a605855250b7e448da30d74b",
+      "explanation": "Parent reports metadata-only memory-reference href matching correction; prompt/tool text sent to the model is unchanged."
+    }
+  }
+}
