@@ -46,19 +46,25 @@ export function captureService(ctx: ServiceContext) {
   async function countOpen(): Promise<number> {
     const { count, error } = await own(
       ctx.db.from("captures").select("id", { count: "exact", head: true }),
-    ).in("status", ["inbox", "triaged"]);
+    ).in("status", ["inbox", "triaged", "resolving"]);
     if (error) throw error;
     return count ?? 0;
   }
 
   async function list(
-    status: "inbox" | "triaged" | "resolved" | "dismissed" | "open" = "open",
+    status:
+      | "inbox"
+      | "triaged"
+      | "resolving"
+      | "resolved"
+      | "dismissed"
+      | "open" = "open",
     limit = 50,
   ): Promise<CaptureRow[]> {
     let q = own(ctx.db.from("captures").select("*"));
     q =
       status === "open"
-        ? q.in("status", ["inbox", "triaged"])
+        ? q.in("status", ["inbox", "triaged", "resolving"])
         : q.eq("status", status);
     const { data, error } = await q
       .order("created_at", { ascending: false })
@@ -79,6 +85,8 @@ export function captureService(ctx: ServiceContext) {
   async function triage(id: string): Promise<Triage> {
     const c = await get(id);
     if (!c) throw new Error("캡처를 찾을 수 없어요");
+    if (!["inbox", "triaged"].includes(c.status))
+      throw new Error("이미 확정 중이거나 처리한 메모예요");
     const now = await buildDynamicContext(
       { ...ctx, ui: undefined },
       ctx.registry,
@@ -95,11 +103,16 @@ export function captureService(ctx: ServiceContext) {
       output: triageSchema,
       maxOutputTokens: 400,
     });
-    await ctx.db
+    const { data: triaged, error: triageError } = await ctx.db
       .from("captures")
       .update({ status: "triaged", triage: output as unknown as Json })
       .eq("id", id)
-      .eq("user_id", ctx.userId);
+      .eq("user_id", ctx.userId)
+      .in("status", ["inbox", "triaged"])
+      .select("id")
+      .maybeSingle();
+    if (triageError) throw triageError;
+    if (!triaged) throw new Error("이미 확정 중이거나 처리한 메모예요");
     await ctx.emit({
       type: CAPTURE_EVENTS.triaged,
       entity: { type: "capture", id },
@@ -113,12 +126,47 @@ export function captureService(ctx: ServiceContext) {
     id: string,
     override?: Partial<Triage>,
   ): Promise<{ type: string; ref: Record<string, unknown> }> {
-    const c = await get(id);
-    if (!c) throw new Error("캡처를 찾을 수 없어요");
-    const t = {
-      ...((c.triage as Triage | null) ?? { type: "note", reason: "" }),
-      ...override,
-    } as Triage;
+    let c = await get(id);
+    if (!c) throw new Error("메모를 찾을 수 없어요");
+    if (c.status === "dismissed") throw new Error("무시한 메모예요");
+    if (c.status === "resolved")
+      return {
+        type: (c.triage as Triage).type,
+        ref: c.resolved_ref as Record<string, unknown>,
+      };
+    if (c.status !== "resolving") {
+      const proposed = triageSchema.parse({
+        ...((c.triage as Triage | null) ?? { type: "note", reason: "" }),
+        ...override,
+      });
+      if (
+        (proposed.type === "task" && !proposed.task) ||
+        (proposed.type === "event" && !proposed.event) ||
+        (proposed.type === "memory" && !proposed.memory)
+      )
+        throw new Error("확정할 내용을 확인해 주세요");
+      // Freeze the confirmed plan before creating anything. Concurrent requests and retries use the same plan/key.
+      const { data, error } = await ctx.db
+        .from("captures")
+        .update({ status: "resolving", triage: proposed as unknown as Json })
+        .eq("id", id)
+        .eq("user_id", ctx.userId)
+        .in("status", ["inbox", "triaged"])
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      c = data ?? (await get(id));
+      if (!c) throw new Error("메모를 찾을 수 없어요");
+      if (c.status === "resolved")
+        return {
+          type: (c.triage as Triage).type,
+          ref: c.resolved_ref as Record<string, unknown>,
+        };
+      if (c.status !== "resolving")
+        throw new Error("메모 상태가 바뀌었어요. 다시 확인해 주세요");
+    }
+    const t = triageSchema.parse(c.triage);
+    const creationKey = `capture:${id}`;
     const tools = ctx.registry.tools();
     let ref: Record<string, unknown> = {};
     if (t.type === "task" && t.task) {
@@ -126,14 +174,17 @@ export function captureService(ctx: ServiceContext) {
       if (!create) throw new Error("tasks 모듈 없음");
       const card = (await create.execute(
         {
+          creationKey,
           title: t.task.title,
           priority: t.task.priority,
           dueAt: t.task.due ?? null,
-          dueHasTime: Boolean(
-            t.task.due &&
-              /T\d{2}:\d{2}/.test(t.task.due) &&
-              !t.task.due.includes("T23:59"),
-          ),
+          dueHasTime:
+            t.task.dueHasTime ??
+            Boolean(
+              t.task.due &&
+                /T\d{2}:\d{2}/.test(t.task.due) &&
+                !t.task.due.includes("T23:59"),
+            ),
           source: { type: "capture", ref_id: id },
         },
         ctx,
@@ -144,6 +195,7 @@ export function captureService(ctx: ServiceContext) {
       if (!create) throw new Error("calendar 모듈 없음");
       const ev = (await create.execute(
         {
+          creationKey,
           title: t.event.title,
           startAt: t.event.startAt,
           endAt: t.event.endAt,
@@ -157,14 +209,19 @@ export function captureService(ctx: ServiceContext) {
       const remember = tools["memory.remember"];
       if (!remember) throw new Error("memory 모듈 없음");
       const m = (await remember.execute(
-        { content: t.memory.content, kind: t.memory.kind, importance: 3 },
+        {
+          creationKey,
+          content: t.memory.content,
+          kind: t.memory.kind,
+          importance: 3,
+        },
         ctx,
       )) as { id: string };
       ref = { type: "memory", id: m.id };
     } else {
       ref = { type: "note" };
     }
-    await ctx.db
+    const { error: resolveError } = await ctx.db
       .from("captures")
       .update({
         status: "resolved",
@@ -173,6 +230,7 @@ export function captureService(ctx: ServiceContext) {
       })
       .eq("id", id)
       .eq("user_id", ctx.userId);
+    if (resolveError) throw resolveError;
     await ctx.emit({
       type: CAPTURE_EVENTS.resolved,
       entity: { type: "capture", id },
@@ -182,11 +240,13 @@ export function captureService(ctx: ServiceContext) {
   }
 
   async function dismiss(id: string): Promise<void> {
-    await ctx.db
+    const { error } = await ctx.db
       .from("captures")
       .update({ status: "dismissed" })
       .eq("id", id)
-      .eq("user_id", ctx.userId);
+      .eq("user_id", ctx.userId)
+      .in("status", ["inbox", "triaged"]);
+    if (error) throw error;
   }
 
   return { add, list, countOpen, get, triage, resolve, dismiss };

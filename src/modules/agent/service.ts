@@ -6,6 +6,7 @@ export interface UiMessageLike {
   id: string;
   role: "user" | "assistant" | "system";
   parts: unknown[];
+  metadata?: Json;
 }
 
 /** 스레드·메시지 관리. 토큰 압축(요약)은 S1.4 후반/P4 에서. */
@@ -37,6 +38,7 @@ export function agentService(ctx: ServiceContext) {
         thread_id: threadId,
         role: m.role,
         parts: m.parts as Json,
+        metadata: m.metadata ?? null,
       })),
     );
     const patch: Parameters<typeof repo.updateThread>[1] = {
@@ -73,5 +75,6 @@ export function toUi(row: MessageRow): UiMessageLike {
     id: row.id,
     role: row.role as UiMessageLike["role"],
     parts: (row.parts as unknown[]) ?? [],
+    metadata: row.metadata ?? undefined,
   };
 }

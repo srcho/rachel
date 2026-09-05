@@ -76,6 +76,7 @@ export function agentRepository(db: Db, userId: string) {
         thread_id: string;
         role: string;
         parts: Json;
+        metadata?: Json;
         tokens?: number | null;
       }>,
     ): Promise<void> {

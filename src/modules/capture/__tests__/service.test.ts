@@ -51,6 +51,57 @@ describe.skipIf(!available)("captureService", () => {
     expect((cards[0]?.source as { type: string }).type).toBe("capture");
     expect((await svc.get(c.id))?.status).toBe("resolved");
     await svc.dismiss(c.id);
-    expect((await svc.get(c.id))?.status).toBe("dismissed");
+    expect((await svc.get(c.id))?.status).toBe("resolved");
+    expect(await svc.resolve(c.id)).toEqual(r);
+  });
+  it("freezes one proposal and produces one card under concurrent confirmation", async () => {
+    const svc = captureService(ctx);
+    const c = await svc.add({ text: "동시 확정" });
+    const proposal = {
+      type: "task" as const,
+      reason: "",
+      task: { title: "중복 없는 후속 작업", priority: 2 },
+    };
+    const [a, b] = await Promise.all([
+      svc.resolve(c.id, proposal),
+      svc.resolve(c.id, {
+        ...proposal,
+        task: { ...proposal.task, title: "다른 제목" },
+      }),
+    ]);
+    expect(a.ref.id).toBe(b.ref.id);
+    const { data, error } = await user.db
+      .from("cards")
+      .select("id")
+      .eq("creation_key", `capture:${c.id}`);
+    if (error) throw error;
+    expect(data).toHaveLength(1);
+  });
+  it("recovers after creation succeeded but confirmation failed without changing the frozen plan", async () => {
+    let fail = true;
+    const interrupted = captureService({
+      ...ctx,
+      emit: async (e) => {
+        if (e.type === "task.created" && fail) {
+          fail = false;
+          throw new Error("lost response");
+        }
+      },
+    });
+    const c = await interrupted.add({ text: "복구할 작업" });
+    await expect(
+      interrupted.resolve(c.id, {
+        type: "task",
+        reason: "",
+        task: { title: "복구할 작업", priority: 1 },
+      }),
+    ).rejects.toThrow("lost response");
+    expect((await interrupted.get(c.id))?.status).toBe("resolving");
+    const result = await interrupted.resolve(c.id, { type: "note" });
+    expect(result.type).toBe("task");
+    expect(
+      await tasksService(ctx).listCards({ q: "복구할 작업" }),
+    ).toHaveLength(1);
+    expect((await interrupted.get(c.id))?.status).toBe("resolved");
   });
 });

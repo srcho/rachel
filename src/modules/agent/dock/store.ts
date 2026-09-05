@@ -1,16 +1,20 @@
 "use client";
 import { create } from "zustand";
+import type { UiContext } from "@/core/contracts";
+import type { RachelUIMessage } from "../agent";
 
-export interface UiContextState {
-  route: string;
-  entity?: { type: string; id: string };
-}
+export type UiContextState = UiContext;
 
 interface DockState {
+  userId: string | null;
   open: boolean;
   /** 데스크톱 플로팅 창 확장(넓게·높게) */
   expanded: boolean;
   threadId: string;
+  drafts: Record<string, string>;
+  conversations: Record<string, RachelUIMessage[]>;
+  setDraft: (id: string, text: string) => void;
+  setMessages: (id: string, messages: RachelUIMessage[]) => void;
   /** 화면 컨텍스트(칩). 사용자가 끄면 전송하지 않는다 */
   ui: UiContextState | null;
   useUi: boolean;
@@ -24,9 +28,15 @@ interface DockState {
 }
 
 export const useDock = create<DockState>((set) => ({
+  userId: null,
   open: false,
   expanded: false,
   threadId: crypto.randomUUID(),
+  drafts: {},
+  conversations: {},
+  setDraft: (id, text) => set((s) => ({ drafts: { ...s.drafts, [id]: text } })),
+  setMessages: (id, messages) =>
+    set((s) => ({ conversations: { ...s.conversations, [id]: messages } })),
   ui: null,
   useUi: true,
   setOpen: (open) => set({ open }),

@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { userContext } from "@/core/context";
+import { parseDueFromTitle } from "@/modules/tasks/parse-due";
 import type { Triage } from "./schema";
 import { captureService } from "./service";
 
@@ -33,4 +34,22 @@ export async function dismissCaptureAction(id: string) {
 export async function retriageAction(id: string) {
   await (await svc()).triage(id);
   revalidatePath("/capture");
+}
+
+export async function quickTaskAction(text: string, creationKey: string) {
+  const ctx = await userContext();
+  const tool = ctx.registry.tools()["tasks.create"];
+  if (!tool) throw new Error("할 일을 사용할 수 없어요");
+  const due = parseDueFromTitle(text, ctx.now, ctx.timezone);
+  const result = await tool.execute(
+    {
+      title: due?.title ?? text,
+      dueAt: due?.dueAt,
+      dueHasTime: due?.hasTime ?? false,
+      creationKey,
+    },
+    ctx,
+  );
+  revalidatePath("/today");
+  return result;
 }

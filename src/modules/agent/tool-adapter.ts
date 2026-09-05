@@ -1,6 +1,7 @@
 import { type ToolSet, tool } from "ai";
 import type { AnyAgentTool, ToolContext } from "@/core/contracts";
 import type { Json } from "@/core/db/types.generated";
+import { runToolOnce } from "./tool-once";
 
 export interface AdaptedTools {
   tools: ToolSet;
@@ -20,6 +21,8 @@ export function toAiToolName(registryName: string): string {
 export function adaptTools(
   defs: Record<string, AnyAgentTool>,
   ctx: ToolContext,
+  turnKey?: string,
+  retry = false,
 ): AdaptedTools {
   const tools: AdaptedTools["tools"] = {};
   const toolApproval: AdaptedTools["toolApproval"] = {};
@@ -30,12 +33,18 @@ export function adaptTools(
       description: def.description,
       inputSchema: def.inputSchema,
       execute: async (input: unknown) => {
-        const output = await def.execute(input, ctx);
-        if (def.risk === "write" && def.undo) {
-          const undoId = await recordUndo(ctx, name, output);
-          return { ...(output as object), _undo: undoId };
-        }
-        return output;
+        const parsed = def.inputSchema.parse(input);
+        const execute = async () => {
+          const output = await def.execute(parsed, ctx);
+          if (def.risk === "write" && def.undo) {
+            const undoId = await recordUndo(ctx, name, output);
+            return { ...(output as object), _undo: undoId };
+          }
+          return output;
+        };
+        return turnKey && def.risk !== "read"
+          ? runToolOnce(ctx, turnKey, name, parsed, execute, retry)
+          : execute();
       },
     });
   }

@@ -22,10 +22,13 @@ export interface ServiceContext {
 
 export interface UiContext {
   route: string;
+  label?: string;
+  dateRange?: { from: string; to: string };
   entity?: { type: string; id: string };
 }
 
 /** 에이전트 도구가 받는 컨텍스트 = 서비스 컨텍스트 + 화면 컨텍스트 */
 export interface ToolContext extends ServiceContext {
   ui?: UiContext;
+  memoryReferences?: Array<{ id: string; title: string }>;
 }

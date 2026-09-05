@@ -24,7 +24,9 @@ export async function buildDynamicContext(
     const entity = ctx.ui.entity
       ? ` · 보고 있는 것: ${ctx.ui.entity.type} ${ctx.ui.entity.id}`
       : "";
-    blocks.push(`[화면] ${ctx.ui.route}${entity}`);
+    blocks.push(
+      `[화면] ${ctx.ui.route}${entity}${ctx.ui.label ? ` · 표시 이름: ${JSON.stringify(ctx.ui.label)}` : ""}${ctx.ui.dateRange ? ` · 날짜 범위: ${ctx.ui.dateRange.from} ~ ${ctx.ui.dateRange.to}` : ""}`,
+    );
   }
   const results = await Promise.all(
     registry.contextProviders().map(async (p) => {

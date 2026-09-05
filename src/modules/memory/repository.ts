@@ -44,11 +44,22 @@ export function memoryRepository(db: Db, userId: string) {
       const { data, error } = await own(db.from("memories").select("*"))
         .eq("status", "active")
         .eq("pinned", true)
+        .is("review_against", null)
         .limit(20);
       if (error) throw error;
       return data;
     },
+    async findCreated(key: string): Promise<MemoryRow | null> {
+      const { data, error } = await own(db.from("memories").select("*"))
+        .eq("creation_key", key)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
     async insert(row: {
+      creation_key?: string;
+      review_against?: string;
+      confirmed_at?: string;
       kind: MemoryKind;
       content: string;
       embedding: number[] | null;
@@ -59,6 +70,9 @@ export function memoryRepository(db: Db, userId: string) {
         .from("memories")
         .insert({
           user_id: userId,
+          creation_key: row.creation_key,
+          review_against: row.review_against,
+          confirmed_at: row.confirmed_at,
           kind: row.kind,
           content: row.content,
           embedding: row.embedding ? toVector(row.embedding) : null,
@@ -67,6 +81,15 @@ export function memoryRepository(db: Db, userId: string) {
         })
         .select("*")
         .single();
+      if (error?.code === "23505" && row.creation_key) {
+        const { data: existing, error: lookupError } = await own(
+          db.from("memories").select("*"),
+        )
+          .eq("creation_key", row.creation_key)
+          .maybeSingle();
+        if (lookupError) throw lookupError;
+        if (existing) return existing;
+      }
       if (error) throw error;
       return data;
     },
@@ -79,6 +102,7 @@ export function memoryRepository(db: Db, userId: string) {
         kind?: MemoryKind;
         source?: Json;
         pinned?: boolean;
+        confirmed_at?: string;
         status?: "active" | "archived";
       },
     ): Promise<MemoryRow> {
@@ -107,11 +131,22 @@ export function memoryRepository(db: Db, userId: string) {
       const { data, error } = await db.rpc("match_memories", {
         p_user_id: userId,
         p_embedding: toVector(embedding),
-        p_k: k,
+        p_k: Math.min(k * 3, 100),
         p_min_similarity: minSimilarity,
       });
       if (error) throw error;
-      return data ?? [];
+      if (!data?.length) return [];
+      const { data: active, error: activeError } = await own(
+        db.from("memories").select("id"),
+      )
+        .in(
+          "id",
+          data.map((m) => m.id),
+        )
+        .is("review_against", null);
+      if (activeError) throw activeError;
+      const allowed = new Set(active?.map((m) => m.id));
+      return data.filter((m) => allowed.has(m.id)).slice(0, k);
     },
     /** 답변에 쓰인 기억의 사용 기록(실패는 무시) */
     async touch(ids: string[]): Promise<void> {

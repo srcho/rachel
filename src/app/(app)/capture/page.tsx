@@ -10,7 +10,7 @@ import { ShareReceiver } from "@/modules/capture/ui/ShareReceiver";
 
 export const dynamic = "force-dynamic";
 
-/** 인박스. PWA share_target 이 GET 으로 title/text/url 을 넘기면 캡처를 만든다. */
+/** 수집함. PWA share_target 이 GET 으로 title/text/url 을 넘기면 캡처를 만든다. */
 export default async function CapturePage({
   searchParams,
 }: {
@@ -29,7 +29,7 @@ export default async function CapturePage({
   return (
     <>
       <PageHeader
-        title="인박스"
+        title="수집함"
         meta={items.length ? `${items.length}개` : undefined}
       />
       <Page width="narrow">

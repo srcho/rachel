@@ -30,6 +30,7 @@ export const memoryTools: Record<string, AnyAgentTool> = {
     description:
       "사용자가 '기억해'라고 하거나 앞으로 유용할 선호·사람·결정·목표를 말했을 때 저장한다. 한 문장으로.",
     inputSchema: z.object({
+      creationKey: z.string().min(1).max(2000).optional(),
       content: z.string().min(1).max(300),
       kind: z.enum(MEMORY_KINDS).default("fact"),
       importance: z.number().int().min(1).max(5).default(3),
@@ -45,6 +46,7 @@ export const memoryTools: Record<string, AnyAgentTool> = {
         content: memory.content,
         kind: memory.kind,
         merged,
+        needsReview: Boolean(memory.review_against),
       };
     },
     undo: async (output, ctx) => {
@@ -70,13 +72,15 @@ export const memoryTools: Record<string, AnyAgentTool> = {
     }),
     risk: "read",
     execute: async (input, ctx) =>
-      (await memoryService(ctx).list(input)).map((m) => ({
-        id: m.id,
-        kind: m.kind,
-        content: m.content,
-        importance: m.importance,
-        pinned: m.pinned,
-      })),
+      (await memoryService(ctx).list(input))
+        .filter((m) => !m.review_against)
+        .map((m) => ({
+          id: m.id,
+          kind: m.kind,
+          content: m.content,
+          importance: m.importance,
+          pinned: m.pinned,
+        })),
   }),
   update: defineTool({
     description: "기억의 내용·유형·중요도·고정 여부를 고친다.",

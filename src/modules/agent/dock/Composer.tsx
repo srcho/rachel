@@ -1,6 +1,6 @@
 "use client";
 import { ArrowUp, Square } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 
 export function Composer({
@@ -8,19 +8,22 @@ export function Composer({
   onStop,
   busy,
   autoFocus,
+  text,
+  onTextChange,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
   busy: boolean;
   autoFocus?: boolean;
+  text: string;
+  onTextChange: (text: string) => void;
 }) {
-  const [text, setText] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
   function submit() {
     const t = text.trim();
     if (!t || busy) return;
     onSend(t);
-    setText("");
+    onTextChange("");
     ref.current?.focus();
   }
   return (
@@ -36,7 +39,7 @@ export function Composer({
         // biome-ignore lint/a11y/noAutofocus: Dock 을 열면 바로 입력한다
         autoFocus={autoFocus}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => onTextChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();

@@ -13,6 +13,8 @@ export interface RachelAgentInput {
   registry: Registry;
   honorific: string;
   userQuery: string;
+  turnKey?: string;
+  retry?: boolean;
 }
 
 /** 요청마다 만든다(도구가 ctx 클로저를 가진다). 페르소나(고정) + 도구 안내(고정) + 동적 컨텍스트(꼬리). */
@@ -21,8 +23,15 @@ export async function createRachelAgent({
   registry,
   honorific,
   userQuery,
+  turnKey,
+  retry,
 }: RachelAgentInput) {
-  const { tools, toolApproval } = adaptTools(registry.tools(), ctx);
+  const { tools, toolApproval } = adaptTools(
+    registry.tools(),
+    ctx,
+    turnKey,
+    retry,
+  );
   const dynamic = await buildDynamicContext(ctx, registry, userQuery);
   const instructions = [
     personaInstructions({ honorific }),
@@ -45,6 +54,7 @@ export type RachelAgent = Awaited<ReturnType<typeof createRachelAgent>>;
 export type RachelUIMessage = InferAgentUIMessage<RachelAgent, ChatMetadata>;
 
 export interface ChatMetadata {
+  memorySources?: Array<{ id: string; title: string }>;
   costUsd?: number;
   inputTokens?: number;
   outputTokens?: number;

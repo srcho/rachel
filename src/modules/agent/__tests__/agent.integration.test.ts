@@ -42,4 +42,58 @@ describe.skipIf(!available)("Rachel agent (real LLM)", () => {
     expect(result.text.length).toBeGreaterThan(0);
     expect(result.totalUsage.inputTokens ?? 0).toBeGreaterThan(0);
   }, 60_000);
+  for (const operation of ["조회", "제목 수정", "완료"] as const) {
+    it(`representative request: ${operation}`, async () => {
+      const registry = createRegistry(() => [tasksModule]);
+      const ctx = createContext({
+        db: user.db,
+        userId: user.id,
+        actor: "agent",
+        registry,
+      });
+      const svc = tasksService(ctx);
+      const title = `평가용 ${operation} 할 일`;
+      const before = await svc.createCard({
+        title,
+        description: "원래 설명",
+        priority: 1,
+        dueAt: "2026-09-10T04:00:00Z",
+        dueHasTime: true,
+      });
+      const prompt =
+        operation === "조회"
+          ? `'${title}' 할 일의 마감을 알려줘. 변경하지 마.`
+          : operation === "제목 수정"
+            ? `'${title}' 제목만 '수정된 평가 할 일'로 바꿔줘.`
+            : `'${title}' 할 일을 완료해줘.`;
+      const agent = await createRachelAgent({
+        ctx,
+        registry,
+        honorific: "테스터님",
+        userQuery: prompt,
+        turnKey: crypto.randomUUID(),
+      });
+      const started = Date.now();
+      const result = await agent.generate({ prompt });
+      const after = await svc.getCard(before.id);
+      expect(after?.description_md).toBe(before.description_md);
+      expect(after?.priority).toBe(1);
+      expect(after?.due_at).toBe(before.due_at);
+      expect(after?.due_has_time).toBe(true);
+      expect(after?.title).toBe(
+        operation === "제목 수정" ? "수정된 평가 할 일" : title,
+      );
+      expect(Boolean(after?.completed_at)).toBe(operation === "완료");
+      expect(result.text.length).toBeGreaterThan(0);
+      console.info(
+        "[luna-eval]",
+        JSON.stringify({
+          operation,
+          latencyMs: Date.now() - started,
+          inputTokens: result.totalUsage.inputTokens,
+          outputTokens: result.totalUsage.outputTokens,
+        }),
+      );
+    }, 60000);
+  }
 });

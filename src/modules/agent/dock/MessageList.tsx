@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { RachelUIMessage } from "../agent";
 import { CostChip } from "./CostChip";
@@ -15,9 +16,10 @@ export function MessageList({
   onApprove: (id: string, approved: boolean) => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
-  // 스트리밍 중 매 렌더마다 끝으로(의존성 없음)
+  const following = useRef(true);
+  const [showLatest, setShowLatest] = useState(false);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
+    if (following.current) endRef.current?.scrollIntoView({ block: "end" });
   });
 
   if (messages.length === 0) {
@@ -32,7 +34,15 @@ export function MessageList({
     );
   }
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
+    <div
+      className="relative flex-1 space-y-3 overflow-y-auto px-3 py-3"
+      onScroll={(e) => {
+        const el = e.currentTarget;
+        following.current =
+          el.scrollHeight - el.scrollTop - el.clientHeight < 72;
+        setShowLatest(!following.current);
+      }}
+    >
       {messages.map((m) => (
         <div
           key={m.id}
@@ -71,6 +81,26 @@ export function MessageList({
               return null;
             })}
           </div>
+          {m.role === "assistant" &&
+            Boolean(m.metadata?.memorySources?.length) && (
+              <details className="mt-2 text-xs text-muted-foreground">
+                <summary className="cursor-pointer">
+                  답변에 제공한 기억 · 확인·정정
+                </summary>
+                <ul className="mt-1 space-y-1">
+                  {m.metadata?.memorySources?.map((source) => (
+                    <li key={source.id}>
+                      <Link
+                        className="underline underline-offset-2"
+                        href={`/memory#memory-${source.id}`}
+                      >
+                        {source.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           {m.role === "assistant" && m.metadata?.costUsd !== undefined && (
             <div className="mt-1">
               <CostChip
@@ -87,6 +117,19 @@ export function MessageList({
           <p className="text-xs text-muted-foreground">생각 중…</p>
         )}
       <div ref={endRef} />
+      {showLatest && (
+        <button
+          type="button"
+          className="sticky bottom-0 ml-auto block rounded-md border bg-background px-3 py-2 text-xs"
+          onClick={() => {
+            following.current = true;
+            endRef.current?.scrollIntoView({ block: "end" });
+            setShowLatest(false);
+          }}
+        >
+          최근 답변으로
+        </button>
+      )}
     </div>
   );
 }

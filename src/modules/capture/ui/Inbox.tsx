@@ -16,6 +16,7 @@ import {
 } from "../actions";
 import type { Triage } from "../schema";
 import type { CaptureRow } from "../service";
+import { CaptureReview } from "./CaptureReview";
 
 const TYPE_LABEL: Record<string, string> = {
   task: "할 일",
@@ -49,8 +50,7 @@ export function Inbox({
     return (
       <Panel>
         <p className="py-6 text-center text-sm text-muted-foreground">
-          인박스가 비어 있어요. Today 입력창이나 공유 시트, 레이첼 버튼 길게
-          누르기로 던져 보세요.
+          수집함이 비어 있어요. 오늘 화면에서 빠른 메모를 남길 수 있어요.
         </p>
       </Panel>
     );
@@ -83,14 +83,25 @@ export function Inbox({
                   </span>
                   <Button
                     size="sm"
+                    disabled={pending}
                     onClick={() =>
                       start(async () => {
-                        const r = await resolveCaptureAction(c.id);
-                        toast.success(`${TYPE_LABEL[r.type]}로 만들었어요`);
+                        try {
+                          const r = await resolveCaptureAction(c.id);
+                          toast.success(`${TYPE_LABEL[r.type]}로 만들었어요`);
+                        } catch (e) {
+                          toast.error(
+                            e instanceof Error
+                              ? e.message
+                              : "확정하지 못했어요. 다시 시도해 주세요",
+                          );
+                        }
+                        refresh();
                       })
                     }
                   >
-                    <Check className="size-4" /> 확정
+                    <Check className="size-4" />{" "}
+                    {c.status === "resolving" ? "다시 확정" : "확정"}
                   </Button>
                 </>
               ) : (
@@ -98,9 +109,11 @@ export function Inbox({
                   레이첼이 분류하는 중…
                 </span>
               )}
+              <CaptureReview capture={c} onDone={refresh} />
               <Button
                 size="icon-sm"
                 variant="ghost"
+                disabled={pending || c.status === "resolving"}
                 aria-label="다시 분류"
                 onClick={() => start(() => retriageAction(c.id))}
               >
@@ -109,6 +122,7 @@ export function Inbox({
               <Button
                 size="icon-sm"
                 variant="ghost"
+                disabled={pending || c.status === "resolving"}
                 aria-label="무시"
                 onClick={() => start(() => dismissCaptureAction(c.id))}
               >

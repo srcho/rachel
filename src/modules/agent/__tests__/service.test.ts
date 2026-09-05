@@ -46,11 +46,17 @@ describe.skipIf(!available)("agentService", () => {
         id: "msg-def456",
         role: "assistant",
         parts: [{ type: "text", text: "없어요!" }],
+        metadata: {
+          memorySources: [{ id: "memory-test", title: "직접 확인한 기억" }],
+        },
       },
     ]);
     const loaded = await svc.loadMessages(threadId);
     expect(loaded.map((m) => m.id)).toEqual(["msg-abc123", "msg-def456"]);
     expect((loaded[1]?.parts[0] as { text: string }).text).toBe("없어요!");
+    expect(loaded[1]?.metadata).toEqual({
+      memorySources: [{ id: "memory-test", title: "직접 확인한 기억" }],
+    });
     expect((await svc.getThread(threadId))?.title).toBe("내일 일정 알려줘");
   });
 });

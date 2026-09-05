@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createAgentUIStreamResponse } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -15,6 +16,7 @@ import { getHonorific } from "@/modules/agent/settings";
 export const maxDuration = 120;
 
 const bodySchema = z.object({
+  retry: z.boolean().optional(),
   id: z.string().uuid(),
   messages: z.array(
     z
@@ -27,7 +29,11 @@ const bodySchema = z.object({
   ),
   ui: z
     .object({
-      route: z.string(),
+      route: z.string().max(500),
+      label: z.string().max(500).optional(),
+      dateRange: z
+        .object({ from: z.string().date(), to: z.string().date() })
+        .optional(),
       entity: z.object({ type: z.string(), id: z.string() }).optional(),
     })
     .optional(),
@@ -39,7 +45,7 @@ export async function POST(req: Request) {
   const parsed = bodySchema.safeParse(await req.json());
   if (!parsed.success)
     return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
-  const { id: threadId, messages, ui } = parsed.data;
+  const { id: threadId, messages, ui, retry } = parsed.data;
 
   const db = await createServerSupabase();
   const ctx = createContext({
@@ -50,9 +56,13 @@ export async function POST(req: Request) {
     ui,
   });
   const svc = agentService(ctx);
+  ctx.memoryReferences = [];
   await svc.ensureThread(threadId);
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  if (!lastUser)
+    return NextResponse.json({ error: "메시지가 필요해요" }, { status: 400 });
+  await svc.saveMessages(threadId, [lastUser]);
   const userQuery =
     (
       (lastUser?.parts as Array<{ type: string; text?: string }> | undefined) ??
@@ -63,6 +73,8 @@ export async function POST(req: Request) {
     registry,
     honorific: await getHonorific(db, user.id),
     userQuery,
+    turnKey: `${threadId}:${lastUser.id}`,
+    retry,
   });
 
   const started = Date.now();
@@ -72,6 +84,8 @@ export async function POST(req: Request) {
 
   return createAgentUIStreamResponse({
     agent,
+    generateMessageId: () =>
+      `reply-${createHash("sha256").update(`${threadId}:${lastUser.id}`).digest("hex")}`,
     // biome-ignore lint/suspicious/noExplicitAny: UI 메시지는 서버에서 검증 후 그대로 전달
     uiMessages: messages as any,
     onStepFinish: ({ usage: u }) => {
@@ -87,6 +101,7 @@ export async function POST(req: Request) {
     messageMetadata: ({ part }): ChatMetadata | undefined => {
       if (part.type === "finish")
         return {
+          memorySources: ctx.memoryReferences,
           costUsd,
           inputTokens: usage.input + usage.cached,
           outputTokens: usage.output + usage.reasoning,

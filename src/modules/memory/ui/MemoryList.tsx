@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import {
   archiveMemoryAction,
   forgetMemoryAction,
+  memoryReviewAction,
+  memoryReviewOriginalAction,
   rememberAction,
   updateMemoryAction,
 } from "../actions";
@@ -55,9 +57,17 @@ export function MemoryList({
           const c = newContent.trim();
           if (!c) return;
           start(async () => {
-            await rememberAction(c, newKind);
-            setNewContent("");
-            toast.success("기억했어요");
+            try {
+              const r = await rememberAction(c, newKind);
+              setNewContent("");
+              toast.success(
+                r.review
+                  ? "비슷한 기억이 있어요. 대체할지 확인해 주세요."
+                  : "기억했어요",
+              );
+            } catch {
+              toast.error("저장하지 못했어요. 입력한 내용을 유지했어요.");
+            }
           });
         }}
       >
@@ -134,12 +144,29 @@ export function MemoryList({
               ) as MemorySource[];
               return (
                 <li
+                  id={`memory-${m.id}`}
                   key={m.id}
                   className={cn(
                     "space-y-1 px-3 py-2.5 text-sm",
                     pending && "opacity-70",
                   )}
                 >
+                  {m.review_against && (
+                    <MemoryReview id={m.id} content={m.content} />
+                  )}
+                  {m.kind === "fact" &&
+                    Date.now() - Date.parse(m.confirmed_at ?? m.updated_at) >
+                      90 * 86400000 && (
+                      <p className="text-xs text-muted-foreground">
+                        90일 이상 확인하지 않은 사실 · 지금도 맞는지 확인해
+                        주세요.
+                      </p>
+                    )}
+                  {m.kind === "preference" && m.confirmed_at && (
+                    <p className="text-xs text-muted-foreground">
+                      직접 확인한 선호
+                    </p>
+                  )}
                   <div className="flex items-start gap-2">
                     <Badge variant="secondary" className="mt-0.5 shrink-0">
                       {KIND_LABEL[m.kind as MemoryKind] ?? m.kind}
@@ -150,10 +177,16 @@ export function MemoryList({
                         onSubmit={(e) => {
                           e.preventDefault();
                           start(async () => {
-                            await updateMemoryAction(m.id, {
-                              content: draft.trim(),
-                            });
-                            setEditing(null);
+                            try {
+                              await updateMemoryAction(m.id, {
+                                content: draft.trim(),
+                              });
+                              setEditing(null);
+                            } catch {
+                              toast.error(
+                                "수정하지 못했어요. 다시 시도해 주세요.",
+                              );
+                            }
                           });
                         }}
                       >
@@ -264,6 +297,84 @@ export function MemoryList({
             })}
           </ul>
         </Panel>
+      )}
+    </div>
+  );
+}
+
+function MemoryReview({ id, content }: { id: string; content: string }) {
+  const [original, setOriginal] = useState<Awaited<
+    ReturnType<typeof memoryReviewOriginalAction>
+  > | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function decide(choice: "replace" | "keep" | "discard") {
+    setBusy(true);
+    try {
+      await memoryReviewAction(id, choice);
+      toast.success("기억을 정리했어요");
+    } catch {
+      toast.error("기억을 정리하지 못했어요");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="space-y-2 rounded-md border p-3">
+      <p className="text-xs font-medium">
+        비슷하지만 다른 기억 · 확인 전에는 답변에 사용하지 않아요.
+      </p>
+      {original ? (
+        <>
+          <p className="text-xs text-muted-foreground">
+            기존: {original.content}
+          </p>
+          <p className="text-xs">새 내용: {content}</p>
+          <div className="flex flex-wrap gap-1">
+            <Button size="sm" disabled={busy} onClick={() => decide("replace")}>
+              기존 기억 대체
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => decide("keep")}
+            >
+              둘 다 유지
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => decide("discard")}
+            >
+              새 내용 보관
+            </Button>
+          </div>
+        </>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const r = await memoryReviewOriginalAction(id);
+              if (r) setOriginal(r);
+              else
+                setOriginal({
+                  content: "기존 기억이 삭제되었어요",
+                  updatedAt: "",
+                });
+            } catch {
+              toast.error("기존 기억을 불러오지 못했어요");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          기존 기억과 비교
+        </Button>
       )}
     </div>
   );

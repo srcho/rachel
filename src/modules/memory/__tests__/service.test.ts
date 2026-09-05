@@ -76,4 +76,54 @@ describe.skipIf(!available)("memoryService", () => {
       "memory.forgotten",
     ]);
   });
+  it("uses one memory for concurrent retries of a capture", async () => {
+    const svc = memoryService(ctx, { embed: async (t) => fakeEmbed(t) });
+    const input = {
+      creationKey: "capture:retry",
+      kind: "fact" as const,
+      content: "회의는 오전 10시에 한다",
+      source: { type: "manual" as const },
+    };
+    const [a, b] = await Promise.all([
+      svc.remember(input),
+      svc.remember(input),
+    ]);
+    expect(a.memory.id).toBe(b.memory.id);
+    expect((await svc.remember(input)).memory.id).toBe(a.memory.id);
+    const { count, error } = await user.db
+      .from("memories")
+      .select("id", { count: "exact", head: true })
+      .eq("creation_key", input.creationKey);
+    if (error) throw error;
+    expect(count).toBe(1);
+  });
+  it("holds conflicting memories out of recall until the user chooses", async () => {
+    const vector = new Array(1536).fill(0);
+    vector[0] = 1;
+    const svc = memoryService(ctx, { embed: async () => vector });
+    const old = await svc.remember({
+      kind: "fact",
+      content: "출근은 월요일",
+      source: { type: "manual" },
+    });
+    const next = await svc.remember({
+      creationKey: "capture:conflict",
+      kind: "fact",
+      content: "출근은 화요일",
+      source: { type: "manual" },
+    });
+    expect(next.memory.review_against).toBe(old.memory.id);
+    expect((await svc.recall("출근")).map((m) => m.id)).not.toContain(
+      next.memory.id,
+    );
+    const resolved = await user.db.rpc("resolve_memory_review", {
+      p_id: next.memory.id,
+      p_choice: "replace",
+    });
+    if (resolved.error) throw resolved.error;
+    expect((await svc.get(old.memory.id))?.status).toBe("archived");
+    expect((await svc.recall("출근")).map((m) => m.id)).toContain(
+      next.memory.id,
+    );
+  });
 });

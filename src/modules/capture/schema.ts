@@ -7,6 +7,7 @@ export const triageSchema = z.object({
     .object({
       title: z.string().min(1).max(200),
       due: z.string().nullable().optional(),
+      dueHasTime: z.boolean().optional(),
       priority: z.number().int().min(0).max(3).default(2),
     })
     .optional(),

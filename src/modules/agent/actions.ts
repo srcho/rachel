@@ -3,6 +3,7 @@ import { requireUser } from "@/core/auth/session";
 import { createContext } from "@/core/context";
 import { createServerSupabase } from "@/core/db/server";
 import { getRegistry } from "@/core/registry/current";
+import { toolPreview } from "./preview";
 import { agentService } from "./service";
 import { runUndo } from "./tool-adapter";
 
@@ -39,4 +40,8 @@ export async function deleteThreadAction(threadId: string) {
 export async function undoAction(undoId: string) {
   const ctx = await ctxFor();
   return runUndo(ctx.registry.tools(), ctx, undoId);
+}
+
+export async function toolPreviewAction(name: string, input: unknown) {
+  return toolPreview(await ctxFor(), name, input);
 }

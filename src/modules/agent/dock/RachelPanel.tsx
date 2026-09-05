@@ -24,6 +24,7 @@ function useUiContextSync() {
   const pathname = usePathname();
   const setUi = useDock((s) => s.setUi);
   useEffect(() => {
+    if (useDock.getState().ui?.route === pathname) return;
     const m = /^\/(tasks|meetings)\/([0-9a-f-]{36})/.exec(pathname);
     setUi({
       route: pathname,
@@ -49,11 +50,21 @@ function isEditable(el: EventTarget | null): boolean {
  * 열기 버튼은 우하단 FAB(RachelFab).
  * 모바일: 바텀 드로어(FAB).
  */
-export function RachelPanel() {
+export function RachelPanel({ userId }: { userId: string }) {
   const isDesktop = useIsDesktop();
   const { open, setOpen, toggle, expanded } = useDock();
   const panelRef = useRef<HTMLDivElement>(null);
   useUiContextSync();
+  useEffect(() => {
+    if (useDock.getState().userId !== userId)
+      useDock.setState({
+        userId,
+        drafts: {},
+        conversations: {},
+        threadId: crypto.randomUUID(),
+        open: false,
+      });
+  }, [userId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -92,7 +103,7 @@ export function RachelPanel() {
             role="dialog"
             aria-label="레이첼"
             className={cn(
-              "fixed right-4 bottom-4 z-50 hidden flex-col overflow-hidden rounded-xl border bg-background shadow-2xl shadow-black/10 md:flex dark:shadow-black/40",
+              "fixed right-4 bottom-4 z-50 hidden flex-col overflow-hidden rounded-xl border bg-background md:flex",
               expanded
                 ? "h-[calc(100dvh-2rem)] w-[min(640px,calc(100vw-2rem))]"
                 : "h-[min(600px,calc(100dvh-2rem))] w-[400px]",

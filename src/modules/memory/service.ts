@@ -28,18 +28,27 @@ export function memoryService(
 
   /** 새 기억을 저장하되, 아주 비슷한 기억이 있으면 병합(갱신)한다. */
   async function remember(input: {
+    creationKey?: string;
     kind: MemoryKind;
     content: string;
     importance?: number;
     source: MemorySource;
   }): Promise<{ memory: MemoryRow; merged: boolean }> {
+    if (input.creationKey) {
+      const existing = await repo.findCreated(input.creationKey);
+      if (existing) return { memory: existing, merged: false };
+    }
     const content = input.content.trim();
     const vector = await embed(content);
     const similar = await repo.match(vector, 3, MERGE_SIMILARITY);
     const top = similar[0];
     if (top) {
       const existing = await repo.get(top.id);
-      if (existing) {
+      if (
+        !input.creationKey &&
+        existing &&
+        existing.content.trim() === content
+      ) {
         const memory = await repo.update(existing.id, {
           content:
             content.length > existing.content.length
@@ -59,6 +68,12 @@ export function memoryService(
       }
     }
     const memory = await repo.insert({
+      creation_key: input.creationKey,
+      review_against: top?.id,
+      confirmed_at:
+        !top && input.source.type === "manual"
+          ? ctx.now.toISOString()
+          : undefined,
       kind: input.kind,
       content,
       embedding: vector,
@@ -83,18 +98,27 @@ export function memoryService(
       content: string;
       similarity: number;
       pinned: boolean;
+      updatedAt: string;
+      confirmedAt: string | null;
     }>
   > {
     if (!query.trim()) return [];
     const vector = await embed(query);
     const matches = await repo.match(vector, k, 0.3);
-    return matches.map((m) => ({
-      id: m.id,
-      kind: m.kind,
-      content: m.content,
-      similarity: m.similarity,
-      pinned: m.pinned,
-    }));
+    return Promise.all(
+      matches.map(async (m) => {
+        const row = await repo.get(m.id);
+        return {
+          id: m.id,
+          kind: m.kind,
+          content: m.content,
+          similarity: m.similarity,
+          pinned: m.pinned,
+          updatedAt: row?.updated_at ?? "",
+          confirmedAt: row?.confirmed_at ?? null,
+        };
+      }),
+    );
   }
 
   async function update(
@@ -107,7 +131,13 @@ export function memoryService(
     },
   ): Promise<MemoryRow> {
     const embedding = patch.content ? await embed(patch.content) : undefined;
-    const memory = await repo.update(id, { ...patch, embedding });
+    const memory = await repo.update(id, {
+      ...patch,
+      embedding,
+      ...(patch.content !== undefined
+        ? { confirmed_at: ctx.now.toISOString() }
+        : {}),
+    });
     await ctx.emit({
       type: MEMORY_EVENTS.updated,
       entity: { type: "memory", id },

@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { env } from "@/core/env";
+import { requireEnv } from "@/core/env";
 
 /** 역할 → 모델 매핑. 모델 교체는 이 파일 한 곳에서. */
 export type ReasoningEffort = "none" | "low" | "medium" | "high";
@@ -37,7 +37,7 @@ export type TextRole = Exclude<keyof typeof MODEL_IDS, "embed">;
 let openaiProvider: ReturnType<typeof createOpenAI> | undefined;
 export function openai() {
   if (!openaiProvider)
-    openaiProvider = createOpenAI({ apiKey: env().OPENAI_API_KEY });
+    openaiProvider = createOpenAI({ apiKey: requireEnv("OPENAI_API_KEY") });
   return openaiProvider;
 }
 

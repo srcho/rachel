@@ -1,22 +1,25 @@
 "use client";
-import { Check, ChevronRight, Loader2, Undo2, X } from "lucide-react";
+import { ChevronRight, Loader2, Undo2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { undoAction } from "../actions";
+import { ChangePreview } from "./ChangePreview";
+import { resultLinks } from "./result-links";
 
 const TOOL_LABEL: Record<string, string> = {
   tasks_listBoards: "보드 확인",
-  tasks_list: "카드 목록 조회",
-  tasks_get: "카드 조회",
-  tasks_create: "카드 생성",
-  tasks_update: "카드 수정",
-  tasks_move: "카드 이동",
-  tasks_complete: "카드 완료",
-  tasks_bulkUpdate: "카드 일괄 변경",
-  tasks_archive: "카드 보관",
-  tasks_delete: "카드 삭제",
+  tasks_list: "할 일 목록 조회",
+  tasks_get: "할 일 조회",
+  tasks_create: "할 일 생성",
+  tasks_update: "할 일 수정",
+  tasks_move: "할 일 이동",
+  tasks_complete: "할 일 완료",
+  tasks_bulkUpdate: "할 일 일괄 변경",
+  tasks_archive: "할 일 보관",
+  tasks_delete: "할 일 삭제",
   calendar_listEvents: "일정 조회",
   calendar_getEvent: "일정 상세",
   calendar_createEvent: "일정 생성",
@@ -29,15 +32,15 @@ const TOOL_LABEL: Record<string, string> = {
   memory_update: "기억 수정",
   memory_forget: "기억 삭제",
   memory_searchAll: "전체 검색",
-  capture_add: "인박스에 넣기",
-  capture_list: "인박스 목록",
-  capture_resolve: "인박스 확정",
-  capture_dismiss: "인박스 무시",
+  capture_add: "수집함에 넣기",
+  capture_list: "수집함 목록",
+  capture_resolve: "수집함 확정",
+  capture_dismiss: "수집함 무시",
   meetings_list: "회의 목록",
   meetings_get: "회의 요약 조회",
   meetings_search: "회의 검색",
   meetings_summarize: "회의 재요약",
-  meetings_createTasksFromActionItems: "액션 아이템 → 카드",
+  meetings_createTasksFromActionItems: "후속 할 일 추가",
   meetings_delete: "회의 삭제",
   insights_generateBrief: "브리핑 생성",
 };
@@ -112,6 +115,8 @@ export function ToolCard({
     part.state === "input-streaming" || part.state === "input-available";
   const failed =
     part.state === "output-error" || part.state === "output-denied";
+  const links =
+    part.state === "output-available" ? resultLinks(name, part.output) : [];
   const undoId = (part.output as { _undo?: string } | undefined)?._undo;
 
   if (
@@ -120,28 +125,16 @@ export function ToolCard({
     !part.approval.isAutomatic
   ) {
     return (
-      <div className="my-1 rounded-md border border-amber-400/60 bg-amber-50 p-2.5 text-sm dark:bg-amber-950/30">
+      <div className="my-1 rounded-md border border-border bg-muted/30 p-2.5 text-sm">
         <p className="font-medium">
           {label} {summary(name, part)} — 실행할까요?
         </p>
-        <pre className="mt-1 max-h-32 overflow-auto rounded bg-background/60 p-1.5 text-[11px] text-muted-foreground">
-          {JSON.stringify(part.input, null, 1)}
-        </pre>
-        <div className="mt-2 flex gap-1.5">
-          <Button
-            size="sm"
-            onClick={() => onApprove?.(part.approval?.id ?? "", true)}
-          >
-            <Check className="size-3.5" /> 승인
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onApprove?.(part.approval?.id ?? "", false)}
-          >
-            <X className="size-3.5" /> 거절
-          </Button>
-        </div>
+        <ChangePreview
+          name={name}
+          input={part.input}
+          approve={() => onApprove?.(part.approval?.id ?? "", true)}
+          reject={() => onApprove?.(part.approval?.id ?? "", false)}
+        />
       </div>
     );
   }
@@ -181,27 +174,43 @@ export function ToolCard({
             {part.state === "output-denied" ? "거절됨" : "실패"}
           </span>
         )}
-        {undoId && !undone && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto h-6 px-1.5 text-[11px]"
-            onClick={async (e) => {
-              e.stopPropagation();
-              const r = await undoAction(undoId);
-              if (r.ok) {
-                setUndone(true);
-                toast.success("되돌렸어요");
-              } else toast.error(r.reason ?? "되돌리기 실패");
-            }}
-          >
-            <Undo2 className="size-3" /> 되돌리기
-          </Button>
-        )}
         {undone && (
           <span className="ml-auto text-muted-foreground">되돌림</span>
         )}
       </button>
+      {undoId && !undone && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="ml-auto h-6 px-1.5 text-[11px]"
+          onClick={async (e) => {
+            e.stopPropagation();
+            const r = await undoAction(undoId);
+            if (r.ok) {
+              setUndone(true);
+              toast.success("되돌렸어요");
+            } else toast.error(r.reason ?? "되돌리기 실패");
+          }}
+        >
+          <Undo2 className="size-3" /> 되돌리기
+        </Button>
+      )}
+      {links.length > 0 && (
+        <ul className="divide-y border-t">
+          {links.map((link) => (
+            <li key={link.href}>
+              <Link className="block px-2 py-2 hover:bg-muted" href={link.href}>
+                <span className="block truncate text-sm">{link.title}</span>
+                {link.detail && (
+                  <span className="text-xs text-muted-foreground">
+                    {link.detail}
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
       {open && (
         <pre className="max-h-48 overflow-auto border-t px-2 py-1.5 text-[11px] text-muted-foreground">
           {part.errorText ??
