@@ -16,7 +16,7 @@ interface Props {
   onAdd: (ymd: string) => void;
 }
 
-const DOW = ["월", "화", "수", "목", "금", "토", "일"];
+const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_PER_CELL = 4;
 
 export function MonthView({
@@ -29,7 +29,7 @@ export function MonthView({
   onAdd,
 }: Props) {
   const first = startOfMonth(monthDate);
-  const gridStart = startOfWeek(first);
+  const gridStart = startOfWeek(first, 0);
   const month = monthDate.slice(0, 7);
   const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
   // 여러 날에 걸친 일정은 덮는 날마다 조각으로(첫날·중간·마지막 표시)
@@ -58,14 +58,18 @@ export function MonthView({
               className={cn(
                 "flex min-h-20 flex-col bg-background p-1 md:min-h-0",
                 !inMonth && "bg-muted/40 text-muted-foreground",
+                isToday &&
+                  "rounded-lg bg-muted ring-2 ring-primary/25 ring-inset",
               )}
             >
               <button
                 type="button"
+                aria-current={isToday ? "date" : undefined}
+                aria-label={`${ymd} 일정 추가`}
                 onClick={() => onAdd(ymd)}
                 className={cn(
                   "mb-0.5 inline-flex size-5 items-center justify-center rounded-full text-[11px]",
-                  isToday && "bg-primary text-primary-foreground",
+                  isToday && "bg-primary/10 font-semibold text-primary",
                 )}
               >
                 {Number(ymd.slice(8))}

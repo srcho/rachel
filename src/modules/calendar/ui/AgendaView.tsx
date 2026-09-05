@@ -47,10 +47,17 @@ export function AgendaView({
           const items = byDay.get(ymd) ?? [];
           const isToday = ymd === today;
           return (
-            <section key={ymd} className="pt-3 xl:break-inside-avoid">
+            <section
+              key={ymd}
+              aria-current={isToday ? "date" : undefined}
+              className={cn(
+                "mt-3 rounded-lg px-2 py-2 xl:break-inside-avoid",
+                isToday && "bg-muted ring-2 ring-primary/25 ring-inset",
+              )}
+            >
               <div
                 className={cn(
-                  "sticky top-0 z-10 flex items-center justify-between bg-background/95 py-1 text-xs font-medium backdrop-blur",
+                  "sticky top-0 z-10 flex items-center justify-between rounded-md bg-background/95 py-1 text-xs font-medium backdrop-blur",
                   isToday ? "text-primary" : "text-muted-foreground",
                 )}
               >

@@ -28,9 +28,9 @@ export function addDays(ymd: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
-export function startOfWeek(ymd: string): string {
+export function startOfWeek(ymd: string, weekStartsOn: 0 | 1 = 1): string {
   const d = new Date(`${ymd}T00:00:00Z`);
-  const dow = (d.getUTCDay() + 6) % 7; // 월요일 시작
+  const dow = (d.getUTCDay() - weekStartsOn + 7) % 7;
   return addDays(ymd, -dow);
 }
 export function startOfMonth(ymd: string): string {

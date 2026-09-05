@@ -43,7 +43,7 @@ export default async function CalendarPage({
     toYmd = addDays(fromYmd, 7);
   } else {
     const first = startOfMonth(date);
-    fromYmd = startOfWeek(first);
+    fromYmd = startOfWeek(first, 0);
     toYmd = addDays(fromYmd, 42); // 6주 그리드
   }
   const from = dayBounds(new Date(`${fromYmd}T12:00:00Z`), ctx.timezone).start;

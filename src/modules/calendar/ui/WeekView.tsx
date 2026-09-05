@@ -51,10 +51,11 @@ export function WeekView({
             <div key={date} className="min-w-0 border-l px-1 pb-1">
               <button
                 type="button"
+                aria-current={date === today ? "date" : undefined}
                 className={cn(
-                  "min-h-11 w-full text-sm",
+                  "min-h-11 w-full rounded-lg text-sm",
                   date === today &&
-                    "font-semibold underline underline-offset-4",
+                    "bg-muted font-semibold text-primary ring-2 ring-primary/25 ring-inset",
                 )}
                 onClick={() => onAdd(date)}
               >
@@ -89,7 +90,11 @@ export function WeekView({
           {days.map((date, i) => (
             <div
               key={date}
-              className="relative border-l"
+              className={cn(
+                "relative border-l",
+                date === today &&
+                  "rounded-b-lg bg-muted ring-2 ring-primary/25 ring-inset",
+              )}
               style={{ height: hours.length * 56 }}
             >
               {hours.map((hour) => (
