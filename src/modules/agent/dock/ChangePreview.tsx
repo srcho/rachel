@@ -1,29 +1,39 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { toolPreviewAction } from "../actions";
+import { approveToolAction, toolPreviewAction } from "../actions";
 export function ChangePreview({
-  name,
-  input,
+  toolCallId,
   approve,
   reject,
 }: {
-  name: string;
-  input: unknown;
-  approve: () => void;
-  reject: () => void;
+  toolCallId: string;
+  approve: () => void | Promise<void>;
+  reject: () => void | Promise<void>;
 }) {
   const [data, setData] = useState<Awaited<
     ReturnType<typeof toolPreviewAction>
   > | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  async function respond(approved: boolean) {
+    setSubmitting(true);
+    setError("");
+    try {
+      await approveToolAction(toolCallId, approved);
+      await (approved ? approve : reject)();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "승인을 저장하지 못했어요.");
+      setSubmitting(false);
+    }
+  }
   // biome-ignore lint/correctness/useExhaustiveDependencies: retry explicitly requests the same preview again.
   useEffect(() => {
     let active = true;
     setError("");
     setData(null);
-    void toolPreviewAction(name, input)
+    void toolPreviewAction(toolCallId)
       .then((r) => {
         if (active) setData(r);
       })
@@ -33,7 +43,7 @@ export function ChangePreview({
     return () => {
       active = false;
     };
-  }, [name, input, retry]);
+  }, [toolCallId, retry]);
   return (
     <div className="mt-2 space-y-2 text-xs">
       {!data && !error && <p>변경 내용 확인 중…</p>}
@@ -77,12 +87,17 @@ export function ChangePreview({
       <div className="flex gap-2">
         <Button
           size="sm"
-          disabled={!data || data.count === 0}
-          onClick={approve}
+          disabled={!data || data.count === 0 || submitting}
+          onClick={() => void respond(true)}
         >
           변경 실행
         </Button>
-        <Button size="sm" variant="outline" onClick={reject}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={submitting}
+          onClick={() => void respond(false)}
+        >
           취소
         </Button>
       </div>

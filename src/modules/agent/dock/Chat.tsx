@@ -1,12 +1,16 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import { useEffect, useRef } from "react";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+} from "ai";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { loadThreadAction } from "../actions";
 import type { RachelUIMessage } from "../agent";
 import { Composer } from "./Composer";
+import { ExecutionRecords } from "./ExecutionRecords";
 import { MessageList } from "./MessageList";
 import { useDock } from "./store";
 
@@ -24,9 +28,9 @@ export function Chat({
   const setDraft = useDock((s) => s.setDraft);
   const setMessages = useDock((s) => s.setMessages);
   const saved = useDock.getState().conversations[threadId] ?? [];
-  const cached = useRef(
-    initialMessages.length >= saved.length ? initialMessages : saved,
-  );
+  const cached = useRef(initialMessages.length ? initialMessages : saved);
+  const [hasOlder, setHasOlder] = useState(initialMessages.length >= 200);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const ui = useDock((s) => s.ui);
   const useUi = useDock((s) => s.useUi);
   const uiRef = useRef({ ui, useUi });
@@ -38,7 +42,7 @@ export function Chat({
       prepareSendMessagesRequest: ({ id, messages, trigger }) => ({
         body: {
           id,
-          messages,
+          messages: messages.slice(-200),
           retry: trigger === "regenerate-message",
           ui: uiRef.current.useUi ? (uiRef.current.ui ?? undefined) : undefined,
         },
@@ -59,6 +63,7 @@ export function Chat({
     id: threadId,
     messages: cached.current,
     transport: transportRef.current,
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
 
   useEffect(() => {
@@ -72,6 +77,30 @@ export function Chat({
   const busy = status === "submitted" || status === "streaming";
   return (
     <>
+      {hasOlder && (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={loadingOlder || busy}
+          onClick={async () => {
+            setLoadingOlder(true);
+            try {
+              const older = await loadThreadAction(threadId, messages[0]?.id);
+              replaceMessages((current) => [
+                ...(older as RachelUIMessage[]),
+                ...current.filter((m) => !older.some((o) => o.id === m.id)),
+              ]);
+              setHasOlder(older.length === 200);
+            } catch {
+              toast.error("이전 대화를 불러오지 못했어요.");
+            } finally {
+              setLoadingOlder(false);
+            }
+          }}
+        >
+          이전 대화 보기
+        </Button>
+      )}
       <MessageList
         messages={messages}
         status={status}
@@ -119,6 +148,7 @@ export function Chat({
           </div>
         </div>
       )}
+      <ExecutionRecords threadId={threadId} disabled={busy} />
       <Composer
         text={draft}
         onTextChange={(text) => setDraft(threadId, text)}

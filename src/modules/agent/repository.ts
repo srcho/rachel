@@ -15,6 +15,27 @@ export function agentRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
+    async listThreadsPage(input: {
+      query: string;
+      offset: number;
+      limit: number;
+    }) {
+      const { data, error } = await db.rpc("search_chat_threads", {
+        p_query: input.query,
+        p_offset: input.offset,
+        p_limit: input.limit,
+      });
+      if (error) throw error;
+      const items = data.map((row) => row.thread as unknown as ThreadRow);
+      const total = data[0]?.total_count ?? 0;
+      const hasMore = input.offset + items.length < total;
+      return {
+        items,
+        total,
+        hasMore,
+        nextOffset: hasMore ? input.offset + items.length : null,
+      };
+    },
     async getThread(id: string): Promise<ThreadRow | null> {
       const { data, error } = await own(db.from("chat_threads").select("*"))
         .eq("id", id)
@@ -48,27 +69,50 @@ export function agentRepository(db: Db, userId: string) {
           "title" | "summary" | "summary_upto_message_id" | "last_message_at"
         >
       >,
-    ): Promise<void> {
-      const { error } = await own(db.from("chat_threads").update(patch)).eq(
-        "id",
-        id,
-      );
+      expectedVersion?: string,
+    ): Promise<ThreadRow> {
+      let query = own(db.from("chat_threads").update(patch)).eq("id", id);
+      if (expectedVersion) query = query.eq("updated_at", expectedVersion);
+      const { data, error } = await query.select("*").maybeSingle();
       if (error) throw error;
-    },
-    async deleteThread(id: string): Promise<void> {
-      const { error } = await own(db.from("chat_threads").delete()).eq(
-        "id",
-        id,
-      );
-      if (error) throw error;
-    },
-    async listMessages(threadId: string, limit = 200): Promise<MessageRow[]> {
-      const { data, error } = await own(db.from("chat_messages").select("*"))
-        .eq("thread_id", threadId)
-        .order("created_at")
-        .limit(limit);
-      if (error) throw error;
+      if (!data) throw new Error("대화가 변경되었거나 찾을 수 없어요");
       return data;
+    },
+    async deleteThread(
+      id: string,
+      expectedVersion?: string,
+    ): Promise<ThreadRow> {
+      let query = own(db.from("chat_threads").delete()).eq("id", id);
+      if (expectedVersion) query = query.eq("updated_at", expectedVersion);
+      const { data, error } = await query.select("*").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("대화가 변경되었거나 이미 삭제됐어요");
+      return data;
+    },
+    async listMessages(
+      threadId: string,
+      limit = 200,
+      beforeId?: string,
+    ): Promise<MessageRow[]> {
+      let query = own(db.from("chat_messages").select("*"))
+        .eq("thread_id", threadId)
+        .order("created_at", { ascending: false })
+        .order("message_seq", { ascending: false });
+      if (beforeId) {
+        const { data: anchor, error } = await own(
+          db.from("chat_messages").select("id,created_at,message_seq"),
+        )
+          .eq("thread_id", threadId)
+          .eq("id", beforeId)
+          .single();
+        if (error) throw error;
+        query = query.or(
+          `created_at.lt.${anchor.created_at},and(created_at.eq.${anchor.created_at},message_seq.lt.${anchor.message_seq})`,
+        );
+      }
+      const { data, error } = await query.limit(limit);
+      if (error) throw error;
+      return data.reverse();
     },
     async insertMessages(
       rows: Array<{

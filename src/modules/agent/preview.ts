@@ -39,7 +39,11 @@ export async function toolPreview(
         ? "meetings"
         : name.startsWith("memory_")
           ? "memories"
-          : null;
+          : name.startsWith("capture_")
+            ? "captures"
+            : name.startsWith("agent_")
+              ? "chat_threads"
+              : null;
   if (!table) throw new Error("변경 미리보기를 지원하지 않는 작업이에요");
   const { data, error } = await ctx.db
     .from(table)
@@ -66,13 +70,26 @@ export async function toolPreview(
     (name.startsWith("tasks_") &&
       Boolean((await getProfileSettings(ctx.db, ctx.userId)).gtasks?.enabled));
   return {
+    targets: data.map((value) => {
+      const row = value as Record<string, unknown>;
+      return {
+        table,
+        id: String(row.id),
+        version: String(
+          row.content_version ??
+            row.updated_at ??
+            row.last_message_at ??
+            row.created_at,
+        ),
+      };
+    }),
     count: data.length,
     google,
     undo: Boolean(def.undo),
     rows: data.map((value) => {
       const row = value as Record<string, unknown>;
       return {
-        title: String(row.title ?? row.content ?? "기억"),
+        title: String(row.title ?? row.content ?? row.raw_text ?? "대상"),
         changes: Object.entries(patch).map(([key, after]) => {
           const [label, column] = fields[key] ?? [key, key];
           return {
@@ -84,6 +101,7 @@ export async function toolPreview(
         action:
           name.endsWith("delete") ||
           name.endsWith("deleteEvent") ||
+          name.endsWith("deleteThread") ||
           name.endsWith("forget")
             ? "영구 삭제"
             : "변경",

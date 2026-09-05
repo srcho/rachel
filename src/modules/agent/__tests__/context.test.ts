@@ -65,5 +65,40 @@ describe("agent context", () => {
     expect(out).toContain("[화면] /tasks/abc");
     expect(out).toContain("[D] ok");
     expect(out).toContain("…(생략)");
+    expect(out).toContain("자료 조회 실패: c");
+  });
+  it("only records memory references that fit the actual context budget", async () => {
+    const local = {
+      ...ctx,
+      memoryReferences: [] as Array<{ id: string; title: string }>,
+    };
+    const mod: RachelModule = {
+      manifest: { id: "refs", name: "refs", icon: "x", schemaVersion: 1 },
+      contextProviders: [
+        {
+          id: "refs",
+          budgetTokens: 40,
+          build: async (c) => {
+            c.memoryReferences?.push(
+              { id: "kept", title: "A" },
+              { id: "cut", title: "B" },
+            );
+            return (
+              "[A](/memory?id=kept#memory-kept)\n" +
+              "가".repeat(100) +
+              "[B](/memory?id=cut#memory-cut)"
+            );
+          },
+        },
+      ],
+    };
+    const out = await buildDynamicContext(
+      local,
+      createRegistry(() => [mod]),
+      "q",
+    );
+    expect(out).toContain("memory-kept");
+    expect(out).not.toContain("memory-cut");
+    expect(local.memoryReferences).toEqual([{ id: "kept", title: "A" }]);
   });
 });

@@ -9,7 +9,7 @@ import { undoAction } from "../actions";
 import { ChangePreview } from "./ChangePreview";
 import { resultLinks } from "./result-links";
 
-const TOOL_LABEL: Record<string, string> = {
+export const TOOL_LABEL: Record<string, string> = {
   tasks_listBoards: "보드 확인",
   tasks_list: "할 일 목록 조회",
   tasks_get: "할 일 조회",
@@ -43,6 +43,54 @@ const TOOL_LABEL: Record<string, string> = {
   meetings_createTasksFromActionItems: "후속 할 일 추가",
   meetings_delete: "회의 삭제",
   insights_generateBrief: "브리핑 생성",
+  tasks_restore: "할 일 복원",
+  tasks_plan: "오늘 계획 변경",
+  tasks_schedule: "할 일 시간 잡기",
+  tasks_reschedule: "작업 시간 이동",
+  tasks_unschedule: "작업 시간 해제",
+  calendar_connectionStatus: "캘린더 연결 확인",
+  calendar_setSelected: "캘린더 선택",
+  calendar_sync: "캘린더 새로고침",
+  calendar_conflictVersions: "일정 변경 비교",
+  calendar_resolveConflict: "일정 충돌 해결",
+  calendar_retryPush: "Google 반영 재시도",
+  calendar_googleTasksStatus: "Google Tasks 연결 확인",
+  calendar_googleTasksSetEnabled: "Google Tasks 연결 설정",
+  calendar_googleTasksPull: "Google Tasks 가져오기",
+  memory_get: "기억 상세",
+  memory_reviewList: "확인할 기억 조회",
+  memory_resolveReview: "기억 정정 확인",
+  memory_archive: "기억 보관",
+  memory_restore: "기억 복원",
+  capture_get: "수집함 메모 읽기",
+  capture_edit: "수집함 메모 수정",
+  capture_retriage: "메모 다시 분류",
+  capture_restore: "수집함 복원",
+  capture_delete: "수집함 메모 삭제",
+  meetings_createNote: "회의 메모 작성",
+  meetings_readContent: "회의 원문 읽기",
+  meetings_editTitle: "회의 제목 수정",
+  meetings_editSpeaker: "발언자 수정",
+  meetings_editSummary: "회의 요약 교정",
+  meetings_editTranscript: "회의 전사 교정",
+  meetings_prepare: "회의 준비",
+  meetings_reviewActionItems: "회의 후속 확인",
+  insights_weeklyReview: "주간 회고",
+  insights_todayPlan: "오늘 계획 확인",
+  agent_listThreads: "대화 목록",
+  agent_getThread: "대화 읽기",
+  agent_renameThread: "대화 이름 변경",
+  agent_deleteThread: "대화 삭제",
+  agent_workingState: "진행 상황 확인",
+  agent_listExecutions: "작업 기록",
+  agent_getExecution: "작업 결과 확인",
+  agent_reconcileExecution: "작업 결과 대조",
+  agent_resumeExecution: "중단한 작업 이어서 처리",
+  agent_getPreferences: "비서 선호 확인",
+  agent_updatePreferences: "비서 선호 변경",
+  system_listBackups: "백업 확인",
+  system_backup: "내 데이터 백업",
+  system_export: "내 데이터 내보내기",
 };
 
 export interface ToolPartLike {
@@ -62,6 +110,18 @@ function summary(name: string, part: ToolPartLike): string {
     output && !Array.isArray(output) && typeof output.title === "string"
       ? `“${output.title}”`
       : "";
+  if (output && !Array.isArray(output)) {
+    if (output.syncStatus === "pending_push")
+      return "레이첼 저장됨 · Google 반영 대기";
+    if (output.syncStatus === "conflict")
+      return "레이첼 저장됨 · Google 변경 비교 필요";
+    if (output.localDeleted === true) return "삭제됨 · Google 반영 확인";
+    if (output.changed === false) return "이미 처리된 상태 · 추가 변경 없음";
+    const rows =
+      output.items ?? output.events ?? output.results ?? output.cards;
+    if (Array.isArray(rows))
+      return `${rows.length}건${output.hasMore ? " · 더 있음" : ""}${output.complete === false ? " · 조회 범위 확인 필요" : ""}`;
+  }
   switch (name) {
     case "tasks_create":
       return typeof input.title === "string" ? `“${input.title}”` : "";
@@ -100,6 +160,24 @@ function summary(name: string, part: ToolPartLike): string {
   }
 }
 
+function resultDetail(output: unknown): string {
+  if (output && typeof output === "object" && !Array.isArray(output)) {
+    const value = output as Record<string, unknown>;
+    if (value.operationalSettingsChanged === false && value.nextTool)
+      return "기억으로 저장했어요. 일정 추천 규칙을 바꾸려면 비서 선호에도 적용해야 해요.";
+    const detail = [
+      value.message,
+      value.reason,
+      value.notice,
+      value.appliesTo,
+    ].filter((v): v is string => typeof v === "string");
+    if (detail.length) return detail.join("\n");
+    if (value.complete === false || value.hasMore === true)
+      return "일부 범위의 결과예요. 추가 조회나 동기화가 필요할 수 있어요.";
+  }
+  return "결과는 연결된 항목과 레이첼 답변에서 확인할 수 있어요.";
+}
+
 export function ToolCard({
   part,
   onApprove,
@@ -108,16 +186,18 @@ export function ToolCard({
   onApprove?: (id: string, approved: boolean) => void;
 }) {
   const name = part.type.replace(/^tool-/, "");
-  const label = TOOL_LABEL[name] ?? name;
+  const label = TOOL_LABEL[name] ?? "레이첼 작업";
   const [open, setOpen] = useState(false);
   const [undone, setUndone] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const running =
     part.state === "input-streaming" || part.state === "input-available";
   const failed =
     part.state === "output-error" || part.state === "output-denied";
   const links =
     part.state === "output-available" ? resultLinks(name, part.output) : [];
-  const undoId = (part.output as { _undo?: string } | undefined)?._undo;
+  const rawUndo = (part.output as { _undo?: unknown } | undefined)?._undo;
+  const undoId = typeof rawUndo === "string" ? rawUndo : undefined;
 
   if (
     part.state === "approval-requested" &&
@@ -130,8 +210,7 @@ export function ToolCard({
           {label} {summary(name, part)} — 실행할까요?
         </p>
         <ChangePreview
-          name={name}
-          input={part.input}
+          toolCallId={part.toolCallId}
           approve={() => onApprove?.(part.approval?.id ?? "", true)}
           reject={() => onApprove?.(part.approval?.id ?? "", false)}
         />
@@ -183,13 +262,23 @@ export function ToolCard({
           size="sm"
           variant="ghost"
           className="ml-auto h-6 px-1.5 text-[11px]"
+          disabled={undoing}
           onClick={async (e) => {
             e.stopPropagation();
-            const r = await undoAction(undoId);
-            if (r.ok) {
-              setUndone(true);
-              toast.success("되돌렸어요");
-            } else toast.error(r.reason ?? "되돌리기 실패");
+            setUndoing(true);
+            try {
+              const r = await undoAction(undoId);
+              if (r.ok) {
+                setUndone(true);
+                toast.success("되돌렸어요");
+              } else toast.error(r.reason ?? "되돌리기 실패");
+            } catch (error) {
+              toast.error(
+                error instanceof Error ? error.message : "되돌리지 못했어요.",
+              );
+            } finally {
+              setUndoing(false);
+            }
           }}
         >
           <Undo2 className="size-3" /> 되돌리기
@@ -212,10 +301,13 @@ export function ToolCard({
         </ul>
       )}
       {open && (
-        <pre className="max-h-48 overflow-auto border-t px-2 py-1.5 text-[11px] text-muted-foreground">
-          {part.errorText ??
-            JSON.stringify({ input: part.input, output: part.output }, null, 1)}
-        </pre>
+        <div className="max-h-48 space-y-1 overflow-auto border-t px-2 py-2 text-sm text-muted-foreground">
+          {part.errorText ? (
+            <p role="alert">{part.errorText}</p>
+          ) : (
+            <p>{resultDetail(part.output)}</p>
+          )}
+        </div>
       )}
     </div>
   );

@@ -81,6 +81,20 @@ export function MessageList({
               return null;
             })}
           </div>
+          {m.role === "assistant" && m.metadata?.stopReason && (
+            <output className="mt-2 text-xs text-muted-foreground">
+              {m.metadata.stopReason === "budget"
+                ? "AI 예산에 도달해 여기서 멈췄어요."
+                : m.metadata.stopReason === "step_limit"
+                  ? "한 번에 처리할 단계 수에 도달했어요."
+                  : "응답이 중단됐어요."}
+              {m.metadata.execution
+                ? ` 기록된 변경 ${m.metadata.execution.done}건의 결과를 확인했고, ${m.metadata.execution.unfinished}건은 확인이 필요해요.`
+                : " 완료 여부는 작업 기록에서 확인할 수 있어요."}{" "}
+              아래 ‘작업 기록 확인’에서 확인하거나 안전하게 이어서 처리할 수
+              있어요.
+            </output>
+          )}
           {m.role === "assistant" &&
             Boolean(m.metadata?.memorySources?.length) && (
               <details className="mt-2 text-xs text-muted-foreground">
