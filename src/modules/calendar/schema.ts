@@ -2,26 +2,34 @@ import { z } from "zod";
 
 const iso = z.string().datetime({ offset: true });
 
-export const createEventSchema = z.object({
-  creationKey: z.string().min(1).max(2000).optional(),
-  calendarId: z
-    .string()
-    .nullish()
-    .describe(
-      "listEvents 의 calendars[].id. 모르면 null — 기본(primary) 캘린더에 만든다. 지어내지 말 것",
-    ),
-  title: z.string().trim().min(1).max(300),
-  startAt: iso,
-  endAt: iso
-    .nullish()
-    .describe(
-      "생략 가능. 시각 일정은 시작 +1시간, 종일(allDay) 은 생략 — 서버가 다음날(배타적 종료)을 채운다. 사용자에게 묻지 말 것",
-    ),
-  allDay: z.boolean().default(false),
-  isBusy: z.boolean().default(true),
-  location: z.string().max(500).nullish(),
-  description: z.string().max(5000).nullish(),
-});
+export const createEventSchema = z
+  .object({
+    creationKey: z.string().min(1).max(2000).optional(),
+    calendarId: z
+      .string()
+      .nullish()
+      .describe(
+        "listEvents 의 calendars[].id. 모르면 null — 기본(primary) 캘린더에 만든다. 지어내지 말 것",
+      ),
+    title: z.string().trim().min(1).max(300),
+    startAt: iso,
+    endAt: iso
+      .nullish()
+      .describe(
+        "생략 가능. 시각 일정은 확인된 기본 길이(없으면 60분), 종일(allDay) 은 생략 — 서버가 다음날(배타적 종료)을 채운다. 사용자에게 묻지 말 것",
+      ),
+    allDay: z.boolean().default(false),
+    isBusy: z.boolean().default(true),
+    location: z.string().max(500).nullish(),
+    description: z.string().max(5000).nullish(),
+    scope: z
+      .literal("occurrence")
+      .optional()
+      .describe(
+        "한 회차만 지원. 반복 시리즈 생성/편집, 초대와 RSVP는 지원하지 않는다",
+      ),
+  })
+  .strict();
 export type CreateEventInput = z.input<typeof createEventSchema>;
 
 export const updateEventSchema = createEventSchema
@@ -38,6 +46,7 @@ export const listEventsSchema = z.object({
   to: iso,
   q: z.string().trim().min(1).optional(),
   limit: z.number().int().min(1).max(200).default(50),
+  cursor: z.string().max(4000).optional(),
 });
 export type ListEventsInput = z.input<typeof listEventsSchema>;
 
@@ -49,7 +58,8 @@ export const findFreeSlotsSchema = z
       .number()
       .int()
       .min(5)
-      .max(24 * 60),
+      .max(24 * 60)
+      .default(60),
     workStartHour: z.number().int().min(0).max(23).default(9),
     workEndHour: z.number().int().min(1).max(24).default(19),
     limit: z.number().int().min(1).max(20).default(5),

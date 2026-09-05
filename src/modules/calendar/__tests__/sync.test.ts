@@ -35,4 +35,23 @@ describe("toRow", () => {
     expect(r.title).toBe("(제목 없음)");
     expect(r.deleted_at).not.toBeNull();
   });
+  it("keeps Google all-day dates at local midnight through DST and UTC+14", () => {
+    const fallback = toRow(
+      cal,
+      { id: "dst", start: { date: "2026-11-01" }, end: { date: "2026-11-02" } },
+      "America/New_York",
+    );
+    expect(fallback.start_at).toBe("2026-11-01T04:00:00.000Z");
+    expect(fallback.end_at).toBe("2026-11-02T05:00:00.000Z");
+    const ahead = toRow(
+      cal,
+      {
+        id: "ahead",
+        start: { date: "2026-09-05" },
+        end: { date: "2026-09-06" },
+      },
+      "Pacific/Kiritimati",
+    );
+    expect(ahead.start_at).toBe("2026-09-04T10:00:00.000Z");
+  });
 });

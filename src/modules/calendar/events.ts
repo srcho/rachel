@@ -1,4 +1,6 @@
+import { z } from "zod";
 import type { ServiceContext } from "@/core/contracts";
+import { getSchedulingPreferences } from "@/core/settings/assistant";
 import { dayBounds, localYmd } from "@/core/utils/date";
 import { freeSlots } from "./free-slots";
 import { type GEvent, GoogleApiError, google } from "./google";
@@ -56,8 +58,8 @@ export function eventService(ctx: ServiceContext) {
     return {
       summary: row.title,
       transparency: row.is_busy ? "opaque" : "transparent",
-      description: row.description ?? undefined,
-      location: row.location ?? undefined,
+      description: row.description ?? "",
+      location: row.location ?? "",
       start: row.all_day
         ? { date: localYmd(new Date(row.start_at), tz) }
         : { dateTime: row.start_at, timeZone: tz },
@@ -82,6 +84,7 @@ export function eventService(ctx: ServiceContext) {
     const byId = calendarId
       ? calendars.find((c) => c.id === calendarId)
       : undefined;
+    if (calendarId && !byId) throw new Error("지정한 캘린더를 찾을 수 없어요");
     if (byId && !byId.writable)
       throw new Error(`"${byId.name}" 은 읽기 전용이에요`);
     const cal =
@@ -99,19 +102,113 @@ export function eventService(ctx: ServiceContext) {
     const f = listEventsSchema.parse(raw);
     const selected = (await repo.listCalendars(true)).map((c) => c.id);
     if (selected.length === 0) return [];
-    let rows = await repo.listEvents(
+    const rows = await repo.listEvents(
       { from: f.from, to: f.to },
-      { calendarIds: selected, limit: f.limit },
+      { calendarIds: selected, limit: f.limit, q: f.q },
     );
-    if (f.q) {
-      const q = f.q.toLowerCase();
-      rows = rows.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          (r.location ?? "").toLowerCase().includes(q),
-      );
-    }
     return rows;
+  }
+
+  async function connectionStatus(range?: { from: string; to: string }) {
+    const [integration, calendars] = await Promise.all([
+      repo.getIntegration(),
+      repo.listCalendars(),
+    ]);
+    const selected = calendars.filter((c) => c.selected);
+    const coverage = selected.map((c) => ({
+      calendarId: c.id,
+      lastSyncedAt: c.last_synced_at,
+      from: c.sync_coverage_from,
+      to: c.sync_coverage_to,
+      freshness: !c.last_synced_at
+        ? "never_synced"
+        : ctx.now.getTime() - Date.parse(c.last_synced_at) > 30 * 60_000
+          ? "stale"
+          : "fresh",
+      rangeCovered: Boolean(
+        c.sync_coverage_from &&
+          c.sync_coverage_to &&
+          (!range ||
+            (Date.parse(range.from) >= Date.parse(c.sync_coverage_from) &&
+              Date.parse(range.to) <= Date.parse(c.sync_coverage_to))),
+      ),
+    }));
+    return {
+      connected: integration?.status === "connected",
+      oauthStatus: integration?.status ?? "not_connected",
+      lastSyncedAt: integration?.last_synced_at ?? null,
+      lastError: integration?.last_error ?? null,
+      selectedCount: selected.length,
+      selectionStatus: selected.length ? "selected" : "none_selected",
+      calendars: calendars.map((c) => ({
+        id: c.id,
+        name: c.name,
+        writable: c.writable,
+        primary: c.is_primary,
+        selected: c.selected,
+      })),
+      coverage,
+      timezone: ctx.timezone,
+      complete:
+        integration?.status === "connected" &&
+        coverage.length > 0 &&
+        coverage.every((c) => c.rangeCovered && c.freshness === "fresh"),
+    };
+  }
+
+  async function listEventsPage(raw: ListEventsInput) {
+    const f = listEventsSchema.parse(raw);
+    if (Date.parse(f.to) <= Date.parse(f.from))
+      throw new Error("올바른 조회 기간을 지정해 주세요");
+    const status = await connectionStatus(f);
+    const selected = status.calendars
+      .filter((c) => c.selected)
+      .map((c) => c.id)
+      .sort();
+    const scope = JSON.stringify([f.from, f.to, f.q ?? null, selected]);
+    let after: { startAt: string; id: string } | undefined;
+    if (f.cursor) {
+      try {
+        const cursor = JSON.parse(
+          Buffer.from(f.cursor, "base64url").toString(),
+        );
+        if (cursor.scope !== scope) throw new Error();
+        after = {
+          startAt: new Date(cursor.startAt).toISOString(),
+          id: z.string().uuid().parse(cursor.id),
+        };
+      } catch {
+        throw new Error(
+          "조회 조건이 바뀌었어요. 첫 페이지부터 다시 확인해 주세요",
+        );
+      }
+    }
+    const rows = selected.length
+      ? await repo.listEvents(f, {
+          calendarIds: selected,
+          q: f.q,
+          after,
+          limit: f.limit + 1,
+        })
+      : [];
+    const hasMore = rows.length > f.limit;
+    const events = rows.slice(0, f.limit);
+    const last = events.at(-1);
+    return {
+      ...status,
+      events,
+      range: { from: f.from, to: f.to, q: f.q ?? null },
+      returned: events.length,
+      hasMore,
+      complete: status.complete && !hasMore,
+      localPageComplete: !hasMore,
+      nextCursor:
+        hasMore && last
+          ? Buffer.from(
+              JSON.stringify({ scope, startAt: last.start_at, id: last.id }),
+            ).toString("base64url")
+          : null,
+    };
   }
 
   /**
@@ -122,67 +219,80 @@ export function eventService(ctx: ServiceContext) {
     startIso: string,
     endIso: string | null,
     allDay: boolean,
+    durationMinutes = 60,
   ): { startAt: string; endAt: string } {
-    let startAt = startIso;
-    let endAt =
-      endIso ??
-      new Date(
-        new Date(startIso).getTime() + (allDay ? 24 : 1) * 3_600_000,
-      ).toISOString();
-    if (allDay) {
-      startAt = dayBounds(new Date(startAt), ctx.timezone).start;
-      endAt = dayBounds(
-        new Date(new Date(endAt).getTime() - 1),
-        ctx.timezone,
-      ).end;
-    }
+    const startAt = allDay
+      ? dayBounds(new Date(startIso), ctx.timezone).start
+      : startIso;
+    const endAt = allDay
+      ? endIso
+        ? dayBounds(new Date(Date.parse(endIso) - 1), ctx.timezone).end
+        : dayBounds(new Date(startIso), ctx.timezone).end
+      : (endIso ??
+        new Date(
+          Date.parse(startIso) + durationMinutes * 60_000,
+        ).toISOString());
     if (new Date(endAt) <= new Date(startAt))
       throw new Error("종료가 시작보다 빨라요");
     return { startAt, endAt };
   }
 
-  async function createEvent(raw: CreateEventInput): Promise<EventRow> {
+  async function createEvent(
+    raw: CreateEventInput,
+    options: { preventOverlap?: boolean } = {},
+  ): Promise<EventRow & { createdNow: boolean }> {
     const input = createEventSchema.parse(raw);
     if (input.creationKey) {
       const existing = await repo.findCreated(input.creationKey);
-      if (existing) return existing;
+      if (existing) return { ...existing, createdNow: false };
     }
+    const preferences = await getSchedulingPreferences(ctx.db, ctx.userId);
     const { startAt, endAt } = normalizeRange(
       input.startAt,
       input.endAt ?? null,
       input.allDay,
+      preferences.defaultDurationMinutes ?? 60,
     );
     const cal = await writableCalendar(input.calendarId);
-    let row = await repo.insertEvent({
-      creation_key: input.creationKey ?? null,
-      calendar_id: cal.id,
-      external_id: `local:${crypto.randomUUID()}`,
-      title: input.title,
-      description: input.description ?? null,
-      location: input.location ?? null,
-      start_at: startAt,
-      end_at: endAt,
-      all_day: input.allDay,
-      is_busy: input.isBusy,
-      timezone: ctx.timezone,
-      sync_status: "pending_push",
-    });
-    row = await pushOne(row, cal);
-    await ctx.emit({
-      type: EVENT_EVENTS.created,
-      entity: { type: "calendar_event", id: row.id },
-      payload: { title: row.title, startAt: row.start_at },
-    });
-    return row;
+    const inserted = await repo.writeEvent(
+      {
+        creation_key: input.creationKey ?? null,
+        calendar_id: cal.id,
+        external_id: `local:${crypto.randomUUID()}`,
+        title: input.title,
+        description: input.description ?? null,
+        location: input.location ?? null,
+        start_at: startAt,
+        end_at: endAt,
+        all_day: input.allDay,
+        is_busy: input.isBusy,
+        timezone: ctx.timezone,
+        sync_status: "pending_push",
+      },
+      undefined,
+      undefined,
+      options.preventOverlap,
+    );
+    const { createdNow } = inserted;
+    const row = await pushOne(inserted, cal);
+    if (createdNow)
+      await ctx.emit({
+        type: EVENT_EVENTS.created,
+        entity: { type: "calendar_event", id: row.id },
+        payload: { title: row.title, startAt: row.start_at },
+      });
+    return { ...row, createdNow };
   }
 
   async function updateEvent(
     id: string,
     raw: UpdateEventInput,
+    expectedVersion?: string,
+    options: { preventOverlap?: boolean } = {},
   ): Promise<{ event: EventRow; before: EventRow }> {
     const patch = updateEventSchema.parse(raw);
     const before = await repo.getEvent(id);
-    if (!before) throw new Error("일정을 찾을 수 없어요");
+    if (!before || before.deleted_at) throw new Error("일정을 찾을 수 없어요");
     const cal = await repo.getCalendar(before.calendar_id);
     if (!cal?.writable) throw new Error("읽기 전용 캘린더의 일정이에요");
     const allDay = patch.allDay ?? before.all_day;
@@ -191,56 +301,104 @@ export function eventService(ctx: ServiceContext) {
       patch.endAt ?? before.end_at,
       allDay,
     );
-    let row = await repo.updateEvent(id, {
-      ...(patch.title !== undefined && { title: patch.title }),
-      ...(patch.description !== undefined && {
-        description: patch.description ?? null,
-      }),
-      ...(patch.location !== undefined && {
-        location: patch.location ?? null,
-      }),
-      start_at: startAt,
-      end_at: endAt,
-      all_day: allDay,
-      ...(patch.isBusy !== undefined && { is_busy: patch.isBusy }),
-      sync_status: "pending_push",
-    });
+    let row: EventRow = await repo.writeEvent(
+      {
+        ...(patch.title !== undefined && { title: patch.title }),
+        ...(patch.description !== undefined && {
+          description: patch.description ?? null,
+        }),
+        ...(patch.location !== undefined && {
+          location: patch.location ?? null,
+        }),
+        start_at: startAt,
+        end_at: endAt,
+        all_day: allDay,
+        ...(patch.isBusy !== undefined && { is_busy: patch.isBusy }),
+        sync_status: "pending_push",
+      },
+      id,
+      expectedVersion ?? before.updated_at,
+      options.preventOverlap,
+    );
     row = await pushOne(row, cal);
     await ctx.emit({
       type: EVENT_EVENTS.updated,
       entity: { type: "calendar_event", id },
-      payload: { fields: Object.keys(patch) },
+      payload: {
+        fields: Object.keys(patch),
+        before: {
+          startAt: before.start_at,
+          endAt: before.end_at,
+          allDay: before.all_day,
+        },
+        after: {
+          startAt: row.start_at,
+          endAt: row.end_at,
+          allDay: row.all_day,
+        },
+        beforeVersion: before.updated_at,
+        afterVersion: row.updated_at,
+        timezone: ctx.timezone,
+        source: {
+          kind:
+            ctx.actor === "user"
+              ? "direct_user_action"
+              : ctx.actor === "agent"
+                ? "agent_action"
+                : "system_action",
+          actor: ctx.actor,
+          eligibleForPreferenceLearning:
+            ctx.actor === "user" &&
+            (Date.parse(before.start_at) !== Date.parse(row.start_at) ||
+              Date.parse(before.end_at) !== Date.parse(row.end_at) ||
+              before.all_day !== row.all_day),
+        },
+      },
     });
     return { event: row, before };
   }
 
-  async function deleteEvent(id: string): Promise<EventRow> {
+  async function deleteEvent(
+    id: string,
+    expectedVersion?: string,
+  ): Promise<EventRow> {
     const before = await repo.getEvent(id);
     if (!before) throw new Error("일정을 찾을 수 없어요");
     const cal = await repo.getCalendar(before.calendar_id);
     if (!cal?.writable) throw new Error("읽기 전용 캘린더의 일정이에요");
-    const row = await repo.updateEvent(id, {
-      deleted_at: ctx.now.toISOString(),
-      sync_status: "pending_push",
-    });
-    await pushOne(row, cal);
+    if (before.deleted_at) return before;
+    let row: EventRow = await repo.writeEvent(
+      {
+        deleted_at: ctx.now.toISOString(),
+        sync_status: "pending_push",
+      },
+      id,
+      expectedVersion ??
+        ctx.approvedVersions?.[`calendar_events:${id}`] ??
+        before.updated_at,
+    );
+    row = await pushOne(row, cal);
     await ctx.emit({
       type: EVENT_EVENTS.deleted,
       entity: { type: "calendar_event", id },
       payload: { title: before.title },
     });
-    return before;
+    return row;
   }
 
   /** pending 행 하나를 Google 에 반영. 실패하면 pending 으로 남긴다(잡이 재시도). */
   async function pushOne(row: EventRow, cal: CalendarRow): Promise<EventRow> {
-    const token = await tokenOrNull(cal.integration_id);
-    if (!token) return row;
     const isLocal = row.external_id.startsWith("local:");
     try {
+      const token = await tokenOrNull(cal.integration_id);
+      if (!token) return row;
       if (row.deleted_at) {
-        if (!isLocal)
-          await google.deleteEvent(token, cal.external_id, row.external_id);
+        await google.deleteEvent(
+          token,
+          cal.external_id,
+          isLocal ? row.id.replaceAll("-", "") : row.external_id,
+          row.etag ?? undefined,
+        );
         return repo.finishPush(row.id, row.updated_at, {
           sync_status: "synced",
           remote_snapshot: null,
@@ -258,7 +416,7 @@ export function eventService(ctx: ServiceContext) {
         } catch (e) {
           if (!(e instanceof GoogleApiError) || e.status !== 409) throw e;
           g = await google.getEvent(token, cal.external_id, googleId);
-          const remote = toRow(cal, g);
+          const remote = toRow(cal, g, ctx.timezone);
           const changed =
             row.title !== remote.title ||
             (row.description ?? "") !== (remote.description ?? "") ||
@@ -276,7 +434,7 @@ export function eventService(ctx: ServiceContext) {
             });
         }
         return repo.finishPush(row.id, row.updated_at, {
-          ...toRow(cal, g),
+          ...toRow(cal, g, ctx.timezone),
           deleted_at: null,
           remote_snapshot: null,
         });
@@ -289,23 +447,37 @@ export function eventService(ctx: ServiceContext) {
         row.etag ?? undefined,
       );
       return repo.finishPush(row.id, row.updated_at, {
-        ...toRow(cal, g),
+        ...toRow(cal, g, ctx.timezone),
         deleted_at: null,
         remote_snapshot: null,
       });
     } catch (e) {
       if (e instanceof GoogleApiError && e.status === 412) {
-        const remote = await google.getEvent(
-          token,
-          cal.external_id,
-          row.external_id,
-        );
-        return repo.finishPush(row.id, row.updated_at, {
-          sync_status: "conflict",
-          remote_snapshot: toRow(cal, remote),
-        });
+        try {
+          const token = await tokenOrNull(cal.integration_id);
+          if (!token) return row;
+          const remote = await google.getEvent(
+            token,
+            cal.external_id,
+            row.external_id,
+          );
+          return repo.finishPush(row.id, row.updated_at, {
+            sync_status: "conflict",
+            remote_snapshot: toRow(cal, remote, ctx.timezone),
+          });
+        } catch (refreshError) {
+          console.warn(
+            "[calendar] conflict read failed, kept pending",
+            refreshError,
+          );
+          return row;
+        }
       }
-      if (e instanceof GoogleApiError && e.status === 404 && row.deleted_at) {
+      if (
+        e instanceof GoogleApiError &&
+        (e.status === 404 || e.status === 410) &&
+        row.deleted_at
+      ) {
         return repo.finishPush(row.id, row.updated_at, {
           sync_status: "synced",
           remote_snapshot: null,
@@ -352,23 +524,34 @@ export function eventService(ctx: ServiceContext) {
     if (local.updated_at !== localVersion || remote.etag !== remoteEtag)
       throw new Error("비교 후 내용이 변경됐어요. 새 내용을 확인해 주세요.");
     if (choice === "remote")
-      return repo.finishPush(id, localVersion, {
-        ...remote,
-        remote_snapshot: null,
-      });
+      return repo.finishPush(
+        id,
+        localVersion,
+        {
+          ...remote,
+          remote_snapshot: null,
+        },
+        true,
+      );
     const cal = await repo.getCalendar(local.calendar_id);
     if (!cal?.writable) throw new Error("읽기 전용 캘린더예요");
-    const pending = await repo.finishPush(id, localVersion, {
-      etag: remote.etag,
-      sync_status: "pending_push",
-      remote_snapshot: null,
-    });
+    const pending = await repo.finishPush(
+      id,
+      localVersion,
+      {
+        etag: remote.etag,
+        sync_status: "pending_push",
+        remote_snapshot: null,
+      },
+      true,
+    );
     return pushOne(pending, cal);
   }
 
   async function retryPush(id: string) {
     const row = await repo.getEvent(id);
     if (!row) throw new Error("일정을 찾을 수 없어요");
+    if (row.sync_status === "synced") return row;
     if (row.sync_status === "conflict")
       throw new Error("두 내용을 비교한 후 선택해 주세요.");
     const cal = await repo.getCalendar(row.calendar_id);
@@ -380,7 +563,15 @@ export function eventService(ctx: ServiceContext) {
   async function findFreeSlots(
     raw: FindFreeSlotsInput,
   ): Promise<Array<{ startAt: string; endAt: string }>> {
-    const f = findFreeSlotsSchema.parse(raw);
+    const preferences = await getSchedulingPreferences(ctx.db, ctx.userId);
+    const { defaultDurationMinutes, ...constraints } = preferences;
+    const f = findFreeSlotsSchema.parse({
+      ...constraints,
+      durationMinutes: defaultDurationMinutes,
+      ...Object.fromEntries(
+        Object.entries(raw).filter(([, v]) => v !== undefined),
+      ),
+    });
     const selected = (await repo.listCalendars(true)).map((c) => c.id);
     if (selected.length === 0)
       throw new Error(
@@ -407,6 +598,8 @@ export function eventService(ctx: ServiceContext) {
 
   return {
     listEvents,
+    listEventsPage,
+    connectionStatus,
     createEvent,
     updateEvent,
     deleteEvent,

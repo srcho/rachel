@@ -214,11 +214,16 @@ export const google = {
         headers: etag ? { "If-Match": etag } : {},
       },
     ),
-  deleteEvent: (token: string, calendarId: string, eventId: string) =>
+  deleteEvent: (
+    token: string,
+    calendarId: string,
+    eventId: string,
+    etag?: string,
+  ) =>
     api<void>(
       token,
       `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
-      { method: "DELETE" },
+      { method: "DELETE", headers: etag ? { "If-Match": etag } : undefined },
     ),
 };
 

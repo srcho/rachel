@@ -1,4 +1,5 @@
 import type { Indexer } from "@/core/contracts";
+import { localYmd } from "@/core/utils/date";
 import { calendarRepository } from "./repository";
 
 export const eventsIndexer: Indexer = {
@@ -31,7 +32,7 @@ export const eventsIndexer: Indexer = {
         content: text.slice(0, 2000),
         metadata: {
           title: e.title,
-          href: `/calendar?view=agenda&date=${e.start_at.slice(0, 10)}`,
+          href: `/calendar?view=agenda&date=${localYmd(new Date(e.start_at), ctx.timezone)}`,
           startAt: e.start_at,
         },
       },

@@ -1,6 +1,6 @@
 import type { ServiceContext } from "@/core/contracts";
 import type { Json } from "@/core/db/types.generated";
-import { tzOffsetMs } from "@/core/utils/date";
+import { dateTimeInZone } from "@/core/utils/date";
 import { eventService } from "./events";
 import { type GEvent, GoogleApiError, google } from "./google";
 import {
@@ -11,31 +11,38 @@ import {
 import { CALENDAR_EVENTS } from "./service";
 import { getAccessToken, NeedsReauthError } from "./tokens";
 
-const INITIAL_PAST_DAYS = 30;
-const INITIAL_FUTURE_DAYS = 180;
+export const INITIAL_PAST_DAYS = 30;
+export const INITIAL_FUTURE_DAYS = 180;
 
 export function toRow(
   calendar: CalendarRow,
   e: GEvent,
+  fallbackTimezone = "Asia/Seoul",
 ): Omit<EventInsert, "user_id"> {
   const allDay = Boolean(e.start?.date);
   const start =
     e.start?.dateTime ??
     (e.start?.date
-      ? `${e.start.date}T00:00:00${offsetFor(e.start.timeZone, e.start.date)}`
+      ? dateTimeInZone(
+          `${e.start.date}T00:00`,
+          e.start.timeZone ?? fallbackTimezone,
+        )
       : new Date().toISOString());
   const end =
     e.end?.dateTime ??
     (e.end?.date
-      ? `${e.end.date}T00:00:00${offsetFor(e.end.timeZone, e.end.date)}`
+      ? dateTimeInZone(
+          `${e.end.date}T00:00`,
+          e.end.timeZone ?? fallbackTimezone,
+        )
       : start);
   return {
     calendar_id: calendar.id,
     external_id: e.id,
     etag: e.etag ?? null,
     title: e.summary ?? "(제목 없음)",
-    description: e.description ?? null,
-    location: e.location ?? null,
+    description: e.description || null,
+    location: e.location || null,
     start_at: new Date(start).toISOString(),
     end_at: new Date(end).toISOString(),
     all_day: allDay,
@@ -43,7 +50,7 @@ export function toRow(
     google_has_reminders:
       e.reminders?.useDefault !== false ||
       Boolean(e.reminders.overrides?.length),
-    timezone: e.start?.timeZone ?? null,
+    timezone: e.start?.timeZone ?? fallbackTimezone,
     recurring_event_id: e.recurringEventId ?? null,
     attendees: (e.attendees ?? []).map((a) => ({
       email: a.email,
@@ -57,17 +64,6 @@ export function toRow(
     remote_updated_at: e.updated ?? null,
     deleted_at: e.status === "cancelled" ? new Date().toISOString() : null,
   };
-}
-
-/** 종일 일정은 캘린더 타임존 자정. 그 날짜의 오프셋(DST 존 대비) — 타임존 정보가 없으면 서울. */
-function offsetFor(tz: string | undefined, ymd: string): string {
-  const zone = tz ?? "Asia/Seoul";
-  const ms = tzOffsetMs(zone, new Date(`${ymd}T12:00:00Z`));
-  const sign = ms >= 0 ? "+" : "-";
-  const abs = Math.abs(ms) / 60_000;
-  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
-  const mm = String(abs % 60).padStart(2, "0");
-  return `${sign}${hh}:${mm}`;
 }
 
 export interface SyncResult {
@@ -170,7 +166,7 @@ export async function syncCalendars(ctx: ServiceContext): Promise<SyncResult> {
         }
         throw e;
       }
-      const rows = (page.items ?? []).map((e) => toRow(cal, e));
+      const rows = (page.items ?? []).map((e) => toRow(cal, e, ctx.timezone));
       upserted += await repo.upsertEvents(rows);
       pageToken = page.nextPageToken;
       if (page.nextSyncToken) syncToken = page.nextSyncToken;
@@ -178,6 +174,16 @@ export async function syncCalendars(ctx: ServiceContext): Promise<SyncResult> {
     await repo.updateCalendar(cal.id, {
       sync_token: syncToken ?? null,
       last_synced_at: now.toISOString(),
+      ...(fullResync
+        ? {
+            sync_coverage_from: new Date(
+              now.getTime() - INITIAL_PAST_DAYS * 86_400_000,
+            ).toISOString(),
+            sync_coverage_to: new Date(
+              now.getTime() + INITIAL_FUTURE_DAYS * 86_400_000,
+            ).toISOString(),
+          }
+        : {}),
     });
     return { upserted, fullResync };
   }

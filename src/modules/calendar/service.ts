@@ -74,6 +74,8 @@ export function calendarService(ctx: ServiceContext) {
     calendarId: string,
     selected: boolean,
   ): Promise<void> {
+    if (!(await repo.getCalendar(calendarId)))
+      throw new Error("캘린더를 찾을 수 없어요");
     await repo.updateCalendar(calendarId, {
       selected,
       ...(selected ? {} : { sync_token: null }),

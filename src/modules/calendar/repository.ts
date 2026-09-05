@@ -178,7 +178,13 @@ export function calendarRepository(db: Db, userId: string) {
       patch: Partial<
         Pick<
           CalendarRow,
-          "selected" | "sync_token" | "last_synced_at" | "name" | "color"
+          | "selected"
+          | "sync_token"
+          | "last_synced_at"
+          | "name"
+          | "color"
+          | "sync_coverage_from"
+          | "sync_coverage_to"
         >
       >,
     ): Promise<void> {
@@ -191,15 +197,32 @@ export function calendarRepository(db: Db, userId: string) {
     // ── events ──
     async listEvents(
       range: { from: string; to: string },
-      opts: { calendarIds?: string[]; limit?: number; offset?: number } = {},
+      opts: {
+        calendarIds?: string[];
+        limit?: number;
+        offset?: number;
+        q?: string;
+        after?: { startAt: string; id: string };
+      } = {},
     ): Promise<EventRow[]> {
       let q = own(db.from("calendar_events").select("*"))
         .is("deleted_at", null)
         .lt("start_at", range.to)
         .gt("end_at", range.from);
       if (opts.calendarIds) q = q.in("calendar_id", opts.calendarIds);
+      if (opts.q) {
+        const term = `%${opts.q.replace(/[\\%_]/g, "\\$&")}%`;
+        q = q.or(
+          `title.ilike.${JSON.stringify(term)},location.ilike.${JSON.stringify(term)},description.ilike.${JSON.stringify(term)}`,
+        );
+      }
+      if (opts.after)
+        q = q.or(
+          `start_at.gt.${opts.after.startAt},and(start_at.eq.${opts.after.startAt},id.gt.${opts.after.id})`,
+        );
       const { data, error } = await q
         .order("start_at")
+        .order("id")
         .range(opts.offset ?? 0, (opts.offset ?? 0) + (opts.limit ?? 500) - 1);
       if (error) throw error;
       return data;
@@ -258,6 +281,31 @@ export function calendarRepository(db: Db, userId: string) {
       if (error) throw error;
       return data;
     },
+    async writeEvent(
+      patch: EventUpdate,
+      id?: string,
+      expectedVersion?: string,
+      preventOverlap = false,
+    ): Promise<EventRow & { createdNow: boolean }> {
+      const { data, error } = await db.rpc("write_calendar_event", {
+        p_user_id: userId,
+        p_patch: patch as Json,
+        p_id: id,
+        p_expected_version: expectedVersion,
+        p_prevent_overlap: preventOverlap,
+      });
+      if (error?.code === "40001")
+        throw new Error("일정이 변경됐어요. 최신 내용을 확인해 주세요.");
+      if (error) throw error;
+      const result = data as {
+        event?: EventRow;
+        conflicts?: EventRow[];
+        createdNow?: boolean;
+      };
+      if (result.conflicts) throw new CalendarOverlapError(result.conflicts);
+      if (!result.event) throw new Error("일정을 저장하지 못했어요");
+      return { ...result.event, createdNow: result.createdNow === true };
+    },
     async updateEvent(id: string, patch: EventUpdate): Promise<EventRow> {
       const { data, error } = await own(
         db.from("calendar_events").update(patch),
@@ -272,6 +320,7 @@ export function calendarRepository(db: Db, userId: string) {
       id: string,
       version: string,
       patch: EventUpdate,
+      rejectIfChanged = false,
     ): Promise<EventRow> {
       const { data, error } = await own(
         db.from("calendar_events").update(patch),
@@ -282,6 +331,8 @@ export function calendarRepository(db: Db, userId: string) {
         .maybeSingle();
       if (error) throw error;
       if (data) return data;
+      if (rejectIfChanged)
+        throw new Error("일정이 변경됐어요. 최신 내용을 확인해 주세요.");
       const latest = await own(db.from("calendar_events").select("*"))
         .eq("id", id)
         .single();
@@ -300,3 +351,10 @@ export function calendarRepository(db: Db, userId: string) {
 
 export type CalendarRepository = ReturnType<typeof calendarRepository>;
 export type { Json };
+
+export class CalendarOverlapError extends Error {
+  readonly code = "CALENDAR_OVERLAP";
+  constructor(public readonly conflicts: EventRow[]) {
+    super("다른 일정과 겹쳐요. 새 시간을 선택해 주세요.");
+  }
+}

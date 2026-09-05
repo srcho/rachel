@@ -3,7 +3,7 @@ import {
   getProfileSettings,
   updateProfileSettings,
 } from "@/core/settings/profile";
-import { dayBounds, localYmd } from "@/core/utils/date";
+import { dateTimeInZone, localYmd } from "@/core/utils/date";
 import { GoogleApiError, GTASKS_SCOPE, type GTask, gtasks } from "./google";
 import { calendarRepository } from "./repository";
 import { getAccessToken } from "./tokens";
@@ -254,10 +254,7 @@ export function gtasksService(ctx: ServiceContext) {
               title: task.title.trim(),
               notes: task.notes ?? "",
               dueAt: task.due
-                ? dayBounds(
-                    new Date(`${task.due.slice(0, 10)}T12:00:00Z`),
-                    ctx.timezone,
-                  ).start
+                ? dateTimeInZone(`${task.due.slice(0, 10)}T00:00`, ctx.timezone)
                 : null,
               completed: task.status === "completed",
             },

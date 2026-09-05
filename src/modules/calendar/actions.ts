@@ -33,7 +33,7 @@ export async function updateEventAction(id: string, patch: UpdateEventInput) {
   return (await eventService(await userContext()).updateEvent(id, patch)).event;
 }
 export async function deleteEventAction(id: string) {
-  await eventService(await userContext()).deleteEvent(id);
+  return eventService(await userContext()).deleteEvent(id);
 }
 export async function syncNowAction() {
   const ctx = await userContext();

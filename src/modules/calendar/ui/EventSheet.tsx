@@ -11,6 +11,7 @@ import {
   deleteEventAction,
   updateEventAction,
 } from "../actions";
+import { addDays } from "../format";
 import type { CalendarInfo } from "./CalendarScreen";
 import { SyncStatus } from "./SyncStatus";
 
@@ -100,12 +101,11 @@ function EventForm({
     try {
       // 종일 일정은 Google 규약대로 종료일 = 다음날 자정(exclusive)
       const startAt = toIso(d.startAt, d.allDay, timezone);
-      let endAt = toIso(d.endAt, d.allDay, timezone);
-      if (d.allDay) {
-        const e = new Date(endAt);
-        e.setDate(e.getDate() + 1);
-        endAt = e.toISOString();
-      }
+      const endAt = toIso(
+        d.allDay ? addDays(d.endAt, 1) : d.endAt,
+        d.allDay,
+        timezone,
+      );
       const payload = {
         title: d.title.trim(),
         startAt,
@@ -116,14 +116,20 @@ function EventForm({
         location: d.location.trim() || null,
         description: d.description.trim() || null,
       };
-      if (d.id) await updateEventAction(d.id, payload);
-      else
-        await createEventAction({
-          ...payload,
-          creationKey,
-          calendarId: d.calendarId || undefined,
-        });
-      toast.success("레이첼에 저장했어요 · Google 반영 대기");
+      const saved = d.id
+        ? await updateEventAction(d.id, payload)
+        : await createEventAction({
+            ...payload,
+            creationKey,
+            calendarId: d.calendarId || undefined,
+          });
+      toast.success(
+        saved.sync_status === "synced"
+          ? "저장했어요 · Google 반영됨"
+          : saved.sync_status === "conflict"
+            ? "레이첼에 저장했어요 · Google 변경과 충돌"
+            : "레이첼에 저장했어요 · Google 반영 대기",
+      );
       onSaved();
       onClose();
     } catch (e) {
@@ -142,8 +148,14 @@ function EventForm({
       return;
     setBusy(true);
     try {
-      await deleteEventAction(d.id);
-      toast.success("삭제했어요");
+      const deleted = await deleteEventAction(d.id);
+      toast.success(
+        deleted.sync_status === "synced"
+          ? "삭제했어요 · Google 반영됨"
+          : deleted.sync_status === "conflict"
+            ? "레이첼에서 삭제했어요 · Google 변경과 충돌"
+            : "레이첼에서 삭제했어요 · Google 삭제 대기",
+      );
       onSaved();
       onClose();
     } catch (e) {
