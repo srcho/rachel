@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Panel } from "@/core/ui/Panel";
 import { DEFAULT_TZ, fmtDateTime } from "@/core/utils/date";
 import { cn } from "@/lib/utils";
+import { useDock } from "@/modules/agent/dock/store";
 import {
   archiveMemoryAction,
   forgetMemoryAction,
@@ -242,7 +243,7 @@ export function MemoryList({
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 pl-1 text-[11px] text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-2 pl-1 text-[11px] text-muted-foreground">
                     <span title="중요도">{"★".repeat(m.importance)}</span>
                     <span>{fmtDateTime(m.updated_at, DEFAULT_TZ, "date")}</span>
                     {m.use_count > 0 && <span>{m.use_count}회 사용</span>}
@@ -267,6 +268,19 @@ export function MemoryList({
                         >
                           출처: {label}
                         </Link>
+                      ) : s.type === "thread" && s.id ? (
+                        <button
+                          key={`${s.type}-${s.id}`}
+                          type="button"
+                          className="min-h-8 underline"
+                          title={s.excerpt}
+                          onClick={() => {
+                            if (s.id) useDock.getState().setThread(s.id);
+                            useDock.getState().setOpen(true);
+                          }}
+                        >
+                          출처: 대화 열기
+                        </button>
                       ) : (
                         <span key={`${s.type}-${i}`} title={s.excerpt}>
                           출처: {label}

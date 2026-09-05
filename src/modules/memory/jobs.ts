@@ -3,7 +3,7 @@ import type { JobHandler } from "@/core/contracts";
 import { agentService } from "@/modules/agent/service";
 import { memoryService } from "./service";
 
-/** 스레드 유휴 후 추출. 마지막 30개 메시지의 텍스트만. */
+/** 응답 완료 후 10분 지연 추출. 대기 중인 대화는 합치고 마지막 30개 메시지 중 사용자 텍스트만 읽는다. */
 export const extractJob: JobHandler<{
   threadId?: string;
   meetingId?: string;

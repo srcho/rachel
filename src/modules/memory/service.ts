@@ -268,7 +268,7 @@ export function memoryService(
     source: MemorySource,
     ref?: UsageRef,
   ): Promise<{ created: number; merged: number }> {
-    if (text.trim().length < 20) return { created: 0, merged: 0 };
+    if (!text.trim()) return { created: 0, merged: 0 };
     const { output } = await llmGenerate<ExtractedMemories>({
       db: ctx.db,
       userId: ctx.userId,

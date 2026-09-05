@@ -50,7 +50,7 @@ export const memoryModule: RachelModule = {
         await ctx.enqueue({
           type: "memory.extract",
           payload: { meetingId: e.entity.id, text, version },
-          dedupeKey: `memory.extract:meeting:${e.entity.id}`,
+          dedupeKey: `memory.extract:meeting:${e.entity.id}:${version}`,
         });
       },
     },

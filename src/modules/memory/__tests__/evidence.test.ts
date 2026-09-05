@@ -77,6 +77,25 @@ describe.skipIf(!available)("memory evidence A25-A28", () => {
   });
   afterAll(async () => user?.cleanup());
 
+  it("extracts a short, explicit preference instead of discarding it by length", async () => {
+    const text = "고수는 안 먹어요";
+    state.memories = [
+      {
+        kind: "preference",
+        content: "사용자는 고수를 먹지 않는다",
+        importance: 3,
+        evidence: text,
+      },
+    ];
+    const result = await memoryService(ctx).extractFrom(text, {
+      type: "inference",
+    });
+    expect(result.created).toBe(1);
+    expect(state.prompt).toBe(text);
+    const stored = await memoryService(ctx).listPage({ q: "고수를 먹지" });
+    expect(stored.items[0]?.confirmed_at).toBeNull();
+  });
+
   it("A25 verifies user evidence and does not confirm a model inference or paraphrase", async () => {
     const input = {
       kind: "preference",
