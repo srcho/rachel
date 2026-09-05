@@ -1,0 +1,176 @@
+{
+  "at": "2026-09-05T02:35:57.780Z",
+  "mode": "service-contract",
+  "model": null,
+  "passed": 33,
+  "executed": 33,
+  "skipped": 0,
+  "successRate": 1,
+  "cases": [
+    {
+      "name": "chat write retries reuses a successful write despite reordered input and separates users and turns",
+      "status": "passed",
+      "durationMs": 60.72616700000003
+    },
+    {
+      "name": "chat write retries does not repeat a write when failure may have occurred after the change",
+      "status": "passed",
+      "durationMs": 15.006124999999884
+    },
+    {
+      "name": "chat write retries allows only one writer for simultaneous requests",
+      "status": "passed",
+      "durationMs": 6.224042000000281
+    },
+    {
+      "name": "chat write retries does not create a different write while regenerating a response",
+      "status": "passed",
+      "durationMs": 12.127708999999868
+    },
+    {
+      "name": "captureService adds to inbox (enqueues triage) and resolves a task proposal via the tasks tool",
+      "status": "passed",
+      "durationMs": 79.11712499999999
+    },
+    {
+      "name": "captureService freezes one proposal and produces one card under concurrent confirmation",
+      "status": "passed",
+      "durationMs": 43.42266699999982
+    },
+    {
+      "name": "captureService recovers after creation succeeded but confirmation failed without changing the frozen plan",
+      "status": "passed",
+      "durationMs": 47.12925000000041
+    },
+    {
+      "name": "availability boundaries never offers a slot ending after the requested range",
+      "status": "passed",
+      "durationMs": 3.69987500000002
+    },
+    {
+      "name": "availability boundaries blocks all-day leave but lets transparent all-day reminders coexist",
+      "status": "passed",
+      "durationMs": 0.801667000000009
+    },
+    {
+      "name": "availability boundaries merges overlaps and respects travel buffer, work hours and explicit preferences",
+      "status": "passed",
+      "durationMs": 0.34737499999999955
+    },
+    {
+      "name": "availability boundaries skips weekends unless requested and never skips the last short day",
+      "status": "passed",
+      "durationMs": 0.30004100000002154
+    },
+    {
+      "name": "availability boundaries uses wall-clock work hours across daylight saving changes",
+      "status": "passed",
+      "durationMs": 0.3177090000000078
+    },
+    {
+      "name": "meeting notes and corrections creates one unrecorded note per retry and preserves explicit fields through a stale generated update",
+      "status": "passed",
+      "durationMs": 53.16462499999989
+    },
+    {
+      "name": "meeting notes and corrections preserves corrected transcript across re-upload and keeps only real source references",
+      "status": "passed",
+      "durationMs": 44.61991699999999
+    },
+    {
+      "name": "meeting notes and corrections pages and searches notes without mistaking no followups for failed loading",
+      "status": "passed",
+      "durationMs": 6.0678750000001855
+    },
+    {
+      "name": "resolves relative meeting due dates from the meeting, even when reviewed days later",
+      "status": "passed",
+      "durationMs": 18.152290999999877
+    },
+    {
+      "name": "meeting follow-up creation keeps one result across concurrent and repeated review and uses the historical due date",
+      "status": "passed",
+      "durationMs": 113.11875000000009
+    },
+    {
+      "name": "meeting follow-up creation rejects another user's meeting and stale action keys",
+      "status": "passed",
+      "durationMs": 15.397166000000198
+    },
+    {
+      "name": "meeting follow-up creation freezes reference classification and does not create a task on retry",
+      "status": "passed",
+      "durationMs": 32.19062500000018
+    },
+    {
+      "name": "memoryService stores, merges duplicates, recalls, and forgets",
+      "status": "passed",
+      "durationMs": 83.73350000000005
+    },
+    {
+      "name": "memoryService uses one memory for concurrent retries of a capture",
+      "status": "passed",
+      "durationMs": 21.820416999999907
+    },
+    {
+      "name": "memoryService holds conflicting memories out of recall until the user chooses",
+      "status": "passed",
+      "durationMs": 48.119709000000285
+    },
+    {
+      "name": "parseDueFromTitle (ko) parses 내일 + 시간",
+      "status": "passed",
+      "durationMs": 12.426500000000004
+    },
+    {
+      "name": "parseDueFromTitle (ko) parses 오늘 without time as end of day",
+      "status": "passed",
+      "durationMs": 0.5810419999999965
+    },
+    {
+      "name": "parseDueFromTitle (ko) parses 다음주 월요일 and 금요일",
+      "status": "passed",
+      "durationMs": 0.9230840000000171
+    },
+    {
+      "name": "parseDueFromTitle (ko) parses M/D, M월 D일, 오후 시각",
+      "status": "passed",
+      "durationMs": 0.3074579999999969
+    },
+    {
+      "name": "parseDueFromTitle (ko) returns null when no date",
+      "status": "passed",
+      "durationMs": 15.520583000000016
+    },
+    {
+      "name": "parseDueFromTitle (ko) falls back to english",
+      "status": "passed",
+      "durationMs": 102.24108400000003
+    },
+    {
+      "name": "distinguishes fixed weekdays from completion-relative days including DST",
+      "status": "passed",
+      "durationMs": 11.185833000000002
+    },
+    {
+      "name": "recurring tasks creates one next occurrence across concurrent completion, retry and reopen, retaining history",
+      "status": "passed",
+      "durationMs": 166.52925000000005
+    },
+    {
+      "name": "task time blocking links one event across repeated confirmations while preserving the task deadline",
+      "status": "passed",
+      "durationMs": 89.86387500000001
+    },
+    {
+      "name": "tasks tools create → list by column name → complete → undo",
+      "status": "passed",
+      "durationMs": 160.31770800000004
+    },
+    {
+      "name": "tasks tools rejects unknown column with a helpful message",
+      "status": "passed",
+      "durationMs": 6.902749999999969
+    }
+  ]
+}
