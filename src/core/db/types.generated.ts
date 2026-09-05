@@ -34,6 +34,33 @@ export type Database = {
   };
   public: {
     Tables: {
+      agent_tool_runs: {
+        Row: {
+          created_at: string;
+          id: string;
+          output: Json | null;
+          request_key: string;
+          status: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          output?: Json | null;
+          request_key: string;
+          status?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          output?: Json | null;
+          request_key?: string;
+          status?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       board_columns: {
         Row: {
           board_id: string;
@@ -117,15 +144,19 @@ export type Database = {
           attendees: Json;
           calendar_id: string;
           created_at: string;
+          creation_key: string | null;
           deleted_at: string | null;
           description: string | null;
           end_at: string;
           etag: string | null;
           external_id: string;
+          google_has_reminders: boolean;
           html_link: string | null;
           id: string;
+          is_busy: boolean;
           location: string | null;
           recurring_event_id: string | null;
+          remote_snapshot: Json | null;
           remote_updated_at: string | null;
           start_at: string;
           status: string;
@@ -140,15 +171,19 @@ export type Database = {
           attendees?: Json;
           calendar_id: string;
           created_at?: string;
+          creation_key?: string | null;
           deleted_at?: string | null;
           description?: string | null;
           end_at: string;
           etag?: string | null;
           external_id: string;
+          google_has_reminders?: boolean;
           html_link?: string | null;
           id?: string;
+          is_busy?: boolean;
           location?: string | null;
           recurring_event_id?: string | null;
+          remote_snapshot?: Json | null;
           remote_updated_at?: string | null;
           start_at: string;
           status?: string;
@@ -163,15 +198,19 @@ export type Database = {
           attendees?: Json;
           calendar_id?: string;
           created_at?: string;
+          creation_key?: string | null;
           deleted_at?: string | null;
           description?: string | null;
           end_at?: string;
           etag?: string | null;
           external_id?: string;
+          google_has_reminders?: boolean;
           html_link?: string | null;
           id?: string;
+          is_busy?: boolean;
           location?: string | null;
           recurring_event_id?: string | null;
+          remote_snapshot?: Json | null;
           remote_updated_at?: string | null;
           start_at?: string;
           status?: string;
@@ -295,14 +334,18 @@ export type Database = {
           column_id: string;
           completed_at: string | null;
           created_at: string;
+          creation_key: string | null;
           description_md: string;
           due_at: string | null;
           due_has_time: boolean;
           id: string;
           labels: string[];
           meeting_id: string | null;
+          plan_date: string | null;
           position: string;
           priority: number;
+          repeat_parent_id: string | null;
+          repeat_rule: Json | null;
           source: Json;
           title: string;
           updated_at: string;
@@ -316,14 +359,18 @@ export type Database = {
           column_id: string;
           completed_at?: string | null;
           created_at?: string;
+          creation_key?: string | null;
           description_md?: string;
           due_at?: string | null;
           due_has_time?: boolean;
           id?: string;
           labels?: string[];
           meeting_id?: string | null;
+          plan_date?: string | null;
           position: string;
           priority?: number;
+          repeat_parent_id?: string | null;
+          repeat_rule?: Json | null;
           source?: Json;
           title: string;
           updated_at?: string;
@@ -337,14 +384,18 @@ export type Database = {
           column_id?: string;
           completed_at?: string | null;
           created_at?: string;
+          creation_key?: string | null;
           description_md?: string;
           due_at?: string | null;
           due_has_time?: boolean;
           id?: string;
           labels?: string[];
           meeting_id?: string | null;
+          plan_date?: string | null;
           position?: string;
           priority?: number;
+          repeat_parent_id?: string | null;
+          repeat_rule?: Json | null;
           source?: Json;
           title?: string;
           updated_at?: string;
@@ -371,6 +422,7 @@ export type Database = {
         Row: {
           created_at: string;
           id: string;
+          metadata: Json | null;
           parts: Json;
           role: string;
           thread_id: string;
@@ -380,6 +432,7 @@ export type Database = {
         Insert: {
           created_at?: string;
           id: string;
+          metadata?: Json | null;
           parts?: Json;
           role: string;
           thread_id: string;
@@ -389,6 +442,7 @@ export type Database = {
         Update: {
           created_at?: string;
           id?: string;
+          metadata?: Json | null;
           parts?: Json;
           role?: string;
           thread_id?: string;
@@ -508,15 +562,7 @@ export type Database = {
           updated_at?: string;
           user_id?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "google_task_links_card_id_fkey";
-            columns: ["card_id"];
-            isOneToOne: false;
-            referencedRelation: "cards";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
       insights: {
         Row: {
@@ -707,6 +753,47 @@ export type Database = {
         };
         Relationships: [];
       };
+      meeting_followups: {
+        Row: {
+          action_key: string;
+          choice: Json;
+          created_at: string;
+          id: string;
+          kind: string;
+          meeting_id: string;
+          result_id: string | null;
+          user_id: string;
+        };
+        Insert: {
+          action_key: string;
+          choice: Json;
+          created_at?: string;
+          id?: string;
+          kind: string;
+          meeting_id: string;
+          result_id?: string | null;
+          user_id: string;
+        };
+        Update: {
+          action_key?: string;
+          choice?: Json;
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          meeting_id?: string;
+          result_id?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "meeting_followups_meeting_id_fkey";
+            columns: ["meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "meetings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       meetings: {
         Row: {
           audio_local_key: string | null;
@@ -726,10 +813,12 @@ export type Database = {
           started_at: string;
           status: string;
           summary: Json | null;
+          summary_edits: Json;
           summary_md: string | null;
           summary_model: string | null;
           summary_version: number;
           title: string;
+          transcript_edits: Json;
           updated_at: string;
           user_id: string;
         };
@@ -751,10 +840,12 @@ export type Database = {
           started_at?: string;
           status?: string;
           summary?: Json | null;
+          summary_edits?: Json;
           summary_md?: string | null;
           summary_model?: string | null;
           summary_version?: number;
           title?: string;
+          transcript_edits?: Json;
           updated_at?: string;
           user_id?: string;
         };
@@ -776,10 +867,12 @@ export type Database = {
           started_at?: string;
           status?: string;
           summary?: Json | null;
+          summary_edits?: Json;
           summary_md?: string | null;
           summary_model?: string | null;
           summary_version?: number;
           title?: string;
+          transcript_edits?: Json;
           updated_at?: string;
           user_id?: string;
         };
@@ -787,14 +880,17 @@ export type Database = {
       };
       memories: {
         Row: {
+          confirmed_at: string | null;
           content: string;
           created_at: string;
+          creation_key: string | null;
           embedding: string | null;
           id: string;
           importance: number;
           kind: string;
           last_used_at: string | null;
           pinned: boolean;
+          review_against: string | null;
           source: Json;
           status: string;
           updated_at: string;
@@ -802,14 +898,17 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          confirmed_at?: string | null;
           content: string;
           created_at?: string;
+          creation_key?: string | null;
           embedding?: string | null;
           id?: string;
           importance?: number;
           kind: string;
           last_used_at?: string | null;
           pinned?: boolean;
+          review_against?: string | null;
           source?: Json;
           status?: string;
           updated_at?: string;
@@ -817,14 +916,17 @@ export type Database = {
           user_id?: string;
         };
         Update: {
+          confirmed_at?: string | null;
           content?: string;
           created_at?: string;
+          creation_key?: string | null;
           embedding?: string | null;
           id?: string;
           importance?: number;
           kind?: string;
           last_used_at?: string | null;
           pinned?: boolean;
+          review_against?: string | null;
           source?: Json;
           status?: string;
           updated_at?: string;
@@ -1174,6 +1276,14 @@ export type Database = {
         Args: { p_integration_id: string; p_secret: string };
         Returns: string;
       };
+      list_meeting_records: {
+        Args: { p_offset?: number; p_pending?: boolean; p_query?: string };
+        Returns: {
+          meeting: Json;
+          pending_count: number;
+          total_count: number;
+        }[];
+      };
       match_memories: {
         Args: {
           p_embedding: string;
@@ -1192,6 +1302,14 @@ export type Database = {
           source: Json;
         }[];
       };
+      merge_calendar_events: {
+        Args: { p_rows: Json; p_user_id: string };
+        Returns: number;
+      };
+      resolve_memory_review: {
+        Args: { p_choice: string; p_id: string };
+        Returns: undefined;
+      };
       search_chunks_hybrid: {
         Args: {
           p_embedding: string;
@@ -1209,6 +1327,10 @@ export type Database = {
           source_id: string;
           source_type: string;
         }[];
+      };
+      set_meeting_transcript_edit: {
+        Args: { p_key: string; p_meeting_id: string; p_text: string };
+        Returns: undefined;
       };
     };
     Enums: {
