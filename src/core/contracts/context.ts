@@ -16,6 +16,8 @@ export interface ServiceContext {
   timezone: string;
   /** 조립된 레지스트리(다른 모듈의 도구·컨텍스트를 호출할 때) */
   registry: Registry;
+  /** Versions of rows covered by a server-validated user approval. */
+  approvedVersions?: Record<string, string>;
   emit(event: DomainEventInput): Promise<void>;
   enqueue(job: JobInput): Promise<string>;
 }
@@ -31,4 +33,5 @@ export interface UiContext {
 export interface ToolContext extends ServiceContext {
   ui?: UiContext;
   memoryReferences?: Array<{ id: string; title: string }>;
+  latestUserMessage?: { id: string; text: string; threadId?: string };
 }

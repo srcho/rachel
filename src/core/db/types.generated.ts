@@ -34,6 +34,48 @@ export type Database = {
   };
   public: {
     Tables: {
+      agent_tool_approvals: {
+        Row: {
+          created_at: string;
+          expires_at: string;
+          id: string;
+          input: Json;
+          preview: Json;
+          status: string;
+          targets: Json;
+          tool_call_id: string;
+          tool_name: string;
+          turn_key: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          input: Json;
+          preview: Json;
+          status?: string;
+          targets: Json;
+          tool_call_id: string;
+          tool_name: string;
+          turn_key: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          input?: Json;
+          preview?: Json;
+          status?: string;
+          targets?: Json;
+          tool_call_id?: string;
+          tool_name?: string;
+          turn_key?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       agent_tool_runs: {
         Row: {
           created_at: string;
@@ -57,6 +99,87 @@ export type Database = {
           output?: Json | null;
           request_key?: string;
           status?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      assistant_preference_corrections: {
+        Row: {
+          correction_key: string;
+          created_at: string;
+          evidence: Json;
+          id: string;
+          preference_key: string;
+          user_id: string;
+          value: number;
+        };
+        Insert: {
+          correction_key: string;
+          created_at?: string;
+          evidence: Json;
+          id?: string;
+          preference_key: string;
+          user_id: string;
+          value: number;
+        };
+        Update: {
+          correction_key?: string;
+          created_at?: string;
+          evidence?: Json;
+          id?: string;
+          preference_key?: string;
+          user_id?: string;
+          value?: number;
+        };
+        Relationships: [];
+      };
+      assistant_suggestions: {
+        Row: {
+          body: string;
+          created_at: string;
+          dedupe_key: string;
+          evidence: Json;
+          href: string;
+          id: string;
+          kind: string;
+          priority: number;
+          proposal: Json | null;
+          snoozed_until: string | null;
+          status: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          dedupe_key: string;
+          evidence?: Json;
+          href: string;
+          id?: string;
+          kind: string;
+          priority?: number;
+          proposal?: Json | null;
+          snoozed_until?: string | null;
+          status?: string;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          dedupe_key?: string;
+          evidence?: Json;
+          href?: string;
+          id?: string;
+          kind?: string;
+          priority?: number;
+          proposal?: Json | null;
+          snoozed_until?: string | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
           user_id?: string;
         };
         Relationships: [];
@@ -241,6 +364,8 @@ export type Database = {
           last_synced_at: string | null;
           name: string;
           selected: boolean;
+          sync_coverage_from: string | null;
+          sync_coverage_to: string | null;
           sync_token: string | null;
           updated_at: string;
           user_id: string;
@@ -256,6 +381,8 @@ export type Database = {
           last_synced_at?: string | null;
           name: string;
           selected?: boolean;
+          sync_coverage_from?: string | null;
+          sync_coverage_to?: string | null;
           sync_token?: string | null;
           updated_at?: string;
           user_id?: string;
@@ -271,6 +398,8 @@ export type Database = {
           last_synced_at?: string | null;
           name?: string;
           selected?: boolean;
+          sync_coverage_from?: string | null;
+          sync_coverage_to?: string | null;
           sync_token?: string | null;
           updated_at?: string;
           user_id?: string;
@@ -801,6 +930,7 @@ export type Database = {
           audio_uploaded_path: string | null;
           bookmarks: Json;
           calendar_event_id: string | null;
+          content_version: number;
           created_at: string;
           duration_sec: number | null;
           ended_at: string | null;
@@ -808,6 +938,7 @@ export type Database = {
           final_pass_status: string;
           id: string;
           keywords: string[];
+          note_text: string | null;
           provider: string;
           speaker_map: Json;
           started_at: string;
@@ -828,6 +959,7 @@ export type Database = {
           audio_uploaded_path?: string | null;
           bookmarks?: Json;
           calendar_event_id?: string | null;
+          content_version?: number;
           created_at?: string;
           duration_sec?: number | null;
           ended_at?: string | null;
@@ -835,6 +967,7 @@ export type Database = {
           final_pass_status?: string;
           id?: string;
           keywords?: string[];
+          note_text?: string | null;
           provider?: string;
           speaker_map?: Json;
           started_at?: string;
@@ -855,6 +988,7 @@ export type Database = {
           audio_uploaded_path?: string | null;
           bookmarks?: Json;
           calendar_event_id?: string | null;
+          content_version?: number;
           created_at?: string;
           duration_sec?: number | null;
           ended_at?: string | null;
@@ -862,6 +996,7 @@ export type Database = {
           final_pass_status?: string;
           id?: string;
           keywords?: string[];
+          note_text?: string | null;
           provider?: string;
           speaker_map?: Json;
           started_at?: string;
@@ -887,6 +1022,8 @@ export type Database = {
           embedding: string | null;
           id: string;
           importance: number;
+          index_status: string;
+          invalidated_at: string | null;
           kind: string;
           last_used_at: string | null;
           pinned: boolean;
@@ -896,6 +1033,8 @@ export type Database = {
           updated_at: string;
           use_count: number;
           user_id: string;
+          valid_from: string;
+          valid_until: string | null;
         };
         Insert: {
           confirmed_at?: string | null;
@@ -905,6 +1044,8 @@ export type Database = {
           embedding?: string | null;
           id?: string;
           importance?: number;
+          index_status?: string;
+          invalidated_at?: string | null;
           kind: string;
           last_used_at?: string | null;
           pinned?: boolean;
@@ -914,6 +1055,8 @@ export type Database = {
           updated_at?: string;
           use_count?: number;
           user_id?: string;
+          valid_from?: string;
+          valid_until?: string | null;
         };
         Update: {
           confirmed_at?: string | null;
@@ -923,6 +1066,8 @@ export type Database = {
           embedding?: string | null;
           id?: string;
           importance?: number;
+          index_status?: string;
+          invalidated_at?: string | null;
           kind?: string;
           last_used_at?: string | null;
           pinned?: boolean;
@@ -931,6 +1076,59 @@ export type Database = {
           status?: string;
           updated_at?: string;
           use_count?: number;
+          user_id?: string;
+          valid_from?: string;
+          valid_until?: string | null;
+        };
+        Relationships: [];
+      };
+      notification_controls: {
+        Row: {
+          disabled_suggestion_kinds: string[];
+          snoozed_until: string | null;
+          user_id: string;
+        };
+        Insert: {
+          disabled_suggestion_kinds?: string[];
+          snoozed_until?: string | null;
+          user_id: string;
+        };
+        Update: {
+          disabled_suggestion_kinds?: string[];
+          snoozed_until?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      notification_deliveries: {
+        Row: {
+          created_at: string;
+          dedupe_key: string;
+          id: string;
+          kind: string;
+          local_date: string;
+          sent_count: number;
+          status: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          dedupe_key: string;
+          id?: string;
+          kind: string;
+          local_date: string;
+          sent_count?: number;
+          status?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          dedupe_key?: string;
+          id?: string;
+          kind?: string;
+          local_date?: string;
+          sent_count?: number;
+          status?: string;
           user_id?: string;
         };
         Relationships: [];
@@ -1254,6 +1452,17 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      claim_notification_delivery: {
+        Args: {
+          p_at: string;
+          p_key: string;
+          p_kind: string;
+          p_suggestion_id?: string;
+          p_timezone: string;
+          p_user_id: string;
+        };
+        Returns: string;
+      };
       enqueue_job: {
         Args: {
           p_dedupe_key?: string;
@@ -1310,6 +1519,15 @@ export type Database = {
         Args: { p_choice: string; p_id: string };
         Returns: undefined;
       };
+      resolve_preference_suggestion: {
+        Args: {
+          p_accept: boolean;
+          p_id: string;
+          p_user_id: string;
+          p_version: string;
+        };
+        Returns: Json;
+      };
       search_chunks_hybrid: {
         Args: {
           p_embedding: string;
@@ -1331,6 +1549,16 @@ export type Database = {
       set_meeting_transcript_edit: {
         Args: { p_key: string; p_meeting_id: string; p_text: string };
         Returns: undefined;
+      };
+      write_calendar_event: {
+        Args: {
+          p_expected_version?: string;
+          p_id?: string;
+          p_patch: Json;
+          p_prevent_overlap?: boolean;
+          p_user_id: string;
+        };
+        Returns: Json;
       };
     };
     Enums: {
