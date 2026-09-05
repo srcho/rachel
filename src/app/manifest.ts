@@ -13,10 +13,10 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#ffffff",
     lang: "ko",
     icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png" },
+      { src: "/icons/icon-512.png?v=2", sizes: "512x512", type: "image/png" },
       {
-        src: "/icons/maskable-512.png",
+        src: "/icons/maskable-512.png?v=2",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
@@ -25,7 +25,12 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: "Today", url: "/today" },
       { name: "녹음 시작", url: "/meetings" },
-      { name: "인박스", url: "/capture" },
+      {
+        name: "빠른 메모 · 링크 저장",
+        short_name: "빠른 메모",
+        url: "/capture",
+        icons: [{ src: "/icons/icon-192.png?v=2", sizes: "192x192" }],
+      },
     ],
     share_target: {
       action: "/capture",

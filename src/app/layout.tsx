@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "할 일·일정·회의를 기억하고 대신 움직여 주는 개인 비서",
   applicationName: "Rachel",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Rachel" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
+  icons: { apple: "/icons/apple-touch-icon.png?v=2" },
 };
 
 export const viewport: Viewport = {
