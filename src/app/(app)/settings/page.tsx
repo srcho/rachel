@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import { signOut } from "@/core/auth/actions";
 import { requireUser } from "@/core/auth/session";
 import { createServerSupabase } from "@/core/db/server";
+import { AssistantPreferences } from "@/core/settings/AssistantPreferences";
 import { saveBudgetAction, saveHonorificAction } from "@/core/settings/actions";
+import { getUserTimezone } from "@/core/settings/assistant";
 import { getProfileSettings } from "@/core/settings/profile";
 import { Page } from "@/core/ui/Page";
 import { PageHeader } from "@/core/ui/PageHeader";
@@ -20,6 +22,7 @@ export default async function SettingsPage() {
   const user = await requireUser();
   const db = await createServerSupabase();
   const settings = await getProfileSettings(db, user.id);
+  const timezone = await getUserTimezone(db, user.id);
   const sections = registry.settings();
   return (
     <>
@@ -54,6 +57,12 @@ export default async function SettingsPage() {
               저장
             </Button>
           </form>
+        </Panel>
+        <Panel title="비서 선호">
+          <AssistantPreferences
+            preferences={settings.assistant ?? {}}
+            timezone={timezone}
+          />
         </Panel>
         <Panel title="AI 사용량·비용">
           <UsagePanel db={db} userId={user.id} />
